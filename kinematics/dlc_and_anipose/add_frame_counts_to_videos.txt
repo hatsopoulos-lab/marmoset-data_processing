@@ -1,0 +1,1 @@
+ffmpeg -i 2019_04_14_session1_event013_.mp4 -vf "drawtext=fontfile=Arial.ttf: text='%{frame_num}': start_number=0: x=(w-tw)*3/4: y=h-(4*lh): fontcolor=black: fontsize=60: box=1: boxcolor=white: boxborderw=5" -c:a copy 2019_04_14_session1_event013_framecount.mp4
