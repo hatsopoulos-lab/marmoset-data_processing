@@ -1,31 +1,37 @@
 #!/bin/bash
-#SBATCH --job-name=filter_videos_preDLC
-#SBATCH --output=/project/nicho/projects/marmosets/job_log_files/filter_videos_preDLC_%a.out
-#SBATCH --error=/project/nicho/projects/marmosets/job_log_files/filter_videos_preDLC_%a.err
+#SBATCH --job-name=free_video_proc
+#SBATCH --output=/project/nicho/projects/marmosets/job_log_files/free_video_proc_%a.out
+#SBATCH --error=/project/nicho/projects/marmosets/job_log_files/free_video_proc_%a.err
 #SBATCH --time=24:00:00
 #SBATCH --partition=caslake
-#SBATCH --array=1-20
+#SBATCH --array=0-3
 #SBATCH --ntasks=8
 #SBATCH --mem=4G
 #SBATCH --account=pi-nicho
 
-dates='2022_06_17'
-marms='TYJL'
-jpg_dir='/scratch/midway3/daltonm/kinematics_jpgs'
-vid_dir='/project/nicho/data/marmosets/kinematics_videos'
+#------------params that may change for each dataset/experiment----------------------#
+dates=(2022_08_19)
+exp=test_free
+sess=(1)
+calib_name=calib
+scratch_space_username=daltonm
 
-# free experiment params
-free_exp='test_free'
-free_sess='1' 
-free_fps='60'
-free_ncams='3'
-free_vid_transpose='2 2 2' # number of arguments MUST match free_ncams
- 
-# Load the appropriate applications
+#----------------------params that rarely change-------------------------------------#
+marms=TYJL
+fps=60
+ncams=4
+vid_transpose=(2 2 1 1)  # number of arguments MUST match ncams 
+
+#-----------paths to input and output data, and to processing scripts----------------#
+jpg_dir=/scratch/midway3/$scratch_space_username/kinematics_jpgs
+vid_dir=/project/nicho/data/marmosets/kinematics_videos
+video_processing=/project/nicho/projects/marmosets/code_database/data_processing/kinematics/video_processing
+
+#------------Load the appropriate applications---------------------------------------#
 module load python/anaconda-2021.05 
 source activate /project/nicho/environments/dlc
 
-# Execute the program
-python /project/nicho/projects/marmosets/code_database/data_processing/kinematics/jpg2avi.py -j $jpg_dir -v $vid_dir -m $marms -d $dates -e $free_exp -s $free_sess -f $free_fps -n $free_ncams -t $free_vid_transpose   
-python /project/nicho/projects/marmosets/code_database/data_processing/kinematics/apply_clahe_filter_to_videos.py -i $vid_dir/$free_exp/$marms/ -d $dates
-python /project/nicho/projects/marmosets/code_database/data_processing/kinematics/recompress_filtered_avi.py      -i $vid_dir/$free_exp/$marms/ -d $dates
+#---------------------Execute the programs-------------------------------------------#
+python $video_processing/jpg2avi.py -j $jpg_dir -v $vid_dir -m $marms -d ${dates[@]} -e $exp -s ${sess[@]} -f $fps -n $ncams -t ${vid_transpose[@]} -c $calib_name
+python $video_processing/apply_clahe_filter_to_videos.py -i $vid_dir/$exp/$marms/ -d ${dates[@]}
+python $video_processing/recompress_filtered_avi.py      -i $vid_dir/$exp/$marms/ -d ${dates[@]}

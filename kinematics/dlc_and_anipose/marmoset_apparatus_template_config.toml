@@ -1,0 +1,51 @@
+project = 'simple_joints_model'
+
+model_folder = '/project/nicho/projects/marmosets/dlc_project_files/simple_joints_model-Dalton-2021-04-08' 
+
+nesting = 0
+video_extension = 'avi'
+
+[pipeline]
+videos_raw = "avi_videos"
+pose_2d = "pose-2d-viterbi"
+pose_2d_filter = "pose-2d-viterbi_and_autoencoder"
+
+[calibration]
+board_type = "checkerboard"
+board_size = [ 9, 6,]
+board_marker_bits = 4
+board_marker_dict_number = 50
+board_marker_length = 10
+board_square_side_length = 10
+animal_calibration = false
+fisheye = true
+
+[filter]
+enabled = true
+type = "autoencoder"
+autoencoder_path = "autoencoder.pickle"
+medfilt = 13
+offset_threshold = 20
+score_threshold = 0.05
+n_back = 5
+spline = true
+
+[labeling]
+scheme = [ [ "head_front", "head_cutout_left_corner", "head_under_tab",], [ "shoulder", "elbow", "hand",], [ "origin", "y", "x",],]
+
+[triangulation]
+triangulate = true
+cam_regex = "cam([0-9])"
+cam_align = "cam1"
+ransac = false
+optim = true
+constraints = [ [ "head_front", "head_cutout_left_corner",], [ "head_front", "head_under_tab",], [ "head_cutout_left_corner", "head_under_tab",], [ "origin", "x",], [ "origin", "y",], [ "x", "y",],]
+scale_smooth = 4
+scale_length = 6
+scale_length_weak = 0.5
+reproj_error_threshold = 8
+score_threshold = 0.3
+n_deriv_smooth = 2
+axes = [ [ "x", "y", "x",], [ "y", "origin", "y",],]
+reference_point = "origin"
+
