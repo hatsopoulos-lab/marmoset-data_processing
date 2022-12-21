@@ -21,7 +21,8 @@ def compute_pose_with_anipose(anipose_args):
         test_params = {'offset_threshold'       : 20, 
                        'n_back'                 : 5, 
                        'scale_smooth'           : 4, 
-                       'scale_length'           : 6, 
+                       'scale_length'           : 2,
+                       'scale_length_weak'      : 0,
                        'reproj_error_threshold' : 8,
                        'score_threshold'        : 0.3} 
     elif 'bci' in anipose_args['parameter_set'].lower():
@@ -57,6 +58,7 @@ def compute_pose_with_anipose(anipose_args):
     ani_cfg = toml.load(ani_config) 
     for cat, key, param in zip(param_category, param_names, param_values):
         ani_cfg[cat][key] = param
+    ani_cfg['model_folder'] = anipose_args['projectpath']
     with open(ani_config, 'w') as f:
         toml.dump(ani_cfg, f)
 
@@ -64,14 +66,14 @@ def compute_pose_with_anipose(anipose_args):
     
     print(os.getcwd(), flush=True)
     if not anipose_args['only_3D']:        
-        subprocess.call(['anipose', 'analyze'])
  
         ani_cfg['filter']['type'] = 'viterbi'
         ani_cfg['pipeline']['pose_2d_filter'] = 'pose-2d-viterbi'
         ani_cfg['pipeline']['pose_2d'] = 'pose-2d-unfiltered'
         with open(ani_config, 'w') as f:
             toml.dump(ani_cfg, f)
- 
+
+        subprocess.call(['anipose', 'analyze'])
         subprocess.call(['anipose', 'filter'])     
     
         ani_cfg['filter']['type'] = 'autoencoder'
@@ -91,9 +93,11 @@ def compute_pose_with_anipose(anipose_args):
     subprocess.call(['anipose', 'triangulate']) 
     
     if anipose_args['label_videos']:
+        subprocess.call(['anipose', 'project-2d']) 
+        subprocess.call(['anipose', 'label-2d-proj']) 
         subprocess.call(['anipose', 'label-2d-filter']) 
-        subprocess.call(['anipose', 'label-3d']) 
-        subprocess.call(['anipose', 'label-combined']) 
+        # subprocess.call(['anipose', 'label-3d']) 
+        # subprocess.call(['anipose', 'label-combined']) 
                 
     os.remove(os.path.join(aniposepath, 'autoencoder.pickle'))
     
@@ -107,7 +111,7 @@ def compute_pose_with_anipose(anipose_args):
     # ani_cfg['pipeline']['pose_2d_filter'] = 'pose-2d-viterbi'
     # ani_cfg['pipeline']['pose_2d'] = 'pose-2d-unfiltered'
     # with open(ani_config, 'w') as f:
-        # toml.dump(ani_cfg, f)
+    #     toml.dump(ani_cfg, f)
 
 def convert_string_inputs_to_int_float_or_bool(orig_var):
     if type(orig_var) == str:

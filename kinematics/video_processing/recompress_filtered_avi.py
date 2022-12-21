@@ -41,6 +41,11 @@ if __name__ == '__main__':
     task_videos       = videos      [task_idx_cutoffs[task_id] : task_idx_cutoffs[task_id+1]]    
     task_final_videos = final_videos[task_idx_cutoffs[task_id] : task_idx_cutoffs[task_id+1]]
     
+    print(task_idx_cutoffs)
+    print(task_idx_cutoffs[task_id])
+    print('creating avi videos %s thru %s' % (os.path.basename(task_final_videos[0]), 
+                                              os.path.basename(task_final_videos[-1])))
+        
     prev_sum_video_sizes = 0
     updated_sum = 10
     while updated_sum  > prev_sum_video_sizes or any(np.array([os.path.getsize(f) for f in final_videos if os.path.exists(f)]) < 10000):
@@ -56,6 +61,7 @@ if __name__ == '__main__':
         time.sleep(10)
 
         updated_sum = sum(os.path.getsize(f) for f in final_videos if os.path.exists(f))
+
     
     # for vidPath in videos:
     #     try:
@@ -67,4 +73,6 @@ if __name__ == '__main__':
     #     os.rmdir(os.rmdir(os.path.dirname(videos[0])))
     # except:
     #     pass
+
+    print('\n\n Ending recompression code at %s\n\n' % time.strftime('%c', time.localtime()), flush=True)
 

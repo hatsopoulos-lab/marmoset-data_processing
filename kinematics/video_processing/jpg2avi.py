@@ -36,77 +36,178 @@ def convert_jpg_to_video(jpg_dir, vid_dir, marms, dates, exp, session_nums, fps,
         os.makedirs(video_path, exist_ok=True)
         os.makedirs(drop_record_path, exist_ok=True)
         os.makedirs(calibration_path, exist_ok=True)
+
+        # collect all session_event_cam combinations and assign idx cutoffs to each slurm task
+        video_conv_info = {'jpgPatterns': [],
+                           'outVidPaths': [],
+                           'transpose'  : []}
+        for sNum in session_nums:
+            jpg_path = os.path.join(jpg_dir, '%s/%s/%s/session%d' % (exp, marms, date, sNum))
+
+            for cam, trans in zip(range(1, ncams+1), transpose):
+                event_pattern      = re.compile('event_\d{3}')
+                start_time_pattern = re.compile('\d{4}-\d{2}.jpg')
+
+                # print(os.path.join(jpg_path, 'jpg_cam%d' % cam, '*'), flush=True)
+
+                jpg_file = sorted(glob.glob(os.path.join(jpg_path, 'jpg_cam%d' % cam, '*')))[-1]
+                lastEvent = int(re.findall(event_pattern, jpg_file)[0].split('event_')[-1])
+                                
+                # If you want to change filename conventions or video params, this is where to do so (in the ffmpeg line). 
+                # -s flag adjusts resolution. 
+                # -pattern_type glob grabs all filenames that start as written and end in .jpg, and turns these into a video. 
+                # -crf flag changes the compression ratio, with higher numbers = more compression. 
+                # -vcodec changes the video codec used, i wouldn't touch this unless you get an error. 
+                # The last argument is the filepath for the video to be stored.     
+                for eNum in range(1, lastEvent+1):
+                    event=str(eNum).zfill(3)
+                    cam_img_path = os.path.join(jpg_path, 'jpg_cam%d' % cam)
+                    tmp_event_image_file = glob.glob(os.path.join(cam_img_path, '*cam%d_event_%s*' % (cam, event)))[0]
+                    start_time = re.findall(start_time_pattern, tmp_event_image_file)[0].split('.jpg')[0]
+                    outvidfile = os.path.join(video_path, '%s_%s_%s_%s_s%d_e%s_cam%d.%s' % (marms, date, start_time, exp, sNum, event, cam, video_ext))
+                    inPattern = os.path.join(cam_img_path, '%s_%s_%s_session_%d_cam%d_event_%s_frame_*' % (marms, date, exp, sNum, cam, event))
+                    
+                    video_conv_info['jpgPatterns'].append(inPattern)
+                    video_conv_info['outVidPaths'].append(outvidfile)
+                    video_conv_info['transpose'].append(trans)
+
+        idx_cutoffs = np.floor(np.linspace(0, len(video_conv_info['transpose']), n_tasks+1))   
+        idx_cutoffs = [int(cut) for cut in idx_cutoffs]
         
+        # print(idx_cutoffs, len(video_conv_info['transpose']))
+
+        # print(task_id)
+        # print(idx_cutoffs[task_id])
+        print('creating avi videos %s thru %s' % (os.path.basename(video_conv_info['outVidPaths'][idx_cutoffs[task_id  ]]), 
+                                                  os.path.basename(video_conv_info['outVidPaths'][idx_cutoffs[task_id+1] - 1])))
+                
         prev_sum_video_sizes = 0
         updated_sum = 10
         while updated_sum > prev_sum_video_sizes or any(np.array([os.path.getsize('%s/%s' % (video_path, f)) for f in os.listdir('%s/.' % video_path)]) < 10000): 
             prev_sum_video_sizes = sum(os.path.getsize('%s/%s' % (video_path, f)) for f in os.listdir('%s/.' % video_path))
-            for sNum in session_nums:
-                jpg_path = os.path.join(jpg_dir, '%s/%s/%s/session%d' % (exp, marms, date, sNum))
 
-                for cam, trans in zip(range(1, ncams+1), transpose):
-                    event_pattern      = re.compile('event_\d{3}')
-                    start_time_pattern = re.compile('\d{4}-\d{2}.jpg')
-
-                    # print(os.path.join(jpg_path, 'jpg_cam%d' % cam, '*'), flush=True)
-
-                    jpg_file = sorted(glob.glob(os.path.join(jpg_path, 'jpg_cam%d' % cam, '*')))[-1]
-                    lastEvent = int(re.findall(event_pattern, jpg_file)[0].split('event_')[-1])
+            for video_idx in range(idx_cutoffs[task_id], idx_cutoffs[task_id+1]):
+                # If you want to change filename conventions or video params, this is where to do so (in the ffmpeg line). 
+                # -s flag adjusts resolution. 
+                # -pattern_type glob grabs all filenames that start as written and end in .jpg, and turns these into a video. 
+                # -crf flag changes the compression ratio, with higher numbers = more compression. 
+                # -vcodec changes the video codec used, i wouldn't touch this unless you get an error. 
+                # The last argument is the filepath for the video to be stored.     
                 
-                    event_cutoffs = np.floor(np.linspace(1, lastEvent+1, n_tasks+1))   
-                    event_cutoffs = [int(cut) for cut in event_cutoffs]
-                
-                    print('creating avi videos for %s, session %s, cam %d, events %d thru %d' % (date, sNum, cam, event_cutoffs[task_id], event_cutoffs[task_id+1]-1))
-                
-                    # If you want to change filename conventions or video params, this is where to do so (in the ffmpeg line). 
-                    # -s flag adjusts resolution. 
-                    # -pattern_type glob grabs all filenames that start as written and end in .jpg, and turns these into a video. 
-                    # -crf flag changes the compression ratio, with higher numbers = more compression. 
-                    # -vcodec changes the video codec used, i wouldn't touch this unless you get an error. 
-                    # The last argument is the filepath for the video to be stored.     
-                    for eNum in range(event_cutoffs[task_id], event_cutoffs[task_id+1]):#range(1, lastEvent+1):
-                        event=str(eNum).zfill(3)
-                        cam_img_path = os.path.join(jpg_path, 'jpg_cam%d' % cam)
-                        tmp_event_image_file = glob.glob(os.path.join(cam_img_path, '*cam%d_event_%s*' % (cam, event)))[0]
-                        start_time = re.findall(start_time_pattern, tmp_event_image_file)[0].split('.jpg')[0]
-                        outvidfile = os.path.join(video_path, '%s_%s_%s_%s_s%d_e%s_cam%d.%s' % (marms, date, start_time, exp, sNum, event, cam, video_ext))
-                        if os.path.exists(outvidfile):
-                            # print('%s already exists - skipping' % outvidfile, flush=True)
-                            time.sleep(1)
-                            updated_sum = sum(os.path.getsize('%s/%s' % (video_path, f)) for f in os.listdir('%s/.' % video_path))
-                            continue
-                        else:
-                            print('Creating %s' % outvidfile, flush=True)
+                outvidfile = video_conv_info['outVidPaths'][video_idx]
+                inPattern  = video_conv_info['jpgPatterns'][video_idx]
+                trans      = video_conv_info['transpose'  ][video_idx] 
+                                
+                if os.path.exists(outvidfile):
+                    # print('%s already exists - skipping' % outvidfile, flush=True)
+                    time.sleep(1)
+                    updated_sum = sum(os.path.getsize('%s/%s' % (video_path, f)) for f in os.listdir('%s/.' % video_path))
+                    continue
+                else:
+                    print('Creating %s' % outvidfile, flush=True)
 
-                        subprocess.call(['python',  
-                                         os.path.join(paths.processing_code, 'fix_drops_during_vid_conversion.py'), 
-                                         os.path.join(cam_img_path, '%s_%s_%s_session_%d_cam%d_event_%s_frame_*' % (marms, date, exp, sNum, cam, event)), 
-                                         drop_record_path,
-                                         str(fps)])
+                subprocess.call(['python',  
+                                 os.path.join(paths.processing_code, 'fix_drops_during_vid_conversion.py'), 
+                                 inPattern, 
+                                 drop_record_path,
+                                 str(fps)])
+            
+                if int(trans) == -1: 
+                    subprocess.call(['ffmpeg', 
+                                     '-r', str(fps), 
+                                     '-f', 'image2', 
+                                     '-s', '1440x1080', 
+                                     '-pattern_type', 'glob',
+                                     '-i', '%s.jpg' % inPattern, 
+                                     '-crf', '15',
+                                     '-vcodec', 'libx264', 
+                                     outvidfile])
+                else:
+                    subprocess.call(['ffmpeg', 
+                                     '-r', str(fps), 
+                                     '-f', 'image2', 
+                                     '-s', '1440x1080', 
+                                     '-pattern_type', 'glob',
+                                     '-i', '%s.jpg' % inPattern, 
+                                     '-vf', 'transpose=%s' % trans,
+                                     '-crf', '15',
+                                     '-vcodec', 'libx264', 
+                                     outvidfile])
+                
+                updated_sum = sum(os.path.getsize('%s/%s' % (video_path, f)) for f in os.listdir('%s/.' % video_path))
+
+        # prev_sum_video_sizes = 0
+        # updated_sum = 10
+        # while updated_sum > prev_sum_video_sizes or any(np.array([os.path.getsize('%s/%s' % (video_path, f)) for f in os.listdir('%s/.' % video_path)]) < 10000): 
+        #     prev_sum_video_sizes = sum(os.path.getsize('%s/%s' % (video_path, f)) for f in os.listdir('%s/.' % video_path))
+        #     for sNum in session_nums:
+        #         jpg_path = os.path.join(jpg_dir, '%s/%s/%s/session%d' % (exp, marms, date, sNum))
+
+        #         for cam, trans in zip(range(1, ncams+1), transpose):
+        #             event_pattern      = re.compile('event_\d{3}')
+        #             start_time_pattern = re.compile('\d{4}-\d{2}.jpg')
+
+        #             # print(os.path.join(jpg_path, 'jpg_cam%d' % cam, '*'), flush=True)
+
+        #             jpg_file = sorted(glob.glob(os.path.join(jpg_path, 'jpg_cam%d' % cam, '*')))[-1]
+        #             lastEvent = int(re.findall(event_pattern, jpg_file)[0].split('event_')[-1])
+                                    
+        #             event_cutoffs = np.floor(np.linspace(1, lastEvent+1, n_tasks+1))   
+        #             event_cutoffs = [int(cut) for cut in event_cutoffs]
                     
-                        if int(trans) == -1: 
-                            subprocess.call(['ffmpeg', 
-                                             '-r', str(fps), 
-                                             '-f', 'image2', 
-                                             '-s', '1440x1080', 
-                                             '-pattern_type', 'glob',
-                                             '-i', os.path.join(cam_img_path, '%s_%s_%s_session_%d_cam%d_event_%s_frame_*.jpg' % (marms, date, exp, sNum, cam, event)), 
-                                             '-crf', '15',
-                                             '-vcodec', 'libx264', 
-                                             outvidfile])
-                        else:
-                            subprocess.call(['ffmpeg', 
-                                             '-r', str(fps), 
-                                             '-f', 'image2', 
-                                             '-s', '1440x1080', 
-                                             '-pattern_type', 'glob',
-                                             '-i', os.path.join(cam_img_path, '%s_%s_%s_session_%d_cam%d_event_%s_frame_*.jpg' % (marms, date, exp, sNum, cam, event)), 
-                                             '-vf', 'transpose=%s' % trans,
-                                             '-crf', '15',
-                                             '-vcodec', 'libx264', 
-                                             outvidfile])
+        #             print(event_cutoffs)
+        #             print('creating avi videos for %s, session %s, cam %d, events %d thru %d' % (date, sNum, cam, event_cutoffs[task_id], event_cutoffs[task_id+1]-1))
+                    
+        #             # If you want to change filename conventions or video params, this is where to do so (in the ffmpeg line). 
+        #             # -s flag adjusts resolution. 
+        #             # -pattern_type glob grabs all filenames that start as written and end in .jpg, and turns these into a video. 
+        #             # -crf flag changes the compression ratio, with higher numbers = more compression. 
+        #             # -vcodec changes the video codec used, i wouldn't touch this unless you get an error. 
+        #             # The last argument is the filepath for the video to be stored.     
+        #             for eNum in range(event_cutoffs[task_id], event_cutoffs[task_id+1]):#range(1, lastEvent+1):
+        #                 event=str(eNum).zfill(3)
+        #                 cam_img_path = os.path.join(jpg_path, 'jpg_cam%d' % cam)
+        #                 tmp_event_image_file = glob.glob(os.path.join(cam_img_path, '*cam%d_event_%s*' % (cam, event)))[0]
+        #                 start_time = re.findall(start_time_pattern, tmp_event_image_file)[0].split('.jpg')[0]
+        #                 outvidfile = os.path.join(video_path, '%s_%s_%s_%s_s%d_e%s_cam%d.%s' % (marms, date, start_time, exp, sNum, event, cam, video_ext))
+        #                 inPattern = os.path.join(cam_img_path, '%s_%s_%s_session_%d_cam%d_event_%s_frame_*' % (marms, date, exp, sNum, cam, event))
+        #                 if os.path.exists(outvidfile):
+        #                     # print('%s already exists - skipping' % outvidfile, flush=True)
+        #                     time.sleep(1)
+        #                     updated_sum = sum(os.path.getsize('%s/%s' % (video_path, f)) for f in os.listdir('%s/.' % video_path))
+        #                     continue
+        #                 else:
+        #                     print('Creating %s' % outvidfile, flush=True)
+
+        #                 subprocess.call(['python',  
+        #                                  os.path.join(paths.processing_code, 'fix_drops_during_vid_conversion.py'), 
+        #                                  inPattern, 
+        #                                  drop_record_path,
+        #                                  str(fps)])
+                    
+        #                 if int(trans) == -1: 
+        #                     subprocess.call(['ffmpeg', 
+        #                                      '-r', str(fps), 
+        #                                      '-f', 'image2', 
+        #                                      '-s', '1440x1080', 
+        #                                      '-pattern_type', 'glob',
+        #                                      '-i', inPattern, 
+        #                                      '-crf', '15',
+        #                                      '-vcodec', 'libx264', 
+        #                                      outvidfile])
+        #                 else:
+        #                     subprocess.call(['ffmpeg', 
+        #                                      '-r', str(fps), 
+        #                                      '-f', 'image2', 
+        #                                      '-s', '1440x1080', 
+        #                                      '-pattern_type', 'glob',
+        #                                      '-i', inPattern, 
+        #                                      '-vf', 'transpose=%s' % trans,
+        #                                      '-crf', '15',
+        #                                      '-vcodec', 'libx264', 
+        #                                      outvidfile])
                         
-                        updated_sum = sum(os.path.getsize('%s/%s' % (video_path, f)) for f in os.listdir('%s/.' % video_path))
+        #                 updated_sum = sum(os.path.getsize('%s/%s' % (video_path, f)) for f in os.listdir('%s/.' % video_path))
         
         if calib_name is None:
             continue

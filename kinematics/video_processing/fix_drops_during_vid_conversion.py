@@ -67,13 +67,16 @@ if len(dropFrames) > 0:
         for copyNum in range(1, frameDiffs[dFr]):
             newFrame = lastGoodFrame + copyNum
             newFile = lastGoodFile.replace('frame_'+str(lastGoodFrame).zfill(7), 'frame_'+str(newFrame).zfill(7))
-            newFile = newFile.replace('currentTime_'+str(lastGoodTime), 'currentTime_'+str(lastGoodTime + period_ns*copyNum))
+            newFile = newFile.replace('currentTime_'+str(lastGoodTime), 'currentTime_'+str(int(lastGoodTime + period_ns*copyNum)))
 
             shutil.copyfile(lastGoodFile, newFile)
             
             dropRecord.append(newFrame)
     
     dropRecord = sorted(dropRecord)
+
+    if dropRecord[-1] == dropRecord[-2]:
+        dropRecord = dropRecord[:-1]
 
     for fr in dropRecord:
         f.write(str(fr) + ',') 

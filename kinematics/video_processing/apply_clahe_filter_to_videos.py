@@ -83,6 +83,11 @@ if __name__ == '__main__':
     task_videos        = videos       [task_idx_cutoffs[task_id] : task_idx_cutoffs[task_id+1]]    
     task_bright_videos = bright_videos[task_idx_cutoffs[task_id] : task_idx_cutoffs[task_id+1]]
     
+    print(task_id)
+    print(task_idx_cutoffs[task_id])
+    print('creating avi videos %s thru %s' % (os.path.basename(task_bright_videos[0]), 
+                                              os.path.basename(task_bright_videos[-1])))
+    
     prev_sum_video_sizes = 0
     updated_sum = 10
     while updated_sum > prev_sum_video_sizes or any(np.array([os.path.getsize(f) for f in bright_videos if os.path.exists(f)]) < 10000):
