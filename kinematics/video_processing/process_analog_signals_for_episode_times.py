@@ -8,6 +8,7 @@ Created on Mon Apr 13 15:27:47 2020
 
 ##### Need to test the two versions of mat files to see if they are providing the same information
 
+import cv2
 import numpy as np
 import pandas as pd
 from pandas import HDFStore
@@ -20,7 +21,6 @@ import subprocess
 from scipy.io import savemat, loadmat
 import os
 import glob
-import cv2
 import re
 import time
 from scipy.signal import savgol_filter
@@ -42,8 +42,8 @@ class params:
     free_chans = [1]
     app_chans = [0]
     BeTL_chans = [2]
-    num_app_cams = 5
-    num_free_cams = 4
+    num_app_cams = 2
+    num_free_cams = 2
     nsx_filetype = 'ns6'
 
     minimum_free_session_minutes = 5
@@ -56,7 +56,7 @@ def get_filepaths(ephys_path, kin_path, marms_ephys_code, marms_kin_code, dates)
     ephys_folders = [fold for fold in ephys_folders 
                      if re.findall(datePattern, os.path.basename(fold))[0] in dates
                      and any(exp in os.path.basename(fold).lower() for exp in experiments)]    
-
+    print(ephys_folders)
     kin_outer_folders = sorted(glob.glob(os.path.join(kin_path, '*')))
     kin_outer_folders = [fold for fold in kin_outer_folders if any(exp in os.path.basename(fold).lower() for exp in experiments)]
     kin_folders = []
@@ -101,7 +101,7 @@ def store_drop_records(timestamps, dropframes_proc_mod, drop_record_folder, exp_
     return
             
             
-def timestamps_to_nwb(nwbfile_path, kin_folders, saveData):
+def timestamps_to_nwb(nwbfile_path, kin_folders, saveData, expNames):
     ###### TO NWB ######
     # open the NWB file in r+ mode    
 
@@ -113,6 +113,8 @@ def timestamps_to_nwb(nwbfile_path, kin_folders, saveData):
                 nwbfile = io.read()
                 
                 file_error = False
+                
+                nwbfile.keywords = expNames
                 
                 # create a TimeSeries and add it to the processing module 'episode_timestamps_EXPNAME'
                 sessPattern = re.compile('[0-9]{3}.nwb') 
@@ -223,9 +225,7 @@ def timestamps_to_nwb(nwbfile_path, kin_folders, saveData):
                             # )
                             
                             # behavior_pm.add(pe)
-        
-                # read_nwbfile.add_acquisition(test_ts)
-            
+                    
                 # write the modified NWB file
                 # behavior_pm.add(position_series)
                 io.write(nwbfile)        
@@ -340,19 +340,36 @@ def clean_remaining_spurious_signals(eventTimes, allExp_signalTimes, allExp_fram
             keep_signal_idxs = [i for i in range(len(nsxCount)) if i not in remove_signal_idxs]
             keep_signal_idxs = keep_signal_idxs[ : fCounts.shape[0]]
             
-            expEventCounters = [0]*int(len(eventTimes) / chans_per_sess)
+            print('length of event times = %d, chans_per_sess = %d' % (len(eventTimes), chans_per_sess))
+            sessEventCounters = [0]*int(len(eventTimes) / chans_per_sess)
             for chanIdx, evTimes in enumerate(eventTimes):
                 if chanIdx % chans_per_sess == expNum:
-                    tmp_keep_idxs   = [i - expEventCounters[expNum] for i in keep_signal_idxs   
-                                       if i >= expEventCounters[expNum] and i < evTimes.shape[-1] + expEventCounters[expNum]]
+                    sessNum = int(np.floor(chanIdx / chans_per_sess))
+                    print(sessNum, evTimes.shape, len(sessEventCounters), sessEventCounters)
+                    tmp_keep_idxs   = [i - sessEventCounters[sessNum] for i in keep_signal_idxs   
+                                       if i >= sessEventCounters[sessNum] and i < evTimes.shape[-1] + sessEventCounters[sessNum]]
                     
-                    tmp_remove_idxs = [i - expEventCounters[expNum] for i in remove_signal_idxs 
-                                       if i >= expEventCounters[expNum] and i < evTimes.shape[-1] + expEventCounters[expNum]]
+                    tmp_remove_idxs = [i - sessEventCounters[sessNum] for i in remove_signal_idxs 
+                                       if i >= sessEventCounters[sessNum] and i < evTimes.shape[-1] + sessEventCounters[sessNum]]
                     
                     removed_eventTimes.append(eventTimes[chanIdx][:, tmp_remove_idxs])
                     eventTimes[chanIdx] = eventTimes[chanIdx][:, tmp_keep_idxs] 
                     
-                    expEventCounters[expNum] += evTimes.shape[-1]
+                    sessEventCounters[sessNum] += evTimes.shape[-1]
+            # expEventCounters = [0]*int(len(eventTimes) / chans_per_sess)
+            # for chanIdx, evTimes in enumerate(eventTimes):
+            #     if chanIdx % chans_per_sess == expNum:
+            #         print(expNum, evTimes.shape, len(expEventCounters), expEventCounters)
+            #         tmp_keep_idxs   = [i - expEventCounters[expNum] for i in keep_signal_idxs   
+            #                            if i >= expEventCounters[expNum] and i < evTimes.shape[-1] + expEventCounters[expNum]]
+                    
+            #         tmp_remove_idxs = [i - expEventCounters[expNum] for i in remove_signal_idxs 
+            #                            if i >= expEventCounters[expNum] and i < evTimes.shape[-1] + expEventCounters[expNum]]
+                    
+            #         removed_eventTimes.append(eventTimes[chanIdx][:, tmp_remove_idxs])
+            #         eventTimes[chanIdx] = eventTimes[chanIdx][:, tmp_keep_idxs] 
+                    
+            #         expEventCounters[expNum] += evTimes.shape[-1]
     
     return eventTimes, removed_eventTimes 
 
@@ -515,7 +532,7 @@ def get_video_frame_counts(matched_kinFolders, expNames):
         vidPaths = []
         colNames = []
         for cNum in range(num_cams):
-            tmp_vidPaths = glob.glob(os.path.join(kFold, 'avi_videos', f'*cam{cNum+1}.avi'))           
+            tmp_vidPaths = glob.glob(os.path.join(kFold, 'avi_videos', f'*cam{cNum+1}*.avi'))           
             sortStr = [] 
             for vPath in tmp_vidPaths:
                 try:
@@ -656,6 +673,7 @@ def load_touchscreen_data(touchscreen_path, date):
 
 def reorder_signals_in_lists(allExp_frameCounts, allExp_vidPaths, expNames, maxEvent_camNum):
     numEvents = np.array([fCounts.shape[0] for fCounts in allExp_frameCounts])
+    print(np.where(np.logical_or(numEvents == 1, numEvents == np.min(numEvents)))[0])
     free_idx = int(np.where(np.logical_or(numEvents == 1, numEvents == np.min(numEvents)))[0])
     if free_idx != params.free_chans[0]:
         fIdx = params.free_chans[0]
@@ -663,6 +681,8 @@ def reorder_signals_in_lists(allExp_frameCounts, allExp_vidPaths, expNames, maxE
         allExp_vidPaths[fIdx], allExp_vidPaths[free_idx] = allExp_vidPaths[free_idx], allExp_vidPaths[fIdx] 
         expNames[fIdx], expNames[free_idx] = expNames[free_idx], expNames[fIdx]
         maxEvent_camNum[fIdx], maxEvent_camNum[free_idx] = maxEvent_camNum[free_idx], maxEvent_camNum[fIdx]
+
+        free_idx = fIdx
     
     return allExp_frameCounts, allExp_vidPaths, expNames, maxEvent_camNum, free_idx
 
@@ -684,16 +704,19 @@ def wait_for_all_batch_jobs_to_finish_video_conversion(matched_kinFolders):
     stopwatch    = 0    
     while not all(videos_done):
         for idx, kFold in enumerate(matched_kinFolders): 
-            print(idx, kFold, videos_done, stopwatch)
+            print(idx, kFold, videos_done[idx], stopwatch)
             video_path = os.path.join(kFold, 'avi_videos')           
             
             updated_sum [idx] = sum(os.path.getsize('%s/%s' % (video_path, f)) for f in os.listdir('%s/.' % video_path))
             videos_done [idx] = (updated_sum[idx] == previous_sum[idx])
             previous_sum[idx] = updated_sum[idx]
-    
-        print('At least one experiment is still adding videos to avi_videos. Looping for another %f minutes. Time elapsed = %f minutes' % (time_to_wait / 60, stopwatch/60), flush=True)
+        
+        if stopwatch>time_to_wait*2:
+            print('At least one experiment is still adding videos to avi_videos. Looping for another %f minutes. Time elapsed = %f minutes' % (time_to_wait / 60, stopwatch/60), flush=True)
         time.sleep(time_to_wait)
         stopwatch += time_to_wait
+        
+    print('\nAll videos completed. Moving on.\n')
     
     return
 
@@ -745,12 +768,34 @@ if __name__ == '__main__':
      	help="path to directory holding kinematic data")
     ap.add_argument("-np", "--neur_proc_path", required=True, type=str,
      	help="path to directory holding neural processing code")
+    ap.add_argument("-meta", "--meta_path", required=True, type=str,
+        help="path to metadata yml file to be added to NWB file, e.g. /project/nicho/projects/marmosets/code_database/data_processing/nwb_tools/marms_complete_metadata.yml")
+    ap.add_argument("-prb", "--prb_path" , required=True, type=str,
+        help="path to .prb file that provides probe/channel info to NWB file, e.g. /project/nicho/data/marmosets/prbfiles/MG_array.prb")
     args = vars(ap.parse_args())
+
+    # args = {'vid_dir'        : '/project/nicho/data/marmosets/kinematics_videos',
+    #         'ephys_path'     : '/project/nicho/data/marmosets/electrophys_data_for_processing',
+    #         'marms'          : 'TYJL',
+    #         'marms_ephys'    : 'TY',
+    #         'dates'          : ['2021_02_11'],
+    #         'exp_name'       : 'moths',
+    #         'other_exp_name' : 'free',
+    #         'touchscreen'    : 'False',
+    #         'touchscreen_path' : 'BLANK',
+    #         'neur_proc_path'   : '/project/nicho/projects/marmosets/code_database/data_processing/neural',
+    #         'meta_path'        : '/project/nicho/projects/marmosets/code_database/data_processing/nwb_tools/TY_complete_metadata.yml',
+    #         'prb_path'         : '/project/nicho/data/marmosets/prbfiles/TY_02.prb',
+    #         'debugging'        : True}
+
     
     touchscreen = convert_string_inputs_to_int_float_or_bool(args['touchscreen'])
     
-    task_id = int(os.getenv('SLURM_ARRAY_TASK_ID'))
-    # task_id = 0
+    try:
+        task_id = int(os.getenv('SLURM_ARRAY_TASK_ID'))
+    except:
+        task_id = 0
+            
     if task_id == 0:    
 
         print('\n\n Beginning process_analog_signals_for_episode_times.py at %s\n\n' % time.strftime('%c', time.localtime()), flush=True)
@@ -759,34 +804,30 @@ if __name__ == '__main__':
         nsx_filetype = 'ns6'
     
         experiments = [args['exp_name'], args['other_exp_name']]
-        
+        print(args['ephys_path'])
         ephys_folders, kin_folders = get_filepaths(args['ephys_path'], args['vid_dir'], args['marms_ephys'], args['marms'], args['dates'])    
-        
-        print('check1', flush=True)
+        print(ephys_folders)
         for eFold in ephys_folders:
             date = re.findall(datePattern, os.path.basename(eFold))[0]
             print(f'working on {date}')
             matched_kinFolders = [kFold for kFold in kin_folders if os.path.basename(kFold)[:10].replace('_', '') == date]
             expNames = [kinFold.split('/')[-3] for kinFold in matched_kinFolders]
         
-            print('check2', flush=True)
+            print(expNames)
+            print(matched_kinFolders)
             wait_for_all_batch_jobs_to_finish_video_conversion(matched_kinFolders)
         
             if touchscreen:
                 ts_trialData = load_touchscreen_data(args['touchscreen_path'], date)
-            print('check3', flush=True)
             allExp_vidPaths, allExp_frameCounts, maxEvent_camNum = get_video_frame_counts(matched_kinFolders, expNames)
-            print('check4', flush=True)
             analogFiles, allExp_signalTimes, eventTimes, breakTimes, session, numSessions, chans_per_sess = get_analog_frame_counts_and_timestamps(eFold)
         
-            print('check5', flush=True)    
             allExp_frameCounts, allExp_vidPaths, expNames, maxEvent_camNum, free_idx = reorder_signals_in_lists(allExp_frameCounts, 
                                                                                                                 allExp_vidPaths, 
                                                                                                                 expNames, 
                                                                                                                 maxEvent_camNum)        
             
             removed_eventTimes = []
-            print('check6', flush=True)
             for tmpIdx in range(2):
                 eventTimes, breakTimes, allExp_signalTimes, session, uniqueSessions, numSessions, chans_per_sess = remove_spurious_signals_and_sessions(eventTimes, session, chans_per_sess, allExp_signalTimes, breakTimes)       
                 eventTimes, removed_eventTimes = clean_remaining_spurious_signals(eventTimes, allExp_signalTimes, 
@@ -794,17 +835,18 @@ if __name__ == '__main__':
                                                                                   chans_per_sess, removed_eventTimes, 
                                                                                   free_idx)
         
-            print('check7', flush=True)
             saveData = prepare_final_data_and_metadata(expNames, allExp_frameCounts, allExp_signalTimes, allExp_vidPaths, 
-                                                       eventTimes, removed_eventTimes, numSessions, chans_per_sess, matched_kinFolders) 
-            # saveData_mat = convert_saveData_to_matlab_compatible(saveData, expNames, allExp_frameCounts, removed_eventTimes, matched_kinFolders)
-        
+                                                        eventTimes, removed_eventTimes, numSessions, chans_per_sess, matched_kinFolders) 
+            # saveData_mat = convert_saveData_to_matlab_compatible(saveData, expNames, allExp_frameCounts, removed_eventTimes, matched_kinFolders)            
             for nsx_path in analogFiles:
                 nwbfile_path = nsx_path.replace('.ns6', '.nwb')
                 subprocess.call(['python',
-                                 os.path.join(args['neur_proc_path'], 'create_nwb_and_store_ns6_data.py'),
-                                 '-f', nsx_path])
-                timestamps_to_nwb(nwbfile_path, kin_folders, saveData)
+                                  os.path.join(args['neur_proc_path'], 'store_neural_data_in_nwb.py'),
+                                  '-f', nsx_path,
+                                  '-m', args['meta_path'],
+                                  '-p', args['prb_path'],
+                                  '-ab', 'no'])
+                timestamps_to_nwb(nwbfile_path, kin_folders, saveData, expNames)
                 
         print('\n\n Ended process_analog_signals_for_episode_times.py at %s\n\n' % time.strftime('%c', time.localtime()), flush=True)
         

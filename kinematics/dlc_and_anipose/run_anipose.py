@@ -94,7 +94,7 @@ def compute_pose_with_anipose(anipose_args):
     
     if anipose_args['label_videos']:
         subprocess.call(['anipose', 'project-2d']) 
-        subprocess.call(['anipose', 'label-2d-proj']) 
+        # subprocess.call(['anipose', 'label-2d-proj']) 
         subprocess.call(['anipose', 'label-2d-filter']) 
         # subprocess.call(['anipose', 'label-3d']) 
         # subprocess.call(['anipose', 'label-combined']) 

@@ -22,6 +22,8 @@ import re
 import dill
 from pynwb import NWBHDF5IO
 from pynwb.epoch import TimeIntervals
+from pynwb.image import RGBImage
+from pynwb.base import Images
 
 def time2bin(t, binwin=0.01, buffer=0.45, lastBin=False, window=0.2):
     # the default is to get the first bin of integration, but sometimes we want the last bin! \n",
@@ -102,6 +104,9 @@ def get_filepaths(ephys_path, kin_path, marms_ephys_code, marms_kin_code, dates)
     return ephys_folders, kin_folders  
 
 def identify_dropout(filepath, binwin, plot = False):
+    
+    nwbfile_path = filepath.split('.')[0] + '.nwb'
+    
     if filepath[-3:] == 'nev':
         sample_rate = 30000
         
@@ -197,6 +202,18 @@ def identify_dropout(filepath, binwin, plot = False):
         
         plt.savefig(filepath.split('.')[0] + 'dropout_plots.png')
         
+        with NWBHDF5IO(nwbfile_path, 'r+') as io:
+            nwbfile = io.read()
+
+            image_file = filepath.split('.')[0] + 'dropout_plots.png'
+            screenshot_images = [RGBImage(name=os.path.basename(image_file), data=plt.imread(image_file)[..., :3])]
+            screenshots = Images(name='neural signal dropout plots',
+                                 images=screenshot_images,
+                                 description="related to 'neural_dropout' field in intervals")
+            nwbfile.add_acquisition(screenshots)    
+            
+            io.write(nwbfile)        
+        
         print(f'Fraction of Bins dropped: {(len(val)-sum(val))/len(val)}', flush = True)
         print(
             f"Fraction of Bins dropped, in seconds: {(len(val)-sum(val))*data['binwin']}s out of {len(val)*data['binwin']}s", flush=True)
@@ -225,7 +242,6 @@ def identify_dropout(filepath, binwin, plot = False):
                                            bin_times[drop_ends] - bin_times[drop_starts]), 
                                   columns = ['drop_start_time', 'drop_end_time', 'drop_length_sec'])
     
-    nwbfile_path = filepath.split('.')[0] + '.nwb'
     with NWBHDF5IO(nwbfile_path, 'r+') as io:
         nwbfile = io.read()
         dropout_intervals_name = 'neural_dropout'

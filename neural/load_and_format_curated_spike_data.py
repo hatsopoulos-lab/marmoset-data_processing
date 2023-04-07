@@ -21,7 +21,7 @@ import os
 
 class path:
     curated_spikes = r'Z:/marmosets/electrophysArchive/TY20210211_freeAndMoths/processed/003/phy_TDC_DM_20220504'
-    mapfile = r'C:/Users/Dalton/Downloads/Tony_mapfile.mat'
+    mapfile = '/project2/nicho/dalton/analysis/Tony_mapfile.mat' #r'C:/Users/Dalton/Downloads/Tony_mapfile.mat'
     ns6 = r'C:/Users/Dalton/Documents/lab_files/local_spikesort_curation/TY20210211_freeAndMoths-003.ns6'
     
     date = '20210211'

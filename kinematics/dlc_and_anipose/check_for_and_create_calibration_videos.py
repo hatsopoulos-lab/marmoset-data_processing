@@ -96,7 +96,7 @@ if __name__ == '__main__':
      	help="number of cameras")
     args = vars(ap.parse_args())
     
-    print('\n\n Beginning jpg2avi code at %s\n\n' % time.strftime('%c', time.localtime()), flush=True)
+    print('\n\n Beginning check_for_calibration code at %s\n\n' % time.strftime('%c', time.localtime()), flush=True)
     
     # session_nums = [int(num) for num in args['session_nums']]
     # calib_name = args['calib_name']

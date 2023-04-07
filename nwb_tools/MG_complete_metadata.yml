@@ -1,0 +1,38 @@
+Subject:
+  sex: female
+  description: Marmoset Midge with 96ch utah array targeted to left forelimb M1
+  species: Callithrix jacchus
+  subject_id: MG
+  weight: 350.0
+  date_of_birth: 2015-06-08
+
+Ecephys:
+    Device: 
+        - name: Utah Array (M1 target)
+          description: 96 channel utah array
+          manufacturer: Blackrock Microsystems
+          
+        - name: Cerebus AnalogIn
+          description: analog inputs on Cerebus
+          manufacturer: Blackrock Microsystems
+         
+    ElectrodeGroup:
+        - name: MG_array_1
+          description: array implanted in left forelimb sensorimotor cortex
+          location: targeted to Left Forelimb M1  
+          device: Utah Array (M1 target) 
+
+        - name: ainp
+          description: analog inputs from cameras and touchscreen, with ainp1 thru ainp3 corresponding to apparatus cams, enclosure cams, and touchscreen, respectively 
+          location: none  
+          device: Cerebus AnalogIn    
+
+NWBFile: 
+    experimenter: 
+        - Jeff Walker
+    institution: University of Chicago
+    lab: Hatsopoulos Lab
+    session_description: UPDATE
+    notes: UPDATE
+    protocol: IACUC 72339-07
+    related_publications: None

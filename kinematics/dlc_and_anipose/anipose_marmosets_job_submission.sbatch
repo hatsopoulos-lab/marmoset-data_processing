@@ -1,17 +1,18 @@
 #!/bin/bash
-#SBATCH --job-name=anipose_test
-#SBATCH --output=/project/nicho/projects/marmosets/job_log_files/anipose_test.out
-#SBATCH --error=/project/nicho/projects/marmosets/job_log_files/anipose_test.err
-#SBATCH --time=5:00:00
+#SBATCH --job-name=anipose_moths
+#SBATCH --output=/project/nicho/projects/marmosets/job_log_files/anipose_moths_MG.out
+#SBATCH --error=/project/nicho/projects/marmosets/job_log_files/anipose_moths_MG.err
+#SBATCH --time=36:00:00
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
-#SBATCH --ntasks=16
-#SBATCH --mem=60G
+#SBATCH --ntasks=32
+#SBATCH --array=0-19
+#SBATCH --mem=64G
 #SBATCH --account=pi-nicho
 
 #---------------------------------------------Params that may change often----------------#
-experiment=test
-marms=TYJL
+experiment=moths
+marms=HMMG
 train_frac=None
 snap_idx=-1
 dlc_iter=None

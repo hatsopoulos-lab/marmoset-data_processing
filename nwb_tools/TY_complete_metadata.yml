@@ -1,0 +1,38 @@
+Subject:
+  sex: male
+  description: Marmoset Tony with 96ch utah array in right M1/3A/3B
+  species: Callithrix jacchus
+  subject_id: TY
+  weight: 350.0
+  date_of_birth: 2010-04-29
+
+Ecephys:
+    Device: 
+        - name: Utah Array (sensorimotor)
+          description: 96 channel utah array
+          manufacturer: Blackrock Microsystems
+          
+        - name: Cerebus AnalogIn
+          description: analog inputs on Cerebus
+          manufacturer: Blackrock Microsystems
+         
+    ElectrodeGroup:
+        - name: TY_array_2
+          description: array implanted in right forelimb M1/3A/3B
+          location: Right Forelimb M1/3A/3B  
+          device: Utah Array (sensorimotor)
+
+        - name: ainp
+          description: analog inputs from cameras and touchscreen, with ainp1 thru ainp3 corresponding to apparatus cams, enclosure cams, and touchscreen, respectively 
+          location: none  
+          device: Cerebus AnalogIn    
+
+NWBFile: 
+    experimenter: 
+        - Jeff Walker
+    institution: University of Chicago
+    lab: Hatsopoulos Lab
+    session_description: UPDATE
+    notes: UPDATE
+    protocol: IACUC 72339-07
+    related_publications: None

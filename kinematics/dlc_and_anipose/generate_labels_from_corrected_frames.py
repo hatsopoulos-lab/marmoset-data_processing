@@ -23,13 +23,19 @@ from scipy.signal import medfilt
 
 ########## NOTE #############################################
 # if this is True, modify the specifics of the corrected in indentify_corrected_frames --> if need_to_correct_number_of_labeled_points:
-need_to_correct_number_of_labeled_points = True 
+need_to_correct_number_of_labeled_points = False 
 #############################################################
 
 class params:
-    label_to_focus = 'hand'
+    label_to_focus = 'l-wrist'
     thresh = 35
     medfilt_length= 81
+    
+event_pattern = re.compile('e\d{3}')
+sess_pattern  = re.compile('_s\d{1}_')
+long_event_pattern = re.compile('event\d{3}')
+long_sess_pattern  = re.compile('session\d{1}')
+cam_pattern   = re.compile('cams_\d{1}_and_\d{1}')
 
 # corrections_path = r'C:\Users\Dalton\Documents\lab_files\dlc_corrected_files'
 # config = r'C:\Users\Dalton\Documents\lab_files\dlc_local\simple_joints_model-Dalton-2021-04-08\config.yaml'
@@ -39,7 +45,77 @@ videos = sorted(glob.glob(os.path.join(corrections_path, 'videos', '*')))
 traj_paths_original  = sorted(glob.glob(os.path.join(corrections_path, 'original_trajectories' , '*')))
 traj_paths_corrected = sorted(glob.glob(os.path.join(corrections_path, 'corrected_trajectories', '*')))
 
-def identify_corrected_frames(original_path, corrected_path):
+def xma_to_h5(path_dict, scorer):
+    """ adapted from xma_to_dlc() in XROMM_DLC_tools by J.D. Laurence-Chasen to simply export corrected labels for given event
+        as .h5 and .csv to put back into DLC postprocessing pipline
+    """
+    
+    # grab corrected data
+    corrections = sorted(glob.glob(os.path.join(path_dict['xma_to_dlc'], '*')))
+    corrections = [Path(cp) for cp in corrections]
+    
+    videos               = []
+    traj_paths_original  = []
+    traj_paths_corrected = []
+    for xma_corr in corrections:
+        xma_stem = xma_corr.stem
+        cam_text = re.search(cam_pattern, xma_stem)[0]
+        cams = cam_text.split('cams_')[-1].split('_and_')
+        cams = [int(cam) for cam in cams]
+        
+        # df=pd.read_csv(xma_corr, sep=',',header=None)
+        # # read pointnames from header row
+        # pointnames = df.loc[0,::4].astype(str).str[:-7].tolist()
+        # df_tmp = df.loc[1:,].reset_index(drop=True) # remove header row
+        
+        # reload with header so data has dtype float, then grab pointnames from header
+        df=pd.read_csv(xma_corr, sep=',',header=0)
+        pointnames = df.columns[::4].astype(str).str[:-7].tolist()
+        for nan_txt in ['', ' NaN', ' NaN ', 'NaN ']:
+            df.replace(nan_txt, np.nan, inplace=True)
+        df.apply(pd.to_numeric)
+
+        
+# videos = [Path(path_dict['corrections_vids']) / Path(cp.stem.sp)for vp in ]
+    
+    
+    # convert corrected data to dataframes and save in corrected_trajectories
+    
+    # return video paths, corrected_trajectory paths, and original trajectory paths
+
+        for cIdx, cam in enumerate(cams):
+            
+            # identify video paths and original trajectories corresponding to corrected data
+            base = xma_stem.replace(cam_text, 'cam%d' % cam).split(scorer)[0]
+            vid_path = os.path.join(path_dict['video_files'], base + '.avi')
+            orig_traj_path = os.path.join(path_dict['corrections_orig'], base + scorer + '.h5')
+            corr_traj_path = os.path.join(path_dict['corrections_corr'], base + scorer + '.h5')
+            videos.append(vid_path)
+            traj_paths_original.append(orig_traj_path)
+            traj_paths_corrected.append(corr_traj_path)
+            
+            # Load original trajectory to get original index and column info
+            orig_traj = pd.read_hdf(orig_traj_path)
+            corr_traj = orig_traj.copy()
+            
+            # extract 2D points data
+            xpos = df.iloc[:, 0+cIdx*2::4]
+            ypos = df.iloc[:, 1+cIdx*2::4]
+            
+            # place data in correct columns in corr_traj
+            pdIdx = pd.IndexSlice
+            for i, bodypart in enumerate(pointnames):
+                x_header = [col for col in xpos.columns if bodypart in col][0]
+                y_header = [col for col in ypos.columns if bodypart in col][0]
+
+                corr_traj.loc[:, pdIdx[:, bodypart, 'x']] = xpos.loc[:, x_header]
+                corr_traj.loc[:, pdIdx[:, bodypart, 'y']] = ypos.loc[:, y_header]
+            
+            corr_traj.to_hdf(corr_traj_path, key="df_with_missing", mode="w")
+
+    return videos, traj_paths_original, traj_paths_corrected 
+
+def identify_corrected_frames(original_path, corrected_path, label_to_focus):
     
     traj_orig = pd.read_hdf(original_path)
     traj_corr = pd.read_hdf(corrected_path)
@@ -63,7 +139,7 @@ def identify_corrected_frames(original_path, corrected_path):
     label_distance_filtered = medfilt(label_distance, params.medfilt_length)
     label_distance_from_median = label_distance - label_distance_filtered
     
-    identified_corrections = np.array(traj_orig.loc[:, pdIdx[:, 'hand', 'x']]).squeeze()
+    identified_corrections = np.array(traj_orig.loc[:, pdIdx[:, label_to_focus, 'x']]).squeeze()
     identified_corrections[label_distance_from_median < params.thresh] = np.nan
         
     # fig, ax = plt.subplots()
@@ -123,7 +199,7 @@ def add_videos_to_project(config, videos):
     
     return dirs
 
-def generate_labels(image_names, traj_corrections, config, label_dir):
+def generate_labels(image_names, traj_corrections, config, label_dir, indexlength):
     # grab existing label set to ensure generated labels take same format
     
     existing_label_dirs = glob.glob(os.path.join(os.path.split(label_dir)[0], '*')) 
@@ -159,8 +235,7 @@ def generate_labels(image_names, traj_corrections, config, label_dir):
         except:
             continue
     
-    digits = 4
-    image_names = [os.fspath(Path(*label_dir.parts[-2:]) /  ("img" + str(imageNum).zfill(digits) + ".png")) 
+    image_names = [os.fspath(Path(*label_dir.parts[-2:]) /  ("img" + str(imageNum).zfill(indexlength) + ".png")) 
                    for imageNum in traj_corrections.index]
     new_labels = pd.DataFrame(data    = np.full((traj_corrections.shape[0], example_label_coords.shape[1]), np.nan),
                               index   = image_names,
@@ -183,7 +258,7 @@ def generate_labels(image_names, traj_corrections, config, label_dir):
     
     return
 
-def process_corrected_trajectories(videos, traj_paths_original, traj_paths_corrected, label_dirs):
+def process_corrected_trajectories(videos, traj_paths_original, traj_paths_corrected, label_dirs, label_to_focus):
     for video, orig_traj_path, corr_traj_path, label_dir in zip(videos, 
                                                                 traj_paths_original, 
                                                                 traj_paths_corrected,
@@ -195,7 +270,7 @@ def process_corrected_trajectories(videos, traj_paths_original, traj_paths_corre
         fname = Path(video)
         output_path = Path(config).parents[0] / "labeled-data" / fname.stem
         
-        frames2pick, traj_corrections = identify_corrected_frames(orig_traj_path, corr_traj_path)
+        frames2pick, traj_corrections = identify_corrected_frames(orig_traj_path, corr_traj_path, label_to_focus)
         
         print('\nextracting images from ' + Path(video).stem)
         
@@ -211,11 +286,33 @@ def process_corrected_trajectories(videos, traj_paths_original, traj_paths_corre
                 image_names.append(img_name)
         cap.close()
         image_names = []
-        generate_labels(image_names, traj_corrections, config, label_dir)
+        generate_labels(image_names, traj_corrections, config, label_dir, indexlength)
     
 if __name__ == "__main__":
-    label_dirs = add_videos_to_project(config, videos)
+    
+    args = {'proj_dir': '/project/nicho/data/marmosets/kinematics_videos/moths/TYJL/2021_02_11',
+            'config'  : '/project/nicho/projects/marmosets/dlc_project_files/full_marmoset_model-Dalton-2022-07-26/config.yaml'}
+    
+    label_to_focus = 'l-wrist'
+      
+    basedir = args['proj_dir']
+    
+    path_dict = {'proj_dir'         : basedir,
+                 'corrections_orig' : os.path.join(basedir, 'xmalab_corrections', 'original_trajectories'),
+                 'corrections_corr' : os.path.join(basedir, 'xmalab_corrections', 'corrected_trajectories'),
+                 'video_files'      : os.path.join(basedir, 'avi_videos'),
+                 'xma_to_dlc'       : os.path.join(basedir, 'xmalab_corrections', 'xma_to_dlc')}
+
+    with open(os.path.join(basedir, 'scorer_info.txt')) as f:
+        scorer = f.readlines()[0]
+        
+    scorer = scorer.split('filtered')[-1]
+    scorer = scorer.split('_meta')[0]
+    
+    videos, traj_paths_original, traj_paths_corrected = xma_to_h5(path_dict, scorer)
+    
+    label_dirs = add_videos_to_project(args['config'], videos)
     # label_dirs = [Path('/home/marms/Documents/dlc_local/simple_joints_model-Dalton-2021-04-08/TYJL_2021_02_11_foraging_session1_event049_cam1_filtered'),
     #               Path('/home/marms/Documents/dlc_local/simple_joints_model-Dalton-2021-04-08/TYJL_2021_02_11_foraging_session1_event049_cam2_filtered')]
-    process_corrected_trajectories(videos, traj_paths_original, traj_paths_corrected, label_dirs)
+    process_corrected_trajectories(videos, traj_paths_original, traj_paths_corrected, label_dirs, label_to_focus)
     

@@ -34,15 +34,22 @@ def copy_labels_to_unmarked_frames(labels_path, ncams, num_axes_labels, dlc_scor
     for date in unique_dates:
         for cam in range(1, ncams+1):
             cam_folders = sorted(glob.glob(os.path.join(labels_path, '*%s*cam%d*' % (date, cam))))
+            cam_folders = [fold for fold in cam_folders if fold[-8:] != '_labeled']
+
             first_data = pd.read_hdf(os.path.join(cam_folders[0], 'CollectedData_%s.h5' % dlc_scorer))
+            if 'individuals' in first_data.columns.names:
+                origin_x_idx = (dlc_scorer, 'single', 'origin', 'x')
+            else:
+                origin_x_idx = (dlc_scorer, 'origin', 'x')
+                
             try:
-                axes_label_frame = np.where(~np.isnan(first_data.loc[:, (dlc_scorer, 'origin', 'x')]))[0][0]
-                origin_label_column = np.where(first_data.columns == (dlc_scorer, 'origin', 'x'))[0][0]        
+                axes_label_frame = np.where(~np.isnan(first_data.loc[:, origin_x_idx]))[0][0]
+                origin_label_column = np.where(first_data.columns == origin_x_idx)[0][0]        
                 axes_labels = np.array(first_data.iloc[axes_label_frame, origin_label_column : origin_label_column + 2*num_axes_labels])
                 axes_labels = np.reshape(axes_labels, (1, len(axes_labels)))
                 axes_column_names = first_data.columns[origin_label_column : origin_label_column + 2*num_axes_labels]
             except:
-                origin_label_column = np.where(template_data.columns == (dlc_scorer, 'origin', 'x'))[0][0]
+                origin_label_column = np.where(template_data.columns == origin_x_idx)[0][0]
                 axes_labels = np.full((1, 2*num_axes_labels), np.nan)
                 axes_column_names = template_data.columns[origin_label_column : origin_label_column + 2*num_axes_labels]
             
@@ -75,6 +82,12 @@ if __name__ == '__main__':
      	help="name of dlc scorer")
      
     args = vars(ap.parse_args())
+    
+    # args = {'dlc_path'  : '/project/nicho/projects/marmosets/undergraduate_dlc_projects/spontaneous_behavior-undergrads-2023-01-13',
+    #         'dates'     : ['2021_02_11'],
+    #         'ncams'     : 2,
+    #         'nlabels'   : 3,
+    #         'dlc_scorer': 'undergrads'}
 
     date_pattern = re.compile('\d{4}_\d{2}_\d{2}')
     

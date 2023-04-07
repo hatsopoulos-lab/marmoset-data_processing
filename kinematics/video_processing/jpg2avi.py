@@ -51,8 +51,9 @@ def convert_jpg_to_video(jpg_dir, vid_dir, marms, dates, exp, session_nums, fps,
                 # print(os.path.join(jpg_path, 'jpg_cam%d' % cam, '*'), flush=True)
 
                 jpg_file = sorted(glob.glob(os.path.join(jpg_path, 'jpg_cam%d' % cam, '*')))[-1]
+                # print('got %d jpg files' % len(jpg_file))
                 lastEvent = int(re.findall(event_pattern, jpg_file)[0].split('event_')[-1])
-                                
+                # print('last evetn is %d' % lastEvent)               
                 # If you want to change filename conventions or video params, this is where to do so (in the ffmpeg line). 
                 # -s flag adjusts resolution. 
                 # -pattern_type glob grabs all filenames that start as written and end in .jpg, and turns these into a video. 
@@ -60,6 +61,7 @@ def convert_jpg_to_video(jpg_dir, vid_dir, marms, dates, exp, session_nums, fps,
                 # -vcodec changes the video codec used, i wouldn't touch this unless you get an error. 
                 # The last argument is the filepath for the video to be stored.     
                 for eNum in range(1, lastEvent+1):
+                    # print('eNum = %d' % eNum)
                     event=str(eNum).zfill(3)
                     cam_img_path = os.path.join(jpg_path, 'jpg_cam%d' % cam)
                     tmp_event_image_file = glob.glob(os.path.join(cam_img_path, '*cam%d_event_%s*' % (cam, event)))[0]
@@ -300,7 +302,7 @@ if __name__ == '__main__':
 
     task_id = int(os.getenv('SLURM_ARRAY_TASK_ID'))
     n_tasks = int(os.getenv('SLURM_ARRAY_TASK_COUNT'))
-
+    
     convert_jpg_to_video(args['jpg_dir'],
                          args['vid_dir'],
                          args['marms'], 

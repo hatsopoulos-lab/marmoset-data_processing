@@ -1,0 +1,38 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Wed Jan 18 10:06:31 2023
+
+@author: daltonm
+"""
+from pynwb import NWBFile, NWBHDF5IO, TimeSeries, behavior
+import pandas as pd
+import dill
+
+old_formatting_spike_data_path = '/project/nicho/data/marmosets/processed_datasets/formatted_spike_dir/20210211_freeAndMoths_spike_data.pkl'
+
+with open(old_formatting_spike_data_path, 'rb') as f:
+    old_spikes = dill.load(f)
+    
+#cluster_id              0
+#amp            114.771011
+#ch                      0
+#chan_group            0.0
+#depth               400.0
+#fr              50.031707
+#group               noise
+#n_spikes           281935
+#sh                      0
+#ns6_elec_id            17
+
+nwbfile_path = '/project/nicho/data/marmosets/electrophys_data_for_processing/TY20221024_testbattery/TY20221024_testbattery_001.nwb' 
+io = NWBHDF5IO(nwbfile_path, mode='r')
+nwb = io.read()
+
+phy_cluster_id = nwb.units.id[:]
+phy_channel = nwb.units.group[:]
+amp = nwb.units.amplitudes_index[:]
+phy_sortGroup = nwb.units.quality[:]
+
+
+io.close()
