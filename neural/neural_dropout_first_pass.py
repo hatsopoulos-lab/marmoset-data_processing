@@ -105,7 +105,7 @@ def get_filepaths(ephys_path, kin_path, marms_ephys_code, marms_kin_code, dates)
 
 def identify_dropout(filepath, binwin, plot = False):
     
-    nwbfile_path = filepath.split('.')[0] + '.nwb'
+    nwbfile_path = filepath.split('.')[0] + '_acquisition.nwb'
     
     if filepath[-3:] == 'nev':
         sample_rate = 30000
@@ -295,6 +295,11 @@ if __name__ == '__main__':
     use_nev = True
     binwin = 0.1    
     
+    try:
+        task_id = int(os.getenv('SLURM_ARRAY_TASK_ID'))
+    except:
+        task_id = 0
+    
     # args = {'kin_dir' : '/project/nicho/data/marmosets/kinematics_videos',
     #         'ephys_path' : '/project/nicho/data/marmosets/electrophys_data_for_processing',
     #         'dates' : ['2022_10_24'],
@@ -303,12 +308,13 @@ if __name__ == '__main__':
     #         'exp_name':'test',
     #         'other_exp_name': 'test_free'}
     
-    experiments = [args['exp_name'], args['other_exp_name']]
-    
-    datePattern = re.compile('[0-9]{8}')         
-    ephys_folders, kin_folders = get_filepaths(args['ephys_path'], args['kin_dir'], args['marms_ephys'], args['marms'], args['dates'])    
-    
-    for eFold in ephys_folders:
-        nev_files = sorted(glob.glob(pjoin(eFold, '*.nev')))
-        for nfile in nev_files:
-            drop_intervals, fraction_dropped = identify_dropout(nfile, binwin, plot = True)
+    if task_id == 0:
+        experiments = [args['exp_name'], args['other_exp_name']]
+        
+        datePattern = re.compile('[0-9]{8}')         
+        ephys_folders, kin_folders = get_filepaths(args['ephys_path'], args['kin_dir'], args['marms_ephys'], args['marms'], args['dates'])    
+        
+        for eFold in ephys_folders:
+            nev_files = sorted(glob.glob(pjoin(eFold, '*.nev')))
+            for nfile in nev_files:
+                drop_intervals, fraction_dropped = identify_dropout(nfile, binwin, plot = True)

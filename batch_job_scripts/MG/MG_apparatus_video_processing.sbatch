@@ -10,20 +10,21 @@
 #SBATCH --account=pi-nicho
 
 #------------params that may change for each dataset/experiment----------------------#
-dates=(2023_03_17)
-exp=moths
+dates=(2023_04_17)
+exp1=moths
+exp2=free
 sess=(1)
 calib_name=calib
 touchscreen=False
 scratch_space_username=daltonm
 
-other_exp=free
 
 #----------------------params that rarely change-------------------------------------#
 marms=HMMG
 marms_ephys=MG
+swap_ab=no
 prb_path=/project/nicho/data/marmosets/prbfiles/MG_01.prb
-metadata_path=/project/nicho/projects/marmosets/code_database/data_processing/nwb_tools/MG_complete_metadata.yml
+metadata_path=/project/nicho/data/marmosets/metadata_yml_files/MG_complete_metadata.yml
 fps=200 #150 #200
 ncams=5 #2 #5
 vid_transpose=(-1 -1 -1 -1 -1) #(-1 -1) #(-1 -1 -1 -1 -1)  # number of arguments MUST match ncams 
@@ -42,11 +43,16 @@ module load python/anaconda-2022.05
 source activate /project/nicho/environments/dlc
 
 #---------------------Execute the programs-------------------------------------------#
-python $video_processing/check_for_episode_splits_and_adjust_image_filenames_preAVI.py -j $jpg_dir -v $vid_dir -m $marms -d ${dates[@]} -e $exp -s ${sess[@]} -f $fps -n $ncams
-python $video_processing/jpg2avi.py -j $jpg_dir -v $vid_dir -m $marms -d ${dates[@]} -e $exp -s ${sess[@]} -f $fps -n $ncams -t ${vid_transpose[@]} -c $calib_name
-python $video_processing/apply_clahe_filter_to_videos.py -i $vid_dir/$exp/$marms/ -d ${dates[@]}
-python $video_processing/recompress_filtered_avi.py      -i $vid_dir/$exp/$marms/ -d ${dates[@]} 
+python $video_processing/check_for_episode_splits_and_adjust_image_filenames_preAVI.py \
+-j $jpg_dir -v $vid_dir -m $marms -d ${dates[@]} -e $exp1 -s ${sess[@]} -f $fps -n $ncams
+
+python $video_processing/jpg2avi.py -j $jpg_dir -v $vid_dir -m $marms -d ${dates[@]} -e $exp1 -s ${sess[@]} -f $fps -n $ncams -t ${vid_transpose[@]} -c $calib_name
+python $video_processing/apply_clahe_filter_to_videos.py -i $vid_dir/$exp1/$marms/ -d ${dates[@]}
+python $video_processing/recompress_filtered_avi.py      -i $vid_dir/$exp1/$marms/ -d ${dates[@]} 
 
 source activate /project/nicho/environments/spyder
-python $video_processing/process_analog_signals_for_episode_times.py -v $vid_dir -ep $ephys_dir -m $marms -me $marms_ephys -d ${dates[@]} -e $exp -e2 $other_exp -t $touchscreen -tp $touchscreen_path -np $neural_processing -meta $metadata_path -prb $prb_path
-python $neural_processing/neural_dropout_first_pass.py -k $vid_dir -ep $ephys_dir -m $marms -me $marms_ephys -d ${dates[@]} -e $exp -e2 $other_exp
+python $video_processing/process_analog_signals_for_episode_times.py \
+-v $vid_dir -ep $ephys_dir -m $marms -me $marms_ephys -d ${dates[@]} -e $exp1 -e2 $exp2 \
+-t $touchscreen -tp $touchscreen_path -np $neural_processing -meta $metadata_path -prb $prb_path -ab $swap_ab
+
+python $neural_processing/neural_dropout_first_pass.py -k $vid_dir -ep $ephys_dir -m $marms -me $marms_ephys -d ${dates[@]} -e $exp1 -e2 $exp2

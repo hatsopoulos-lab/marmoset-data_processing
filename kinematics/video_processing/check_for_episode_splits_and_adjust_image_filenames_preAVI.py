@@ -29,6 +29,7 @@ def collect_episode_start_times_and_frame_counts(jpg_path, ncams):
     for cam in range(1, ncams+1):
 
         jpg_file = sorted(glob.glob(os.path.join(jpg_path, 'jpg_cam%d' % cam, '*')))[-1]
+            
         lastEvents.append(int(re.findall(event_pattern, jpg_file)[0].split('event_')[-1]))
 
     lastEvent = max(lastEvents)
@@ -39,6 +40,9 @@ def collect_episode_start_times_and_frame_counts(jpg_path, ncams):
             print(cam, eNum)
             event=str(eNum).zfill(3)
             cam_img_path = os.path.join(jpg_path, 'jpg_cam%d' % cam)
+            print('\n\n')
+            print(os.path.join(cam_img_path, '*cam%d_event_%s*' % (cam, event)))
+            print('\n\n')
             event_image_files = sorted(glob.glob(os.path.join(cam_img_path, '*cam%d_event_%s*' % (cam, event))))
             event_frame_nums[eIdx, cIdx] = len(event_image_files)
             start_times = [re.findall(start_time_pattern, tmp_image_file)[0].split('.jpg')[0] for tmp_image_file in event_image_files]
@@ -47,6 +51,12 @@ def collect_episode_start_times_and_frame_counts(jpg_path, ncams):
                     print('multiple start times')
                 else:
                     event_start_times[eIdx, cIdx] = start_times[0]
+                    
+            for jpg_file in event_image_files:
+                if 'sleep' in os.path.basename(jpg_file) and 'session' not in os.path.basename(jpg_file):
+                    jpg_file_new = jpg_file.replace('sleep_1', 'sleep_session_1')
+                    os.rename(jpg_file, jpg_file_new)
+                    jpg_file = jpg_file_new 
     
     return event_frame_nums, event_start_times, lastEvent
 
@@ -403,8 +413,12 @@ if __name__ == '__main__':
         
         session_nums = [int(num) for num in args['session_nums']]
     
-        task_id = int(os.getenv('SLURM_ARRAY_TASK_ID'))
-        n_tasks = int(os.getenv('SLURM_ARRAY_TASK_COUNT'))
+        try:
+            task_id = int(os.getenv('SLURM_ARRAY_TASK_ID'))
+            n_tasks = int(os.getenv('SLURM_ARRAY_TASK_COUNT'))
+        except:
+            task_id = 0
+            n_tasks = 1
         
         for date in args['dates']:
             data_path = os.path.join(args['vid_dir'], '%s/%s/%s' % (args['exp_name'], args['marms'], date))

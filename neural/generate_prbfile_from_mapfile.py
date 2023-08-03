@@ -14,7 +14,7 @@ import re
 import json
 import yaml
 
-array_code = 'TY_02'
+array_code = 'MG_01'
 
 params_dict = {'MG_01': {'array_type': 'utah',
                          'hemisphere': 'left',
@@ -66,7 +66,8 @@ def create_prb_dict(array_info, map_df, imp_df):
     prb['channel_groups'] = dict()
     for elec_idx, elec_info in map_df.iterrows():
         prb['channel_groups'][elec_idx+1] = dict()
-        prb['channel_groups'][elec_idx+1]['channels'] = [elec_info['label']]
+        # prb['channel_groups'][elec_idx+1]['channels'] = [elec_info['label']]
+        prb['channel_groups'][elec_idx+1]['channels'] = [int(elec_info['label'].split('elec')[-1])]
         
         electrode_location = elec_info[['col', 'row']].to_numpy(dtype=float)
     

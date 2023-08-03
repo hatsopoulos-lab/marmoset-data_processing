@@ -18,7 +18,8 @@ event_pattern = re.compile('e\d{3}')
 sess_pattern  = re.compile('_s\d{1}')
 long_event_pattern = re.compile('event\d{3}')
 long_sess_pattern  = re.compile('session\d{1}')
-cam_pattern   = re.compile('cams\d{1}_and_\d{1}')
+cam_pattern   = re.compile('cam\d{1}')
+# cam_pattern   = re.compile('cams\d{1}_and_\d{1}')
 
 def dlc_to_xma(cam1data,cam2data,trialname,savepath):
     # Adapted from XROMM_DLC_tools by J.D. Laurence-Chasen
@@ -131,10 +132,10 @@ if __name__ == '__main__':
 
     # args = vars(ap.parse_args())
     
-    args = {'pose_dir': '/project/nicho/data/marmosets/kinematics_videos/moths/TYJL/2021_02_11/pose-2d-proj',
+    args = {'pose_dir': '/project/nicho/data/marmosets/kinematics_videos/moths/HMMG/2023_04_16/pose-2d-proj',
             'session' : 1,
-            'episodes': [85, 113, 146],
-            'cam_pair': [1, 2]}
+            'episodes': [1, 17],
+            'cam_pair': [1, 3]}
       
     pose_dir = args['pose_dir']
     if pose_dir[-1] == '/':

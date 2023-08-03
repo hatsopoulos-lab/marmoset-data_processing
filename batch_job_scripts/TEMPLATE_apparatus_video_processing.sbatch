@@ -1,10 +1,9 @@
 #!/bin/bash
-#SBATCH --job-name=app_video_proc
-#SBATCH --output=/project/nicho/projects/marmosets/job_log_files/DALTON_app_video_proc_%a.out
-#SBATCH --error=/project/nicho/projects/marmosets/job_log_files/DALTON_app_video_proc_%a.err
-#SBATCH --time=36:00:00
+#SBATCH --job-name=sleep_video_proc
+#SBATCH --output=/project/nicho/projects/marmosets/job_log_files/sleep_video_proc.out
+#SBATCH --error=/project/nicho/projects/marmosets/job_log_files/sleep_video_proc.err
+#SBATCH --time=04:00:00
 #SBATCH --partition=caslake
-#SBATCH --array=0-19
 #SBATCH --ntasks=8
 #SBATCH --mem=64G
 #SBATCH --account=pi-nicho

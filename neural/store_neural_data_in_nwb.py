@@ -56,7 +56,7 @@ def add_screenshots_to_nwb(nwb_path):
     return
 
 def create_nwb_and_store_raw_neural_data(ns6_path, meta_path, prb_path, swap_ab, filter_dict):
-    nwb_path = ns6_path.replace('.ns6', 'TEST.nwb')
+    nwb_path = ns6_path.replace('.ns6', '_acquisition.nwb')
     nev_path = ns6_path.replace('.ns6', '.nev')   
     
     stub_test= False
@@ -65,9 +65,13 @@ def create_nwb_and_store_raw_neural_data(ns6_path, meta_path, prb_path, swap_ab,
         print('\nNWB file already exists at %s' % nwb_path)    
         return
     
-    source_data = dict(BlackrockRecordingInterfaceRaw = dict(file_path=ns6_path),
-                        BlackrockSortingInterface      = dict(file_path=nev_path))
-    # source_data = dict(BlackrockRecordingInterfaceRaw = dict(file_path=ns6_path))    
+    nev_exists = os.path.isfile(nev_path)
+    if nev_exists:
+        source_data = dict(BlackrockRecordingInterfaceRaw = dict(file_path=ns6_path),
+                           BlackrockSortingInterface      = dict(file_path=nev_path))
+    else:
+        print('\n\n\nThere is no NEV file located at %s. If you expected to find a NEV file, cancel the job and fix this error to include nev data in the NWB file.\n\n\n' % nev_path, flush=True)
+        source_data = dict(BlackrockRecordingInterfaceRaw = dict(file_path=ns6_path))    
 
     # Initialize converter
     converter = MarmForageNWBConverter(source_data=source_data)
@@ -118,7 +122,7 @@ def create_nwb_and_store_raw_neural_data(ns6_path, meta_path, prb_path, swap_ab,
     if swap_ab.lower() == 'yes':
         reorder = list(range(32, 64)) + list(range(0, 32)) + list(range(64, len(chNames)))
         chNames = np.array([chNames[idx] for idx in reorder])
-        raw_extractor.set_property('electrode_label', chNames)
+    raw_extractor.set_property('electrode_label', chNames)
     del raw_extractor._properties['channel_name']
     
     array_chans = [ch for ch, name in zip(chIDs, chNames) if 'ainp' not in name]
@@ -138,89 +142,100 @@ def create_nwb_and_store_raw_neural_data(ns6_path, meta_path, prb_path, swap_ab,
     raw_extractor.set_property('imp', [float(str(imp).replace('<=', '')) for imp in map_df['imp'].values], ids=array_chans, missing_value=None)
 
     # add electrode_labels to sortingExtractor
-    labels_from_raw = raw_extractor._properties['electrode_label']
-    labels_from_raw = [label for label in labels_from_raw if 'ainp' not in label]
+    labels_from_raw = np.array(raw_extractor._properties['electrode_label'])
     
-    nev = NevFile(nev_path)
-    headers = nev.extended_headers
-    label_headers = [head for head in headers if 'Label' in head.keys()]
-    electrode_labels = [head['Label'] for head in label_headers]
-    electrode_labels = [label if label in labels_from_raw else None for label in electrode_labels]
-    nev_chIDs = [head['ElectrodeID'] for head in label_headers if 'ElectrodeID' in head.keys()]
+    # nev = NevFile(nev_path)
+    # headers = nev.extended_headers
+    # label_headers = [head for head in headers if 'Label' in head.keys()]
+    # electrode_labels = [head['Label'] for head in label_headers]
+    # electrode_labels = [label if label in labels_from_raw else None for label in electrode_labels]
+    # nev_chIDs = [head['ElectrodeID'] for head in label_headers if 'ElectrodeID' in head.keys()]
 
-    sorting_extractor = converter.data_interface_objects['BlackrockSortingInterface'].sorting_extractor
-    chIDs = sorting_extractor.get_unit_ids()
-    
+    if nev_exists:
+        sorting_extractor = converter.data_interface_objects['BlackrockSortingInterface'].sorting_extractor
+        
+        unit_name = sorting_extractor._properties['unit_name']
+        channel_index = np.array([int(name.split('ch')[-1].split('#')[0]) - 1 for name in unit_name])
+        sorting_electrode_labels = labels_from_raw[channel_index]
+        sorting_extractor.set_property('electrode_label', sorting_electrode_labels, missing_value=None)
     # match spike_trains from extractor to the nev file
     # ordered_spikes_list = []
     # for elec_id in range(1,6):
     #     ordered_spikes_list.append(nev.getdata(elec_ids=[elec_id], wave_read='noread')['spike_events']['TimeStamps'][0][:100])
-    spks = nev.getdata(elec_ids='all', wave_read='noread') #['spike_events']['TimeStamps'][0][:100]
+    # spks = nev.getdata(elec_ids='all', wave_read='noread') #['spike_events']['TimeStamps'][0][:100]
 
-    nev_id_misordered = np.array(spks['spike_events']['ChannelID'])
+    # nev_id_misordered = np.array(spks['spike_events']['ChannelID'])
     
-    nev.close()
-    nev_spikes_list = []
-    for nevID in nev_chIDs:
-        print('nevID = %d' % nevID)
-        idx = np.where(nev_id_misordered==nevID)[0]
-        if len(idx) > 0:
-            nev_spikes = spks['spike_events']['TimeStamps'][int(idx)]
-            nev_spikes = [spktime-102 for spktime in nev_spikes]
-        else:
-            nev_spikes = []
-        nev_spikes_list.append(np.array(nev_spikes))
+    # nev.close()
+    # nev_spikes_list = []
+    # for nevID in nev_chIDs:
+    #     print('nevID = %d' % nevID)
+    #     idx = np.where(nev_id_misordered==nevID)[0]
+    #     if len(idx) > 0:
+    #         nev_spikes = spks['spike_events']['TimeStamps'][int(idx)]
+    #         nev_spikes = [spktime-102 for spktime in nev_spikes]
+    #     else:
+    #         nev_spikes = []
+    #     nev_spikes_list.append(np.array(nev_spikes))
         
-    extractor_spikes = []
-    for chID in chIDs:
-        print('chID = %d' % chID)
-        extractor_spikes.append(sorting_extractor.get_unit_spike_train(chID))
+    # extractor_spikes = []
+    # for chID in chIDs:
+    #     print('chID = %d' % chID)
+    #     extractor_spikes.append(sorting_extractor.get_unit_spike_train(chID))
     
-    corrected_extractor_spikes = []
-    nev_idx = 0
-    for sIdx, spikes in enumerate(extractor_spikes):
-        if nev_spikes_list[nev_idx].shape[0] == 0:
-            corrected_extractor_spikes.append(np.array([], dtype='int64'))
-            nev_idx += 1
-        else:
-            if spikes.shape[0] == 0:
-                continue
-            add_count = 1
-            while spikes.shape[0] < nev_spikes_list[nev_idx].shape[0]:
-                print(sIdx, nev_idx, add_count)
+    # corrected_extractor_spikes = []
+    # nev_idx = 0
+    # for sIdx, spikes in enumerate(extractor_spikes):
+    #     if nev_spikes_list[nev_idx].shape[0] == 0:
+    #         corrected_extractor_spikes.append(np.array([], dtype='int64'))
+    #         nev_idx += 1
+    #     else:
+    #         if spikes.shape[0] == 0:
+    #             continue
+    #         add_count = 1
+    #         while spikes.shape[0] < nev_spikes_list[nev_idx].shape[0]:
+    #             print(sIdx, nev_idx, add_count)
 
-                spikes = np.concatenate((spikes, extractor_spikes[sIdx+add_count]))
-                extractor_spikes[sIdx+add_count] = np.array([])
-                add_count += 1
-            corrected_extractor_spikes.append(spikes)
-            nev_idx += 1
+    #             spikes = np.concatenate((spikes, extractor_spikes[sIdx+add_count]))
+    #             extractor_spikes[sIdx+add_count] = np.array([])
+    #             add_count += 1
+    #         corrected_extractor_spikes.append(spikes)
+    #         nev_idx += 1
     
-    corrected_extractor_spikes = [np.sort(sp) for sp in corrected_extractor_spikes]
+    # corrected_extractor_spikes = [np.sort(sp) for sp in corrected_extractor_spikes]
             
     
-    matching_channels = []
-    for chID in chIDs:
-        first_extractor_spikes = sorting_extractor.get_unit_spike_train(chID)[:100]
-        nev_match = []
-        for nev_idx, nev_spikes in enumerate(nev_spikes_list):
-            if first_extractor_spikes.shape == nev_spikes.shape and np.all(np.abs(first_extractor_spikes - nev_spikes) <= 100):
-                nev_match.append(nev_idx)
-        matching_channels.append(np.array(nev_match))
+    # matching_channels = []
+    # for chID in chIDs:
+    #     first_extractor_spikes = sorting_extractor.get_unit_spike_train(chID)[:100]
+    #     nev_match = []
+    #     for nev_idx, nev_spikes in enumerate(nev_spikes_list):
+    #         if first_extractor_spikes.shape == nev_spikes.shape and np.all(np.abs(first_extractor_spikes - nev_spikes) <= 100):
+    #             nev_match.append(nev_idx)
+    #     matching_channels.append(np.array(nev_match))
             
-    channels_to_remove = [ch for ch, eLabel in zip(chIDs, electrode_labels) if eLabel is None]
-    if len(raw_extractor._properties['electrode_label']) > len(chIDs[:len(raw_extractor._properties['electrode_label'])]):
-        sorting_extractor.set_property('electrode_label', raw_extractor._properties['electrode_label'][:len(chIDs)], chIDs, missing_value=None)
-    else:
-        sorting_extractor.set_property('electrode_label', raw_extractor._properties['electrode_label'], chIDs[:len(raw_extractor._properties['electrode_label'])], missing_value=None)
+    # channels_to_remove = [ch for ch, eLabel in zip(chIDs, electrode_labels) if eLabel is None]
+    # if len(raw_extractor._properties['electrode_label']) > len(chIDs[:len(raw_extractor._properties['electrode_label'])]):
+    #     sorting_extractor.set_property('electrode_label', raw_extractor._properties['electrode_label'][:len(chIDs)], chIDs, missing_value=None)
+    # else:
+    #     sorting_extractor.set_property('electrode_label', raw_extractor._properties['electrode_label'], chIDs[:len(raw_extractor._properties['electrode_label'])], missing_value=None)
 
     # # build conversion options
-    conversion_options = converter.get_conversion_options()
-    conversion_options['BlackrockRecordingInterfaceRaw']=dict(stub_test=stub_test)
-    conversion_options['BlackrockSortingInterface']=dict(stub_test=stub_test, write_ecephys_metadata=False)
-    write_options = dict(BlackrockRecordingInterfaceRaw=dict(), BlackrockSortingInterface=dict())
-    write_options['BlackrockSortingInterface']['write_as'] = 'processing'
-    write_options['BlackrockSortingInterface']['units_name'] = 'units_unsorted'
-    write_options['BlackrockSortingInterface']['units_description'] = 'unsorted, autogenerated by neuroconv from .nev file'
+    if nev_exists:
+        conversion_options = converter.get_conversion_options()
+        conversion_options['BlackrockRecordingInterfaceRaw']=dict(stub_test=stub_test)
+        conversion_options['BlackrockSortingInterface']=dict(stub_test=stub_test, write_ecephys_metadata=False)
+        write_options = dict(BlackrockRecordingInterfaceRaw=dict(), BlackrockSortingInterface=dict())
+        write_options['BlackrockSortingInterface']['write_as'] = 'processing'
+        write_options['BlackrockSortingInterface']['units_name'] = 'units_from_nevfile'
+        if np.unique(sorting_electrode_labels).shape[0] < sorting_electrode_labels.shape[0]:
+            write_options['BlackrockSortingInterface']['units_description'] = 'sorted online during experimental session, autogenerated by neuroconv from .nev file'
+        else:
+            write_options['BlackrockSortingInterface']['units_description'] = 'unsorted, autogenerated by neuroconv from .nev file'
+    else:
+        conversion_options = converter.get_conversion_options()
+        conversion_options['BlackrockRecordingInterfaceRaw']=dict(stub_test=stub_test)
+        write_options = dict(BlackrockRecordingInterfaceRaw=dict())
 
     # run conversion
     converter.run_conversion(
@@ -242,21 +257,21 @@ def create_nwb_and_store_raw_neural_data(ns6_path, meta_path, prb_path, swap_ab,
 
 if __name__ == '__main__':
     # construct the argument parse and parse the arguments
-    # ap = argparse.ArgumentParser()
-    # ap.add_argument("-f", "--ns6_path" , required=True, type=str,
-    #     help="path to ns6 file that will be stored in new NWB file, e.g. /project/nicho/data/marmosets/electrophys_data_for_processing/TY20221024_testbattery/TY20221024_testbattery_001.ns6")
-    # ap.add_argument("-m", "--meta_path", required=True, type=str,
-    #     help="path to metadata yml file to be added to NWB file, e.g. /project/nicho/projects/marmosets/code_database/data_processing/nwb_tools/marms_complete_metadata.yml")
-    # ap.add_argument("-p", "--prb_path" , required=True, type=str,
-    #     help="path to .prb file that provides probe/channel info to NWB file, e.g. /project/nicho/data/marmosets/prbfiles/MG_array.prb")
-    # ap.add_argument("-ab", "--swap_ab" , required=True, type=str,
-    #     help="Can be 'yes' or 'no'. Indicates whether or not channel names need to be swapped for A/B bank swapping conde by exilis. For new data, this should be taken care of in cmp file. For TY data, will be necessary.")
-    # args = vars(ap.parse_args())
+    ap = argparse.ArgumentParser()
+    ap.add_argument("-f", "--ns6_path" , required=True, type=str,
+        help="path to ns6 file that will be stored in new NWB file, e.g. /project/nicho/data/marmosets/electrophys_data_for_processing/TY20221024_testbattery/TY20221024_testbattery_001.ns6")
+    ap.add_argument("-m", "--meta_path", required=True, type=str,
+        help="path to metadata yml file to be added to NWB file, e.g. /project/nicho/projects/marmosets/code_database/data_processing/nwb_tools/marms_complete_metadata.yml")
+    ap.add_argument("-p", "--prb_path" , required=True, type=str,
+        help="path to .prb file that provides probe/channel info to NWB file, e.g. /project/nicho/data/marmosets/prbfiles/MG_array.prb")
+    ap.add_argument("-ab", "--swap_ab" , required=True, type=str,
+        help="Can be 'yes' or 'no'. Indicates whether or not channel names need to be swapped for A/B bank swapping conde by exilis. For new data, this should be taken care of in cmp file. For TY data, will be necessary.")
+    args = vars(ap.parse_args())
     
-    args = {'ns6_path' : '/project/nicho/data/marmosets/electrophys_data_for_processing/TY20210211_freeAndMoths/TY20210211_freeAndMoths-003.ns6',
-            'meta_path': '/project/nicho/projects/marmosets/code_database/data_processing/nwb_tools/TY_complete_metadata.yml',
-            'prb_path' : '/project/nicho/data/marmosets/prbfiles/TY_02.prb',
-            'swap_ab'  : 'yes'}
+    # args = {'ns6_path' : '/project/nicho/data/marmosets/electrophys_data_for_processing/TS20230622_1335_sleep/TS20230622_1335_sleep_001.ns6',
+    #         'meta_path': '/project/nicho/data/marmosets/metadata_yml_files/MG_complete_metadata.yml',
+    #         'prb_path' : '/project/nicho/data/marmosets/prbfiles/MG_01.prb',
+    #         'swap_ab'  : 'no'}
     
     filter_dict = {'6': 'None'}
     

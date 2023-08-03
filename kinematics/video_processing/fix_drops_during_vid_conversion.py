@@ -19,6 +19,8 @@ period_ns = 1/int(fps) * 1e9
 
 frames = sorted(glob.glob(filePattern))
 
+print('\n\n Found %d frames at %s \n\n' % (len(frames), filePattern))
+
 event = frames[0].split('event_')[1][:3] 
 subject_date_exp = os.path.basename(frames[0]).split('_session')[0]
 

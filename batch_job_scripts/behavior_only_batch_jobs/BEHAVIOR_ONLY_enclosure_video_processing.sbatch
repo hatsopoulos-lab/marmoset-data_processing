@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH --job-name=free_video_proc
-#SBATCH --output=/project/nicho/projects/marmosets/job_log_files/free_video_proc_%a.out
-#SBATCH --error=/project/nicho/projects/marmosets/job_log_files/free_video_proc_%a.err
+#SBATCH --job-name=TEST_free_video_proc
+#SBATCH --output=/project/nicho/projects/marmosets/job_log_files/TEST_free_video_proc_%a.out
+#SBATCH --error=/project/nicho/projects/marmosets/job_log_files/TEST_free_video_proc_%a.err
 #SBATCH --time=36:00:00
 #SBATCH --partition=caslake
 #SBATCH --array=0-3
@@ -10,11 +10,11 @@
 #SBATCH --account=pi-nicho
 
 #------------params that may change for each dataset/experiment----------------------#
-dates=(2023_01_10)
+dates=(2023_01_09)
 exp=test_free
 sess=(1)
 calib_name=None #calib
-scratch_space_username=aparicio
+scratch_space_username=daltonm
 
 #----------------------params that rarely change-------------------------------------#
 marms=HMMG

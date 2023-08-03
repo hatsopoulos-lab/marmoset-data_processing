@@ -66,8 +66,12 @@ if __name__ == '__main__':
     
     print('\n\n Beginning CLAHE filter code at %s\n\n' % time.strftime('%c', time.localtime()), flush=True)
     
-    task_id = int(os.getenv('SLURM_ARRAY_TASK_ID'))
-    n_tasks = int(os.getenv('SLURM_ARRAY_TASK_COUNT'))
+    try:
+        task_id = int(os.getenv('SLURM_ARRAY_TASK_ID'))
+        n_tasks = int(os.getenv('SLURM_ARRAY_TASK_COUNT'))
+    except:
+        task_id = 0
+        n_tasks = 1
 
     videos = []
     bright_dirs = []

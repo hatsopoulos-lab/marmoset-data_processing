@@ -48,7 +48,7 @@ def convert_jpg_to_video(jpg_dir, vid_dir, marms, dates, exp, session_nums, fps,
                 event_pattern      = re.compile('event_\d{3}')
                 start_time_pattern = re.compile('\d{4}-\d{2}.jpg')
 
-                # print(os.path.join(jpg_path, 'jpg_cam%d' % cam, '*'), flush=True)
+                print(os.path.join(jpg_path, 'jpg_cam%d' % cam, '*'), flush=True)
 
                 jpg_file = sorted(glob.glob(os.path.join(jpg_path, 'jpg_cam%d' % cam, '*')))[-1]
                 # print('got %d jpg files' % len(jpg_file))
@@ -125,6 +125,12 @@ def convert_jpg_to_video(jpg_dir, vid_dir, marms, dates, exp, session_nums, fps,
                                      '-vcodec', 'libx264', 
                                      outvidfile])
                 else:
+                    nFrames = len(glob.glob(inPattern))
+                    print('\nfps = %d \n inPattern = %s \n trans = %d, outvidfile=%s\n, nFrames=%d' % (fps, 
+                                                                                                       inPattern, 
+                                                                                                       trans, 
+                                                                                                       outvidfile,
+                                                                                                       nFrames))
                     subprocess.call(['ffmpeg', 
                                      '-r', str(fps), 
                                      '-f', 'image2', 
@@ -300,8 +306,12 @@ if __name__ == '__main__':
         else:
             transpose.append(-1)
 
-    task_id = int(os.getenv('SLURM_ARRAY_TASK_ID'))
-    n_tasks = int(os.getenv('SLURM_ARRAY_TASK_COUNT'))
+    try:
+        task_id = int(os.getenv('SLURM_ARRAY_TASK_ID'))
+        n_tasks = int(os.getenv('SLURM_ARRAY_TASK_COUNT'))
+    except:
+        task_id = 0
+        n_tasks = 1
     
     convert_jpg_to_video(args['jpg_dir'],
                          args['vid_dir'],

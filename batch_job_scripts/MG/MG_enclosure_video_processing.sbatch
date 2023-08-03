@@ -10,10 +10,10 @@
 #SBATCH --account=pi-nicho
 
 #------------params that may change for each dataset/experiment----------------------#
-dates=(2023_03_17)
+dates=(2023_04_17)
 exp=free
 sess=(1)
-calib_name=None #calib
+calib_name=calib
 scratch_space_username=daltonm
 
 #----------------------params that rarely change-------------------------------------#
