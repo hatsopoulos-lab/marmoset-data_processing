@@ -1,6 +1,6 @@
 # Marmoset Data Processing Pipeline
 
-This code is intended for internal use within the Hatsopoulos Lab, and is designed to operate primarily on the RCC midway3 computing cluster.
+This code is intended for internal use within the Hatsopoulos Lab, and is designed to operate primarily on the RCC midway3 computing cluster. **It is completely functional but requires more thorough documentation and some reorganization of the file structure.** 
 
 ## Contents
   1. **batch_job_files**: contains primarily sbatch scripts and some .py files tailored to individual marmosets or projects. These use code contained in the other three folders.
