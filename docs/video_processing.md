@@ -4,9 +4,9 @@ How to process marmoset video data on midway3 computing cluster. See last sectio
 
 ### Code used in this guide
 
-[TEMPLATE_apparatus_video_processing.sbatch](/subject_specific_scripts/TEMPLATE_apparatus_video_processing.sbatch)<br>
-[TEMPLATE_enclosure_video_processing.sbatch](/subject_specific_scripts/TEMPLATE_enclosure_video_processing.sbatch)<br>
-[TEMPLATE_sleep_video_processing.sbatch](/subject_specific_scripts/TEMPLATE_sleep_video_processing.sbatch)<br>
+[TEMPLATE_apparatus_video_processing.sbatch](/subject_specific_scripts/TEMPLATES/sbatch/TEMPLATE_apparatus_video_processing.sbatch)<br>
+[TEMPLATE_enclosure_video_processing.sbatch](/subject_specific_scripts/TEMPLATES/sbatch/TEMPLATE_enclosure_video_processing.sbatch)<br>
+[TEMPLATE_sleep_video_processing.sbatch](/subject_specific_scripts/TEMPLATES/sbatch/TEMPLATE_sleep_video_processing.sbatch)<br>
 [check_for_episode_splits_and_adjust_image_filenames_preAVI.py](/kinematics/video_processing/check_for_episode_splits_and_adjust_image_filenames_preAVI.py)<br>
 [jpg2avi.py](/kinematics/video_processing/jpg2avi.py)<br>
 [apply_clahe_filter_to_videos.py](/kinematics/video_processing/apply_clahe_filter_to_videos.py)<br>
@@ -21,7 +21,7 @@ How to process marmoset video data on midway3 computing cluster. See last sectio
 		Goal-directed: /SCRATCH_DIR/kinematics_jpgs/GOAL_DIRECTED_EXP_NAME/YYYY_MM_DD
         Spontaneous:   /SCRATCH_DIR/kinematics_jpgs/FREE_EXP_NAME/YYYY_MM_DD 
             
-        If necessary, extract archived files with: `tar -xf YYYY_MM_DD.tar`
+        If necessary, extract archived files with: tar -xf YYYY_MM_DD.tar
         
 3.	Check that neural data folder containing ns6 and nev files is stored at: 
     
@@ -33,10 +33,10 @@ How to process marmoset video data on midway3 computing cluster. See last sectio
 
 2.	Open files below in your text editor of choice:
 
-        /DATA_PROCESSING_DIR/batch_job_files/MARM/MARM_apparatus_video_processing.sbatch
-        /DATA_PROCESSING_DIR/batch_job_files/MARM/MARM_enclosure_video_processing.sbatch
+        /DATA_PROCESSING_DIR/subject_specific_files/MARM/MARM_apparatus_video_processing.sbatch
+        /DATA_PROCESSING_DIR/subject_specific_files/MARM/MARM_enclosure_video_processing.sbatch
 	
-    (For sleep experiments, use `/DATA_PROCESSING_DIR/batch_job_files/MARM/MARM_sleep_video_processing.sbatch`)
+    (For sleep experiments, use `/DATA_PROCESSING_DIR/subject_specific_files/MARM/MARM_sleep_video_processing.sbatch`)
 
 
 3.	Edit the SBATCH job parameters as necessary
@@ -46,8 +46,8 @@ How to process marmoset video data on midway3 computing cluster. See last sectio
 `#----------------------params that rarely change------------------------------#`
 6.	Run the jobs:
 
-		sbatch /DATA_PROCESSING_DIR/batch_job_files/MARM/MARM_apparatus_video_processing.sbatch
-        sbatch /DATA_PROCESSING_DIR/batch_job_files/MARM/MARM_enclosure_video_processing.sbatch
+		sbatch /DATA_PROCESSING_DIR/subject_specific_files/MARM/MARM_apparatus_video_processing.sbatch
+        sbatch /DATA_PROCESSING_DIR/subject_specific_files/MARM/MARM_enclosure_video_processing.sbatch
 
 7.	Check status of jobs with:
 		
@@ -56,7 +56,7 @@ How to process marmoset video data on midway3 computing cluster. See last sectio
         vi /path/to/job_log_files/JOB_LABEL_jobNum.err
         
 ### Check data after jobs end
-1.	Look through the video folders in `/kinematics_videos/EXP_NAME/MARM/YYYY_MM_DD`. 
+1.	Look through the video folders in `/DATA_DIR/kinematics_videos/EXP_NAME/MARM/YYYY_MM_DD`. 
 Start with `unfiltered_videos`, then `bright_uncompressed_avi_videos`, then `avi_videos`, 
 which contains the final output. The file count should be equal to N_cameras * N_video_events.
 Check that all videos have reasonable data sizes (shouldn't be 0 or 1 kB).
@@ -75,7 +75,7 @@ Check that all videos have reasonable data sizes (shouldn't be 0 or 1 kB).
 processing files located in `/metadata_from_kinematics_processing` and `/drop_records`. There should
 be two files located here, which can be opened in any python IDE (iPython, spyder, etc):
 
-		with open('/path/to/metadata_from_kinematics_processing/YYYYMMDD_experiment_event_and_frame_time_info.pkl', 'rb') as f:
+		with open('/DATA_DIR/kinematics_videos/EXP_NAME/MARM/YYYY_MM_DD/metadata_from_kinematics_processing/YYYYMMDD_experiment_event_and_frame_time_info.pkl', 'rb') as f:
         	metadata = dill.load(f)
 
 ### Clean up intermediate files
