@@ -2,22 +2,22 @@
 #SBATCH --job-name=train_dlc_marms
 #SBATCH --output=/project/nicho/projects/marmosets/job_log_files/train_dlc_marms.out
 #SBATCH --error=/project/nicho/projects/marmosets/job_log_files/train_dlc_marms.err
-#SBATCH --time=30:00
+#SBATCH --time=10:00:00
 #SBATCH --partition=beagle3
 #SBATCH --gres=gpu:1
 #SBATCH --nodes=1
-#SBATCH --mem=64G
+#SBATCH --mem=96G
 #SBATCH --account=pi-nicho
 
 #---------------------------------------------Params that may change often----------------#
-dates_to_copy=(2023_04_16)
+dates_to_copy=()
 ncams=5
 nlabels=3
 dlc_scorer=Dalton
 experiment=apparatus
 
-maxiters=1000000
-init_weights=/beagle3/nicho/projects/marmosets/dlc_project_files/simple_marmoset_model-Dalton-2023-04-28/dlc-models/iteration-6/simple_marmoset_modelApr28-trainset95shuffle1/train/snapshot-500000
+maxiters=2000000
+init_weights=/project/nicho/projects/marmosets/dlc_project_files/simple_marmoset_model-Dalton-2023-04-28/dlc-models/iteration-4/simple_marmoset_modelApr28-trainset95shuffle1/train/snapshot-1260000/
 #init_weights=None
 overwrite_trainset=True
 
@@ -26,7 +26,7 @@ param_set=marmoset
 if [[ "$experiment" == *"free"* ]] || [[ "$experiment" == *"enclosure"* ]]; then
     dlc_path=/project/nicho/projects/marmosets/undergraduate_dlc_projects/spontaneous_behavior-undergrads-2023-01-13
 else
-    dlc_path=/beagle3/nicho/projects/marmosets/dlc_project_files/simple_marmoset_model-Dalton-2023-04-28
+    dlc_path=/project/nicho/projects/marmosets/dlc_project_files/simple_marmoset_model-Dalton-2023-04-28
 fi
 
 #---------------------------------------------Load the appropriate applications-----------#

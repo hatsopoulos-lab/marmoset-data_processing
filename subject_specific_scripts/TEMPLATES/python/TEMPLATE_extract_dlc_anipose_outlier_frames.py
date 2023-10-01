@@ -34,6 +34,8 @@ def extract_outlier_frames(video_path, dlc_config_path, extraction_dict):
     cam_pattern = re.compile('_cam[0-9]{1}')
     
     dlc_cfg=deeplabcut.auxiliaryfunctions.read_config(dlc_config_path)
+    if extraction_dict['dlc_iter'] is not None:
+        dlc_cfg['iteration'] = extraction_dict['dlc_iter']
     
     for event, start, stop, nframes, cameras in zip(extraction_dict['events'],
                                                     extraction_dict['start_fractions'],
@@ -73,14 +75,15 @@ if __name__ == '__main__':
     
     args = {'pose_dir': '/project/nicho/data/marmosets/kinematics_videos/moths/HMMG/2023_04_16/pose-2d-viterbi_and_autoencoder',
             'vid_dir' : '/project/nicho/data/marmosets/kinematics_videos/moths/HMMG/2023_04_16/avi_videos',
-            'dlc_config_path': '/project/nicho/projects/marmosets/dlc_project_files/simple_marmoset_model-Dalton-2023-04-28/config.yaml'}
+            'dlc_config_path': '/beagle3/nicho/projects/marmosets/dlc_project_files/simple_marmoset_model-Dalton-2023-04-28/config.yaml'}
     
     extraction_dict = {'events'         : [    1,   33,    33],
                        'start_fractions': [ 0.51, 0.12,  0.71],
                        'stop_fractions' : [ 0.56, 0.17,  0.88],
-                       'numframes'      : [    5,   15,    15],
+                       'numframes'      : [    4,    4,     4],
                        'cameras'        : [[1,3], [1,3], [1,3]],
-                       'bodyparts': ['r-wrist']}
+                       'bodyparts': ['r-wrist'],
+                       'dlc_iter': 4}
     
     pose_dir = args['pose_dir']
     if pose_dir[-1] == '/':

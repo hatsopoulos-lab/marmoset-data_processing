@@ -1,8 +1,8 @@
 #!/bin/bash
-#SBATCH --job-name=demo_anipose
-#SBATCH --output=/project/nicho/projects/marmosets/job_log_files/demo_anipose_%a.out
-#SBATCH --error=/project/nicho/projects/marmosets/job_log_files/demo_anipose_%a.err
-#SBATCH --time=2:00:00
+#SBATCH --job-name=TEMP_anipose
+#SBATCH --output=/project/nicho/projects/marmosets/job_log_files/TEMP_anipose_%a.out
+#SBATCH --error=/project/nicho/projects/marmosets/job_log_files/TEMP_anipose_%a.err
+#SBATCH --time=18:00:00
 #SBATCH --partition=beagle3
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=16
@@ -11,9 +11,9 @@
 #SBATCH --account=pi-nicho
 
 #---------------------------------------------Params that may change often----------------#
-experiment=moths
-marms=HMMG
-dates=(2023_04_16_demo)
+experiment=moth
+marms=JLTY
+dates=(2023_08_09)
 train_frac=None
 snap_idx=-1
 dlc_iter=None
@@ -28,7 +28,6 @@ if [[ "$experiment" == *"free"* ]] || [[ "$experiment" == *"enclosure"* ]]; then
     dlc_path=/project/nicho/projects/marmosets/dlc_project_files/FREE_BEHAVIOR_PROJECT_NAME
 else
     dlc_path=/project/nicho/projects/marmosets/dlc_project_files/simple_marmoset_model-Dalton-2023-04-28 
-    #dlc_path=/project/nicho/projects/marmosets/dlc_project_files/simple_MG_model-Dalton-2023-04-28
 fi
 anipose_path=/project/nicho/data/marmosets/kinematics_videos/$experiment/$marms
 

@@ -1,24 +1,24 @@
 #!/bin/bash
-#SBATCH --job-name=TEST_free_video_proc
-#SBATCH --output=/project/nicho/projects/marmosets/job_log_files/TEST_free_video_proc_%a.out
-#SBATCH --error=/project/nicho/projects/marmosets/job_log_files/TEST_free_video_proc_%a.err
-#SBATCH --time=36:00:00
+#SBATCH --job-name=TEMP_free_video_proc
+#SBATCH --output=/project/nicho/projects/marmosets/job_log_files/TEMP_free_video_proc_%a.out
+#SBATCH --error=/project/nicho/projects/marmosets/job_log_files/TEMP_free_video_proc_%a.err
+#SBATCH --time=18:00:00
 #SBATCH --partition=caslake
 #SBATCH --array=0-3
 #SBATCH --ntasks=8
-#SBATCH --mem=64G
+#SBATCH --mem=128G
 #SBATCH --account=pi-nicho
 
 #------------params that may change for each dataset/experiment----------------------#
-dates=(2023_01_09)
-exp=test_free
+dates=(2023_08_08)
+exp=moth_free
 sess=(1)
-calib_name=None #calib
-scratch_space_username=daltonm
+calib_name=calib
+scratch_space_username=daltonm #walkerjd
 
 #----------------------params that rarely change-------------------------------------#
-marms=HMMG
-fps=60
+marms=JLTY
+fps=30
 ncams=4
 vid_transpose=(2 2 1 1)  # number of arguments MUST match ncams 
 

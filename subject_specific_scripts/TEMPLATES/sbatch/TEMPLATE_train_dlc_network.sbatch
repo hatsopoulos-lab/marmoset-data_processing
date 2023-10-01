@@ -17,7 +17,7 @@ dlc_scorer=Dalton
 experiment=apparatus
 
 maxiters=2000000
-init_weights=/beagle3/nicho/projects/marmosets/dlc_project_files/simple_marmoset_model-Dalton-2023-04-28/dlc-models/iteration-4/simple_marmoset_modelApr28-trainset95shuffle1/train/snapshot-1260000/
+init_weights=/project/nicho/projects/marmosets/dlc_project_files/simple_marmoset_model-Dalton-2023-04-28/dlc-models/iteration-4/simple_marmoset_modelApr28-trainset95shuffle1/train/snapshot-1260000/
 #init_weights=None
 overwrite_trainset=True
 

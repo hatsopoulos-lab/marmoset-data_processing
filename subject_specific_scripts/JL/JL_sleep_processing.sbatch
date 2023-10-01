@@ -9,7 +9,7 @@
 #SBATCH --account=pi-nicho
 
 #------------params that may change for each dataset/experiment----------------------#
-dates=(2023_06_26)
+dates=(2023_08_09)
 exp1=sleep
 sess=(1)
 calib_name=None
@@ -19,11 +19,11 @@ scratch_space_username=daltonm
 exp2=None
 
 #----------------------params that rarely change-------------------------------------#
-marms=HMMG
-marms_ephys=TS
+marms=JLTY
+marms_ephys=JL
 swap_ab=no
-prb_path=/project/nicho/data/marmosets/prbfiles/MG_01.prb
-metadata_path=/project/nicho/data/marmosets/metadata_yml_files/MG_complete_metadata.yml
+prb_path=/project/nicho/data/marmosets/prbfiles/JL_01.prb
+metadata_path=/project/nicho/data/marmosets/metadata_yml_files/JL_complete_metadata.yml
 fps=30
 ncams=1
 vid_transpose=(1) # number of arguments MUST match ncams 

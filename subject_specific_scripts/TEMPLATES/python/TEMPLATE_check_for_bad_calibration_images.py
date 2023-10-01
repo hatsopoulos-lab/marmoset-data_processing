@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
@@ -14,7 +15,7 @@ import toml
 import numpy as np
 import matplotlib.pyplot as plt
 
-project_path = '/project/nicho/data/marmosets/kinematics_videos/moths/HMMG/2023_04_16'
+project_path = '/project/nicho/data/marmosets/kinematics_videos/moth/JLTY/2023_08_03'
 
 def load_detections_and_videos(project_path):
     with open(pjoin(project_path, 'calibration', 'detections.pickle'), 'rb') as f:
@@ -44,18 +45,31 @@ def extract_images_from_video(vidpath, vid_detections):
             
     return image_list
 
-def fix_detected_corners_arrangement(image, board_size, corners, filled):
+def fix_detected_corners_arrangement(image, board_size, corners, filled, correct_arr):
 
-    rearr_idx = np.arange(corners.shape[0])[::-1]
+    if correct_arr.lower() == 'r':
+        rearr_idx = np.arange(corners.shape[0])[::-1]
+    elif correct_arr.lower() == 'v':
+        rearr_idx = np.array([], dtype=int)
+        for row in range(board_size[1]):
+            rearr_idx = np.hstack((np.arange(board_size[0]*row, board_size[0]*(row+1)), 
+                                   rearr_idx))
+    elif correct_arr.lower() == 'h':
+        rearr_idx = np.array([], dtype=int)
+        for row in range(board_size[1]):
+            rearr_idx = np.hstack((rearr_idx,
+                                   np.arange(board_size[0]*(row+1)-1, board_size[0]*row-1, -1)))
 
     corners = corners[rearr_idx] 
     filled  = filled[rearr_idx] 
+    
+    # print(corners[:9].squeeze())
     
     image_grid = cv2.drawChessboardCorners(image, board_size, corners, True)
     
     plt.imshow(image_grid)
     plt.pause(.01)
-    correct_arr = input('Is this FLIPPED grid correct now? Type [Enter/f/d] for [Good/Flip/Delete]')
+    correct_arr = input('Is this FLIPPED grid correct now? Type [Enter/r/v/h/d] for [Good/Reverse/VertFlip/HorzFlip/Delete]')
 
     return correct_arr, corners, filled
 
@@ -68,15 +82,20 @@ def manually_correct_calibration_detections(image_list, vid_detect, board_size):
         corners = corrected_info['corners']
         filled  = corrected_info['filled']
         
+        # print(corners[:9].squeeze())
+        
         image_grid = cv2.drawChessboardCorners(image, board_size, corners, True)
         
         plt.imshow(image_grid)
         plt.show()
         plt.pause(.01)
-        correct_arr = input('Is the grid correct now? (Blue top left, Red bottom right) Type [Enter/f/d] for [Good/Flip/Delete]')
+        correct_arr = input('Is the grid correct now? Type [Enter/r/v/h/d] for [Good/Reverse/VertFlip/HorzFlip/Delete]')
         
-        while correct_arr.lower() == 'f':
-            correct_arr, corners, filled = fix_detected_corners_arrangement(image, board_size, corners, filled)
+        while not (len(correct_arr) == 0 or correct_arr.lower() in ['v', 'h', 'r', 'd']):
+            correct_arr = input('The option you have entered is not supported. Type [Enter/r/v/h/d] for [Good/Reverse/VertFlip/HorzFlip/Delete]')    
+        
+        while correct_arr.lower() in ['v', 'h', 'r']:
+            correct_arr, corners, filled = fix_detected_corners_arrangement(image, board_size, corners, filled, correct_arr)
         
         if correct_arr.lower() == 'd':
             continue
