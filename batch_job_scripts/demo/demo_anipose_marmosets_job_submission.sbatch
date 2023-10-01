@@ -1,8 +1,8 @@
 #!/bin/bash
-#SBATCH --job-name=MG_anipose
-#SBATCH --output=/project/nicho/projects/marmosets/job_log_files/MG_anipose_%a.out
-#SBATCH --error=/project/nicho/projects/marmosets/job_log_files/MG_anipose_%a.err
-#SBATCH --time=24:00:00
+#SBATCH --job-name=demo_anipose
+#SBATCH --output=/project/nicho/projects/marmosets/job_log_files/demo_anipose_%a.out
+#SBATCH --error=/project/nicho/projects/marmosets/job_log_files/demo_anipose_%a.err
+#SBATCH --time=2:00:00
 #SBATCH --partition=beagle3
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=16
@@ -13,7 +13,7 @@
 #---------------------------------------------Params that may change often----------------#
 experiment=moths
 marms=HMMG
-dates=(2023_04_16)
+dates=(2023_04_16_demo)
 train_frac=None
 snap_idx=-1
 dlc_iter=None

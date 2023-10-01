@@ -148,13 +148,15 @@ def store_drop_records(timestamps, dropframes_proc_mod, drop_record_folder, exp_
     
     return
 
-def remove_duplicate_spikes_from_good_single_units(units, plot=False):
+def remove_duplicate_spikes_from_good_single_units(units, mua_to_fix=[], plot=False):
     for unitID in units.index:
         unit = units.loc[units.index == unitID, :]
         spike_times = unit.spike_times.iloc[0]
 
+        fix_mua = True if int(unit.unit_name) in mua_to_fix else False
+
         thresh = 150
-        if unit.quality.iloc[0] == 'good':
+        if unit.quality.iloc[0] == 'good' or fix_mua:
             unit_isi = elephant.statistics.isi(spike_times)
             tiny_isi =  np.where(unit_isi < thresh * 1e-6)[0]
             non_duplicate_idxs = np.setdiff1d(np.arange(spike_times.shape[0]), tiny_isi)
@@ -180,9 +182,9 @@ def remove_duplicate_spikes_from_good_single_units(units, plot=False):
     
     return units
 
-def get_sorted_units_and_apparatus_kinematics_with_metadata(nwb_prc, reaches_key, plot=False):
+def get_sorted_units_and_apparatus_kinematics_with_metadata(nwb_prc, reaches_key, mua_to_fix=[], plot=False):
     units          = nwb_prc.units.to_dataframe()
-    units          = remove_duplicate_spikes_from_good_single_units(units, plot=plot)
+    units          = remove_duplicate_spikes_from_good_single_units(units, mua_to_fix=mua_to_fix, plot=plot)
     reaches        = nwb_prc.intervals[reaches_key].to_dataframe()
     
     kin_module_key = reaches.iloc[0].kinematics_module

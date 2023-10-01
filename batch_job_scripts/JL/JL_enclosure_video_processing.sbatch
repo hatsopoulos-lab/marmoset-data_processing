@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH --job-name=JL_free_video_proc
-#SBATCH --output=/project/nicho/projects/marmosets/job_log_files/JL_free_video_proc_%a.out
-#SBATCH --error=/project/nicho/projects/marmosets/job_log_files/JL_free_video_proc_%a.err
-#SBATCH --time=36:00:00
+#SBATCH --output=/project/nicho/projects/marmosets/job_log_files/Dalton08_JL_free_video_proc_%a.out
+#SBATCH --error=/project/nicho/projects/marmosets/job_log_files/Dalton08_JL_free_video_proc_%a.err
+#SBATCH --time=18:00:00
 #SBATCH --partition=caslake
 #SBATCH --array=0-3
 #SBATCH --ntasks=8
@@ -10,15 +10,15 @@
 #SBATCH --account=pi-nicho
 
 #------------params that may change for each dataset/experiment----------------------#
-dates=(2023_06_26)
-exp=test_free
+dates=(2023_08_08)
+exp=moth_free
 sess=(1)
 calib_name=calib
-scratch_space_username=daltonm
+scratch_space_username=daltonm #walkerjd
 
 #----------------------params that rarely change-------------------------------------#
-marms=HMMG
-fps=60
+marms=JLTY
+fps=30
 ncams=4
 vid_transpose=(2 2 1 1)  # number of arguments MUST match ncams 
 

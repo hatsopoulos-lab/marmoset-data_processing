@@ -34,8 +34,11 @@ from hatlab_nwb_functions import *
 def add_screenshots_to_nwb(nwb_path):
     with NWBHDF5IO(nwb_path, 'r+') as io:
         nwbfile = io.read()
-    
-        image_files = glob.glob(os.path.join(os.path.dirname(nwb_path), '*png'))
+        
+        try:
+            image_files = glob.glob(os.path.join(os.path.dirname(nwb_path), '*jpg'))
+        except:
+            image_files = glob.glob(os.path.join(os.path.dirname(nwb_path), '*png'))
         screenshot_images = []
         for f in image_files:
             if 'plots' not in f:
@@ -268,9 +271,9 @@ if __name__ == '__main__':
         help="Can be 'yes' or 'no'. Indicates whether or not channel names need to be swapped for A/B bank swapping conde by exilis. For new data, this should be taken care of in cmp file. For TY data, will be necessary.")
     args = vars(ap.parse_args())
     
-    # args = {'ns6_path' : '/project/nicho/data/marmosets/electrophys_data_for_processing/TS20230622_1335_sleep/TS20230622_1335_sleep_001.ns6',
-    #         'meta_path': '/project/nicho/data/marmosets/metadata_yml_files/MG_complete_metadata.yml',
-    #         'prb_path' : '/project/nicho/data/marmosets/prbfiles/MG_01.prb',
+    # args = {'ns6_path' : '/project/nicho/data/marmosets/electrophys_data_for_processing/JL20230805_1400_freeAndMoths_day03/JL20230805_1400_freeAndMoths_day03001.ns6',
+    #         'meta_path': '/project/nicho/data/marmosets/metadata_yml_files/JL_complete_metadata.yml',
+    #         'prb_path' : '/project/nicho/data/marmosets/prbfiles/JL_01.prb',
     #         'swap_ab'  : 'no'}
     
     filter_dict = {'6': 'None'}

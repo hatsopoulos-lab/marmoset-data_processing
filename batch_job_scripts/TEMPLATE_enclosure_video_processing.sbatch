@@ -10,14 +10,14 @@
 #SBATCH --account=pi-nicho
 
 #------------params that may change for each dataset/experiment----------------------#
-dates=(2023_01_09)
-exp=test_free
+dates=(2023_08_02)
+exp=moth_free
 sess=(1)
 calib_name=None #calib
 scratch_space_username=daltonm
 
 #----------------------params that rarely change-------------------------------------#
-marms=HMMG
+marms=JLTY
 fps=60
 ncams=4
 vid_transpose=(2 2 1 1)  # number of arguments MUST match ncams 

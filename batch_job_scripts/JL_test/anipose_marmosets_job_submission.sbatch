@@ -1,8 +1,8 @@
 #!/bin/bash
-#SBATCH --job-name=MG_anipose
-#SBATCH --output=/project/nicho/projects/marmosets/job_log_files/MG_anipose_%a.out
-#SBATCH --error=/project/nicho/projects/marmosets/job_log_files/MG_anipose_%a.err
-#SBATCH --time=24:00:00
+#SBATCH --job-name=demo_anipose
+#SBATCH --output=/project/nicho/projects/marmosets/job_log_files/demo_anipose_%a.out
+#SBATCH --error=/project/nicho/projects/marmosets/job_log_files/demo_anipose_%a.err
+#SBATCH --time=12:00:00
 #SBATCH --partition=beagle3
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=16
@@ -11,15 +11,16 @@
 #SBATCH --account=pi-nicho
 
 #---------------------------------------------Params that may change often----------------#
-experiment=moths
-marms=HMMG
-dates=(2023_04_16)
+experiment=moth
+marms=JLTY
+dates=(2023_08_03)
 train_frac=None
 snap_idx=-1
 dlc_iter=None
 extra_vars=(False True) # (only_3D label_videos)
+videotype=bright_uncompressed_avi_videos # added parameter, change to anipose path
 
-ncams=5
+ncams=5 # maybe change to 2 for unilateral marking
 vid_transpose=(-1 -1 -1 -1 -1)  # number of arguments MUST match ncams 
 
 #---------------------------------------------Params unlikely to change-------------------#
@@ -30,7 +31,7 @@ else
     dlc_path=/project/nicho/projects/marmosets/dlc_project_files/simple_marmoset_model-Dalton-2023-04-28 
     #dlc_path=/project/nicho/projects/marmosets/dlc_project_files/simple_MG_model-Dalton-2023-04-28
 fi
-anipose_path=/project/nicho/data/marmosets/kinematics_videos/$experiment/$marms
+anipose_path=/project/nicho/data/marmosets/kinematics_videos/$experiment/$marms #/$dates/$videotype
 
 #---------------------------------------------Load the appropriate applications-----------#
 module load cudnn/11.2

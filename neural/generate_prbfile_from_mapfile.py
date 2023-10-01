@@ -13,10 +13,20 @@ from pathlib import Path
 import re
 import json
 import yaml
+from importlib import sys, reload
+sys.path.insert(0, '/project/nicho/projects/marmosets/code_database/data_processing/nwb_tools/hatlab_nwb_tools/')
+from hatlab_nwb_functions import read_prb_hatlab, plot_prb
 
-array_code = 'MG_01'
+array_code = 'JL_01'
 
-params_dict = {'MG_01': {'array_type': 'utah',
+params_dict = {'JL_01': {'array_type': 'utah',
+                         'hemisphere': 'right',
+                         'xy_inter_electrode_dist': 400,
+                         'mapfile': '/project/nicho/data/marmosets/array_map_files/JL_SN-7623-000063/1124-23 SN 7623-000063_exilisABswap.cmp',
+                         'prbfile': '/project/nicho/data/marmosets/prbfiles/JL_01.prb',
+                         'impedances': '/project/nicho/data/marmosets/array_map_files/JL_SN-7623-000063/1124-23 SN 7623-000063.txt'},
+               
+               'MG_01': {'array_type': 'utah',
                          'hemisphere': 'left',
                          'xy_inter_electrode_dist': 400,
                          'mapfile': '/project/nicho/data/marmosets/array_map_files/MIDGE_ARRAY-01/SN 7623-000057_ABswappedForExilis.cmp',
@@ -107,4 +117,6 @@ if __name__ == "__main__":
     prb = create_prb_dict(array_info, map_df, imp_df)
     write_to_prbfile(array_info, prb)
 
+    probegroup, imp = read_prb_hatlab(array_info['prbfile'])
+    plot_prb(probegroup)
 

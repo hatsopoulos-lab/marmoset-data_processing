@@ -10,8 +10,8 @@ from pynwb import NWBHDF5IO
 import ndx_pose
 
 
-nwb_outfile = '/project/nicho/projects/dalton/data/TY20210211_freeAndMoths-003_resorted_20230612_DM.nwb'
-nwb_infile = '/project/nicho/data/marmosets/electrophys_data_for_processing/TY20210211_freeAndMoths/TY20210211_freeAndMoths-003_processed_resorted_20230612.nwb'
+nwb_outfile = '/project/nicho/projects/dalton/data/MG20230416_1505_mothsAndFree-002_processed_DM.nwb'
+nwb_infile = '/project/nicho/data/marmosets/electrophys_data_for_processing/MG20230416_1505_mothsAndFree/MG20230416_1505_mothsAndFree-002_processed.nwb'
 
 with NWBHDF5IO(nwb_infile, 'r+') as io:
     nwb = io.read()

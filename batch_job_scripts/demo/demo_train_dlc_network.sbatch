@@ -6,20 +6,19 @@
 #SBATCH --partition=beagle3
 #SBATCH --gres=gpu:1
 #SBATCH --nodes=1
-#SBATCH --mem=40G
+#SBATCH --mem=64G
 #SBATCH --account=pi-nicho
 
 #---------------------------------------------Params that may change often----------------#
-dates_to_copy=(2021_02_11)
-ncams=2
+dates_to_copy=(2023_04_16)
+ncams=5
 nlabels=3
 dlc_scorer=Dalton
 experiment=apparatus
 
-maxiters=200000
-#init_weights=/project/nicho/projects/marmosets/dlc_project_files/full_marmoset_model-Dalton-2022-07-26/dlc-models/iteration-2/full_marmoset_modelJul26-trainset95shuffle1/train/snapshot-420000
-#init_weights=/project/nicho/environments/dlc/lib/python3.7/site-packages/deeplabcut/pose_estimation_tensorflow/models/pretrained/resnet_v1_50.ckpt
-init_weights=None
+maxiters=1000000
+init_weights=/beagle3/nicho/projects/marmosets/dlc_project_files/simple_marmoset_model-Dalton-2023-04-28/dlc-models/iteration-6/simple_marmoset_modelApr28-trainset95shuffle1/train/snapshot-500000
+#init_weights=None
 overwrite_trainset=True
 
 #---------------------------------------------Params unlikely to change-------------------#
@@ -27,7 +26,7 @@ param_set=marmoset
 if [[ "$experiment" == *"free"* ]] || [[ "$experiment" == *"enclosure"* ]]; then
     dlc_path=/project/nicho/projects/marmosets/undergraduate_dlc_projects/spontaneous_behavior-undergrads-2023-01-13
 else
-    dlc_path=/project/nicho/projects/marmosets/dlc_project_files/full_marmoset_model-Dalton-2022-07-26
+    dlc_path=/beagle3/nicho/projects/marmosets/dlc_project_files/simple_marmoset_model-Dalton-2023-04-28
 fi
 
 #---------------------------------------------Load the appropriate applications-----------#
@@ -36,8 +35,8 @@ module load python/anaconda-2022.05
 source activate /project/nicho/environments/dlc
 
 #---------------------------------------------Execute the programs------------------------#
-python /project/nicho/projects/marmosets/code_database/data_processing/kinematics/dlc_and_anipose/copy_origin_and_axis_labels_to_unmarked_labeled_frames.py \
--dp $dlc_path -d ${dates_to_copy[@]} -c $ncams -l $nlabels -s $dlc_scorer
+#python /project/nicho/projects/marmosets/code_database/data_processing/kinematics/dlc_and_anipose/copy_origin_and_axis_labels_to_unmarked_labeled_frames.py \
+#-dp $dlc_path -d ${dates_to_copy[@]} -c $ncams -l $nlabels -s $dlc_scorer
 
 python /project/nicho/projects/marmosets/code_database/data_processing/kinematics/dlc_and_anipose/train_dlc.py \
 -d $dlc_path -m $maxiters -i $init_weights -o $overwrite_trainset

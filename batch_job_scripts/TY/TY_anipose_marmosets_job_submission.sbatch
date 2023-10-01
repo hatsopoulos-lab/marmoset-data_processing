@@ -1,8 +1,8 @@
 #!/bin/bash
-#SBATCH --job-name=MG_anipose
-#SBATCH --output=/project/nicho/projects/marmosets/job_log_files/MG_anipose_%a.out
-#SBATCH --error=/project/nicho/projects/marmosets/job_log_files/MG_anipose_%a.err
-#SBATCH --time=24:00:00
+#SBATCH --job-name=anipose_TY
+#SBATCH --output=/project/nicho/projects/marmosets/job_log_files/anipose_TY_%a.out
+#SBATCH --error=/project/nicho/projects/marmosets/job_log_files/anipose_TY_%a.err
+#SBATCH --time=8:00:00
 #SBATCH --partition=beagle3
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=16
@@ -12,15 +12,15 @@
 
 #---------------------------------------------Params that may change often----------------#
 experiment=moths
-marms=HMMG
-dates=(2023_04_16)
+marms=TYJL
+dates=(2021_02_11_simple_marmoset)
 train_frac=None
 snap_idx=-1
 dlc_iter=None
 extra_vars=(False True) # (only_3D label_videos)
 
-ncams=5
-vid_transpose=(-1 -1 -1 -1 -1)  # number of arguments MUST match ncams 
+ncams=2
+vid_transpose=(-1 -1)  # number of arguments MUST match ncams 
 
 #---------------------------------------------Params unlikely to change-------------------#
 param_set=marmoset

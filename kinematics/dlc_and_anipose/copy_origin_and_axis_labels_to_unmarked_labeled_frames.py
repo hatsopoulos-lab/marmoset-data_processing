@@ -5,6 +5,10 @@ Created on Fri Feb 18 15:58:36 2022
 @author: Dalton
 """
 
+"""
+NOTE: Need to add a check for existing label markers, and skip in that case (line 65)
+"""
+
 import pandas as pd
 import numpy as np
 import glob
@@ -57,6 +61,9 @@ def copy_labels_to_unmarked_frames(labels_path, ncams, num_axes_labels, dlc_scor
                 print(f)
                 try:
                     data = pd.read_hdf(os.path.join(f, 'CollectedData_%s.h5' % dlc_scorer))
+                    
+                    # Check for existing labels  
+                    
                     data[axes_column_names] = np.repeat(axes_labels, data.shape[0], axis = 0)
                     
                     data.to_csv(os.path.join(f, "CollectedData_%s.csv" % dlc_scorer))
