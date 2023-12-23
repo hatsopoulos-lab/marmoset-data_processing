@@ -14,7 +14,6 @@ import glob
 import re
 import matplotlib
 import matplotlib.pyplot as plt
-import seaborn as sns
 from statsmodels.stats.weightstats import DescrStatsW
 from sklearn.decomposition import PCA
 from scipy.signal import medfilt
@@ -32,66 +31,35 @@ from scipy.signal import savgol_filter
 #     dates = ['2021_02_11']  # for now we can only do one date at a time
 #     reach_data_storage = r'Z:/marmosets/processed_datasets/reach_and_trajectory_information/%s_reach_and_trajectory_info_updated.pkl' % dates[0].replace('_', '')
 
-marm = 'MG'
-
-anipose_base = '/project/nicho/data/marmosets/kinematics_videos/moths/HMMG/'
+anipose_base = '/project/nicho/data/marmosets/kinematics_videos/moths/TYJL/'
 
 class dpath:
     base = [anipose_base]
-    dates = ['2023_04_16']  # for now we can only do one date at a time
-    reach_data_storage = '/project/nicho/data/marmosets/processed_datasets/reach_and_trajectory_information/20230416_reach_and_trajectory_info.pkl'
+    dates = ['2021_02_11']  # for now we can only do one date at a time
+    reach_data_storage = '/project/nicho/data/marmosets/processed_datasets/reach_and_trajectory_information/20210211_reach_and_trajectory_info_updated.pkl'
     # nwb_file = '/project/nicho/data/marmosets/electrophys_data_for_processing/TY20210211_freeAndMoths/TY20210211_freeAndMoths-003_testing_pose.nwb'
     # session = 1
     # expName = 'moths'
 
 
-class params:
-
-    if marm=='MG':
-        events_list = [1, 2, 3, 8, 17, 20, 25, 29, 30, 33, 39, 40, 43, 44, 45, 52]
-        # move_bounds = [[(20, 23), (63,68), (73,78), (113,116), (120, 130), (148,169),(203,207)],
-        #                [(7,16), (30,38)],
-                       
-        #                ]
-        fps = 200
-        move_bounds = pd.DataFrame(data=zip([ 1,  1,  1,   1,   1,   1,   1,  2,  2,    3,  8,  8,    8, 17, 17, 17,   20,   20,   25, 29, 29, 30, 33,   33,    33,    33,    33,  33, 39, 40, 40, 40, 43, 43, 44, 44, 44, 45, 52, 52, 52],
-                                            [20, 63, 73, 113, 120, 148, 203,  7, 30, 31.6, 27, 50,   73,  1, 16, 35,   11,   23, 37.5, 60, 78,  8, 46, 95.5,   165,   329, 335.5, 360, 22, 24, 56, 75, 10, 34,  5, 14, 38, 21, 10, 35, 58],
-                                            [33, 68, 78, 116, 130, 169, 207, 16, 38, 37.5, 41, 61, 80.3, 11, 27, 41, 16.5, 29.5,   45, 63, 85, 12, 66,  100, 171.5, 330.5,   340, 370, 58, 40, 67, 80, 27, 48,  9, 29, 84, 46, 24, 51, 65]),
-                                   columns=['event', 'start_time', 'stop_time'])
-        move_bounds['use_pos_unfiltered'] = [False for i in range(move_bounds.shape[0])]
-        move_bounds.loc[(move_bounds['event'] == 1) & (move_bounds['start_time'] == 203), 'use_pos_unfiltered'] = True
-        move_bounds['start_frame'] = move_bounds['start_time']*fps
-        move_bounds['stop_frame' ] = move_bounds['stop_time']*fps
-        reach_method=6
-        
-    elif marm=='TY':
-        fps=150
-        reach_method=3
-        
-    # events_list = [3, 8, 17]
+class params:    
+    one_time_manual_filter_edits = {'blip_interpolation': [dict(event=24, marker='hand', start=662 , stop=718),
+                                                           dict(event=89, marker='hand', start=129 , stop=161)],
+                                    'trim_ends'         : [dict(event=37,                start=2148, stop=None)]} # search for this and remove as needed
     
-    # one_time_manual_filter_edits = {'blip_interpolation': [dict(event=24, marker='hand', start=662 , stop=718),
-    #                                                        dict(event=89, marker='hand', start=129 , stop=161)],
-    #                                 'trim_ends'         : [dict(event=37,                start=2148, stop=None)]} # search for this and remove as needed
-    one_time_manual_filter_edits = {'blip_interpolation': [],
-                                    'trim_ends'         : []} # search for this and remove as needed
-        
+    fps = 150
     factor_to_cm = 1e-1
     min_cams_threshold = 2
     min_chunk_length = fps * 0.05 #0.04 # 40 ms
     max_gap_to_stitch = fps * 0.2 # 200 ms 
-    reproj_threshold = 35#20
-    
+    reproj_threshold = 20
     helmet_percent_tracked_thresh = 0.05
-    marker_to_evaluate = 'r-wrist'
-    if marker_to_evaluate == 'r-wrist':
-        yDir_limits = [-100*factor_to_cm, 125*factor_to_cm]
+    marker_to_evaluate = 'hand'
+    if marker_to_evaluate == 'hand':
+        yDir_limits = [-50*factor_to_cm, 125*factor_to_cm]
     elif marker_to_evaluate == 'shoulder':
         yDir_limits  = [-75*factor_to_cm, 125*factor_to_cm]
-    extra_plot_markers = ['r-shoulder'] 
-    extra_plot_ylims = [[-150*factor_to_cm, 50*factor_to_cm]]
-    errPlot_ylim = [0, 40]
-    
+        
     blip_thresh = 19
     blip_peak_thresh = 26
     pre_and_post_blip_win = 20 
@@ -103,16 +71,8 @@ class params:
     jump_thresh = 9.5
     jump_error_thresh = 40
     
-    savgol_window = int(11/150 * fps)
-    
     speed_thresh = 48
     
-    y_pos_thresh =  0    #1.5 #cm
-    y_peak_thresh = 2.25 #3.85 # cm
-    
-    peak_dist = int(75/150 * fps)
-    peak_prominence=1
-    prominence_wlen = int(401/150*fps)
 
 def load_dlc_data(data_dirs):
     data_files = []
@@ -140,11 +100,10 @@ def load_dlc_data(data_dirs):
         dlc_metadata.append(dlc_metadata_tmp)
         
         event_name = os.path.basename(f)
-        namePattern = re.compile('^[a-zA-Z]{4}_[0-9]*_[0-9]*_[0-9]*')
+        namePattern = re.compile('^[a-zA-Z]{4}_[\d]*_[\d]*_[\d]*')
         
-
         event_info.iloc[fNum] = [re.findall(namePattern, event_name)[0], 
-                                 int(event_name.split('_e')[1][:3]), 
+                                 int(event_name.split('event')[1][:3]), 
                                  False]
             
     return dlc, dlc_metadata, event_info   
@@ -367,7 +326,7 @@ def replace_filtered_blips_with_interpolation(pos_out, pos_fill, pos, marker, me
     try:
         manual_blip_slices = []
         one_time_edit_params = [par_dict for par_dict in params.one_time_manual_filter_edits['blip_interpolation'] 
-                                if par_dict['event'] == eventNum and par_dict['marker'] == marker]
+                                if par_dict['event'] == eventNum+1 and par_dict['marker'] == marker]
         for edit_dict in one_time_edit_params:
             start = (edit_dict['start'] if edit_dict['start'] is not None else 0)
             stop  = (edit_dict['stop' ] if edit_dict['stop' ] is not None else pos.shape[-1])
@@ -478,7 +437,7 @@ def trim_long_interpolations_at_beginning_and_end(pos, pos_fill, eventNum):
     try:
         manual_blip_slices = []
         one_time_edit_params = [par_dict for par_dict in params.one_time_manual_filter_edits['trim_ends'] 
-                                if par_dict['event'] == eventNum]
+                                if par_dict['event'] == eventNum+1]
         for edit_dict in one_time_edit_params:
             start = (edit_dict['start'] if edit_dict['start'] is not None else 0)
             stop  = (edit_dict['stop' ] if edit_dict['stop' ] is not None else pos.shape[-1])
@@ -492,15 +451,12 @@ def trim_long_interpolations_at_beginning_and_end(pos, pos_fill, eventNum):
     
     return pos_fill
 
-def filter_dlc(dlc, dlc_metadata, event_info):
-    
-    if params.events_list is None:
-        events_list = range(1, len(dlc_metadata)+1)
-    else:
-        events_list = params.events_list
-    
+def filter_dlc(dlc, dlc_metadata, event_info, events = None):
     dlc_filtered = []
-    for eventNum, pos, meta in zip(events_list, dlc, dlc_metadata):
+    for eventNum, (pos, meta) in enumerate(zip(dlc, dlc_metadata)):
+        
+        if events is not None and eventNum+1 not in events: 
+            continue
                 
         marker_names = meta.columns[slice(0, len(meta.columns), 3)]
         marker_names = [name[:-6] for name in marker_names]
@@ -586,16 +542,16 @@ def filter_dlc(dlc, dlc_metadata, event_info):
             
                 pos_fill = np.copy(pos_out[mNum])
 
-                print((eventNum, marker, 'jumps'))
+                print((eventNum+1, marker, 'jumps'))
                 pos_fill, jumps_edited = fix_remaining_marker_jumps(pos_out[mNum], pos_fill, pos[mNum], marker, meta, eventNum)
                 
-                print((eventNum, marker, 'blips'))
+                print((eventNum+1, marker, 'blips'))
                 pos_fill, blips_edited = replace_filtered_blips_with_interpolation(pos_out[mNum], pos_fill, pos[mNum], marker, meta, eventNum)                
                 
-                print((eventNum, marker, 'retain'))
+                print((eventNum+1, marker, 'retain'))
                 pos_fill = retain_good_paths_previously_removed(pos_out[mNum], pos_fill, pos[mNum], marker, meta, eventNum)
                                 
-                print((eventNum, marker, 'trim'))
+                print((eventNum+1, marker, 'trim'))
                 pos_fill = trim_long_interpolations_at_beginning_and_end(pos[mNum], pos_fill, eventNum)
 
                 for dim in range(3):
@@ -610,10 +566,10 @@ def filter_dlc(dlc, dlc_metadata, event_info):
                             smoothChunks.append(slice(smoothIdx[0], smoothIdx[-1]+1))
                         elif len(diff_smoothIdx) > 0:
                             for start, end in zip(diff_smoothIdx[:-1], diff_smoothIdx[1:]):
-                                if end - start > params.savgol_window:
+                                if end - start > 11:
                                     smoothChunks.append(slice(smoothIdx[start+1], smoothIdx[end]+1))
                         for smoothChunk in smoothChunks:
-                            pos_fill[dim, smoothChunk] = savgol_filter(pos_fill[dim, smoothChunk], params.savgol_window, 3)
+                            pos_fill[dim, smoothChunk] = savgol_filter(pos_fill[dim, smoothChunk], 11, 3)
                     except:
                         pass
                             
@@ -624,7 +580,7 @@ def filter_dlc(dlc, dlc_metadata, event_info):
                 #     axs[0].plot(np.arange(1, pos.shape[-1] + 1), pos[mNum, 1], linewidth=2)
                 #     axs[0].plot(np.arange(1, pos.shape[-1] + 1), pos_fill[1], linewidth=2)
                 #     axs[0].plot(np.arange(1, pos.shape[-1] + 1), np.repeat(0, pos.shape[-1]), '-r')
-                #     axs[0].set_title('Event %d - %s' % (eventNum, marker))
+                #     axs[0].set_title('Event %d - %s' % (eventNum+1, marker))
                 #     axs[0].set_ylim(params.yDir_limits)
                     
                 #     axs[1].plot(meta.loc[:, marker+'_error'])
@@ -636,34 +592,22 @@ def filter_dlc(dlc, dlc_metadata, event_info):
         head_pos = pos_out[head_marker_idxs]
         head_tracked_percent = np.sum(np.all(~np.isnan(head_pos[:, 0]), axis = 0)) / head_pos.shape[-1]
         
-        if head_tracked_percent > params.helmet_percent_tracked_thresh or (params.events_list is not None and eventNum in params.events_list):
+        if head_tracked_percent > params.helmet_percent_tracked_thresh:
             event_info.loc[eventNum, 'recording_marm'] = True    
             
         dlc_filtered.append(pos_out * params.factor_to_cm)
     
     markerIdx = [idx for idx, name in enumerate(marker_names) if name == params.marker_to_evaluate][0]
-    plot_markerIdxs = [idx for idx, name in enumerate(marker_names) if name in params.extra_plot_markers]
-
-    return dlc_filtered, markerIdx, plot_markerIdxs
+    
+    return dlc_filtered, markerIdx
 
 def evaluate_labeling_quality(dlc_filtered, dlc, dlc_metadata, event_info, plotSet = None, plotEvents = None):
     if plotSet is None and plotEvents is None:
         plotSet = [0, np.sum(event_info.recording_marm)]
     
-    if params.events_list is None:
-        events_list = range(1, len(dlc_metadata)+1)
-
-    else:
-        events_list = params.events_list
-    #     tmp_events_list = events_list.copy()
-    #     tmp_dlc          = [dlc_element for idx, dlc_element in enumerate(dlc)          if idx+1 in events_list]    
-    #     tmp_dlc_metadata = [dlc_element for idx, dlc_element in enumerate(dlc_metadata) if idx+1 in events_list]    
-    #     tmp_event_info = event_info.loc[event_info['event'].isin(events_list), :]
-    
     if plotSet is not None and plotEvents is None:
         ct = 0
-        # for eventNum, (pos_filt, pos, meta, recMarm) in enumerate(zip(dlc_filtered, dlc, dlc_metadata, event_info.recording_marm)):
-        for eventNum, pos_filt, pos, meta, recMarm in zip(tmp_events_list, dlc_filtered, tmp_dlc, tmp_dlc_metadata, tmp_event_info.recording_marm):
+        for eventNum, (pos_filt, pos, meta, recMarm) in enumerate(zip(dlc_filtered, dlc, dlc_metadata, event_info.recording_marm)):
             if recMarm: 
                 if ct >= plotSet[0] and ct < plotSet[1]:
                     marker_names = meta.columns[slice(0, len(meta.columns), 3)]
@@ -676,11 +620,11 @@ def evaluate_labeling_quality(dlc_filtered, dlc, dlc_metadata, event_info, plotS
                     axs[0].plot(np.arange(1, pos.shape[-1] + 1), pos[markerIdx, 1])
                     axs[0].plot(np.arange(1, pos_filt.shape[-1] + 1), pos_filt[markerIdx, 1])
                     axs[0].plot(np.arange(1, pos.shape[-1] + 1), np.repeat(0, pos.shape[-1]))
-                    axs[0].set_title('Event %d - %s' % (eventNum, marker))
+                    axs[0].set_title('Event %d - %s' % (eventNum+1, marker))
                     axs[0].set_ylim(params.yDir_limits)
                     
-                    if params.marker_to_evaluate != 'r-wrist':
-                        markerIdx = [idx for idx, name in enumerate(marker_names) if name == 'r-shoulder'][0]  
+                    if params.marker_to_evaluate != 'hand':
+                        markerIdx = [idx for idx, name in enumerate(marker_names) if name == 'hand'][0]  
                         axs[0].plot(np.arange(1, pos_filt.shape[-1] + 1), pos_filt[markerIdx, 1])
                     
                     axs[1].plot(meta.loc[:, marker+'_error'])
@@ -690,61 +634,27 @@ def evaluate_labeling_quality(dlc_filtered, dlc, dlc_metadata, event_info, plotS
                     
                 ct += 1
     elif plotEvents is not None and plotSet is None:
-        # for eventNum, (pos_filt, pos, meta, recMarm) in enumerate(zip(dlc_filtered, dlc, dlc_metadata, event_info.recording_marm)):
-        # for eventNum, pos_filt, pos, meta, recMarm in zip(tmp_events_list, dlc_filtered, tmp_dlc, tmp_dlc_metadata, tmp_event_info.recording_marm):
-        for eventNum, pos_filt, pos, meta, recMarm in zip(events_list, dlc_filtered, dlc, dlc_metadata, event_info.recording_marm):
-            print(eventNum, recMarm)
-            # if recMarm: 
-            marker_names = meta.columns[slice(0, len(meta.columns), 3)]
-            marker_names = [name[:-6] for name in marker_names]
-            
-            markerIdx = [idx for idx, name in enumerate(marker_names) if name == params.marker_to_evaluate][0]
-            marker = marker_names[markerIdx]
-            
-            plot_markerIdxs = [idx for idx, name in enumerate(marker_names) if name in params.extra_plot_markers]
-            plot_markers = [marker_names[idx] for idx in plot_markerIdxs]
-            
-            all_markers_idxs = [markerIdx] + plot_markerIdxs
-            all_markers      = [marker] + plot_markers
-            markers_df = pd.DataFrame()
-            for mIdx, mark in zip(all_markers_idxs, all_markers):
-                tmp_df = pd.DataFrame(data=zip(np.hstack((pos[mIdx, 1], pos_filt[mIdx, 1])), 
-                                               ['Original' for i in range(pos.shape[-1])] + ['Filtered' for i in range(pos_filt.shape[-1])],
-                                               np.hstack((np.arange(0, pos.shape[-1])/params.fps, np.arange(0, pos_filt.shape[-1])/params.fps)),
-                                               [mark for i in range(pos.shape[-1] + pos_filt.shape[-1])]),
-                                      columns=['Y-Position (cm)', 'Filtering', 'Time (s)', 'Marker'])
-                markers_df = pd.concat((markers_df, tmp_df), axis = 0, ignore_index=True)
-            
-            rel = sns.relplot(data=markers_df, x='Time (s)', y='Y-Position (cm)', hue='Filtering', row='Marker', kind='line', height=3, aspect=4)                                                                  
-            rel.fig.subplots_adjust(top=0.875) # adjust the Figure in rp
-            rel.fig.suptitle(f'Event {eventNum}')
-            plt.show()
-            
-            # fig, axs = plt.subplots((1+len(plot_markerIdxs))*2, 1, sharex=True)
-            # axs[0].plot(np.arange(1, pos.shape[-1] + 1), pos[markerIdx, 1], '-b')
-            # axs[0].plot(np.arange(1, pos_filt.shape[-1] + 1), pos_filt[markerIdx, 1], '-', color='orange')
-            # axs[0].plot(np.arange(1, pos.shape[-1] + 1), np.repeat(0, pos.shape[-1]))
-            # axs[0].set_title('Event %d - %s' % (eventNum, marker))
-            # axs[0].set_ylim(params.yDir_limits)
-            # if params.marker_to_evaluate != 'r-wrist':
-            #     markerIdx = [idx for idx, name in enumerate(marker_names) if name == 'r-shoulder'][0]  
-            #     axs[0].plot(np.arange(1, pos_filt.shape[-1] + 1), pos_filt[markerIdx, 1])
-            # axs[1].plot(meta.loc[:, marker+'_error'])
-            # axs[1].plot(range(meta.shape[0]), np.repeat(params.reproj_threshold, meta.shape[0]), '-r')
-            # axs[1].set_ylim(params.errPlot_ylim)
-            
-            # for posAxIdx, errAxIdx, markName, markIdx, mark_ylim in zip(range(2, (1+len(plot_markerIdxs))*2, 2), range(3, (1+len(plot_markerIdxs))*2+1, 2), plot_markers, plot_markerIdxs, params.extra_plot_ylims):
-            #     axs[posAxIdx].plot(np.arange(1, pos.shape[-1] + 1), pos[markIdx, 1], '-b')
-            #     axs[posAxIdx].plot(np.arange(1, pos_filt.shape[-1] + 1), pos_filt[markIdx, 1], '-', color='orange')
-            #     axs[posAxIdx].plot(np.arange(1, pos.shape[-1] + 1), np.repeat(0, pos.shape[-1]))
-            #     axs[posAxIdx].set_title('Event %d - %s' % (eventNum, markName))
-            #     axs[posAxIdx].set_ylim(mark_ylim)
-
-            #     axs[errAxIdx].plot(meta.loc[:, markName+'_error'])
-            #     axs[errAxIdx].plot(range(meta.shape[0]), np.repeat(params.reproj_threshold, meta.shape[0]), '-r')
-            #     axs[errAxIdx].set_ylim(params.errPlot_ylim)
-                                     
-            # plt.show()
+        for eventNum, (pos_filt, pos, meta, recMarm) in enumerate(zip(dlc_filtered, dlc, dlc_metadata, event_info.recording_marm)):
+            if recMarm and eventNum+1 in plotEvents: 
+                marker_names = meta.columns[slice(0, len(meta.columns), 3)]
+                marker_names = [name[:-6] for name in marker_names]
+                
+                markerIdx = [idx for idx, name in enumerate(marker_names) if name == params.marker_to_evaluate][0]
+                marker = marker_names[markerIdx]
+                
+                fig, axs = plt.subplots(2, 1)
+                axs[0].plot(np.arange(1, pos.shape[-1] + 1), pos[markerIdx, 1], '-b')
+                axs[0].plot(np.arange(1, pos_filt.shape[-1] + 1), pos_filt[markerIdx, 1], '-', color='orange')
+                axs[0].plot(np.arange(1, pos.shape[-1] + 1), np.repeat(0, pos.shape[-1]))
+                axs[0].set_title('Event %d - %s' % (eventNum+1, marker))
+                axs[0].set_ylim(params.yDir_limits)
+                if params.marker_to_evaluate != 'hand':
+                    markerIdx = [idx for idx, name in enumerate(marker_names) if name == 'hand'][0]  
+                    axs[0].plot(np.arange(1, pos_filt.shape[-1] + 1), pos_filt[markerIdx, 1])
+                axs[1].plot(meta.loc[:, marker+'_error'])
+                axs[1].plot(range(meta.shape[0]), np.repeat(params.reproj_threshold, meta.shape[0]), '-r')
+                
+                plt.show()
 
 def compute_derivatives(marker_pos, smooth = True):
     marker_vel = np.diff(marker_pos, axis = -1) * params.fps
@@ -816,7 +726,7 @@ def get_reach_timing_from_event(hand_pos, eventNum, method = 2, include_reaches_
     event_time = hand_pos.shape[-1] / params.fps
     hand_speed = np.sqrt(np.square(hand_vel).sum(axis = 0))
     # event_time = hand_data.index.values/params.fps
-    # hand_speed = np.sqrt(np.square(hand_data[['vx', 'vy', 'vz']]).sum(axis=1)).values * params.fps 
+    # hand_speed = np.sqrt(np.square(hand_data[['vx', 'vy', 'vz']]).sum(axis=1)).values * params.fps
     
     if method == 1: # method one: y position thresholds
         print('identifying reach starts and stops based on y position threshold')
@@ -857,15 +767,15 @@ def get_reach_timing_from_event(hand_pos, eventNum, method = 2, include_reaches_
         
     elif method == 3: # find hand speed threshold crossings before and after y position peaks
         print('method 3: reach parsing based on hand speed threshold crossings around y position peaks')
-        y_position_threshold = params.y_pos_thresh
-        y_peak_threshold = params.y_peak_thresh 
+        y_position_threshold = 1.5 # cm
+        y_peak_threshold = 3.85 # cm
         speed_threshold = 5 # cm/sec
         # id peaks in y position
         peaks = find_peaks(hand_pos[1], 
                            height = y_peak_threshold, 
-                           distance = params.peak_dist, 
-                           prominence=params.peak_prominence, 
-                           wlen = params.prominence_wlen)
+                           distance = 75, 
+                           prominence=1, 
+                           wlen = 401)
         
         peaks = peaks[0].tolist()
         # prominences = peak_prominences(hand_pos[1], peaks, wlen = 201)
@@ -986,188 +896,6 @@ def get_reach_timing_from_event(hand_pos, eventNum, method = 2, include_reaches_
     elif method == 4: # wavelets
         print('method 4: based on CWT not implemented')
     
-    elif method == 5: # manually set reach timings from watching videos
-        bounds = params.move_bounds
-        
-        y_position_threshold = params.y_pos_thresh
-        y_peak_threshold = params.y_peak_thresh 
-        speed_threshold = 5 # cm/sec
-        # id peaks in y position
-        peaks = find_peaks(hand_pos[1], 
-                           height = y_peak_threshold, 
-                           distance = params.peak_dist, 
-                           prominence=params.peak_prominence, 
-                           wlen = params.prominence_wlen)
-        peaks = peaks[0].tolist()
-        
-        reach_timing = dict(event   = eventNum,
-                            starts  = [int(fr) for fr in bounds.loc[bounds['event'] == eventNum, 'start_frame']],
-                            stops   = [int(fr) for fr in bounds.loc[bounds['event'] == eventNum,  'stop_frame']],
-                            peaks   = peaks)
-        thresholds = {'y_position':y_position_threshold, 'y_peak':y_peak_threshold, 'speed':speed_threshold}
-
-    elif method == 6: # manually set reach timings from watching videos, then use speed threshold
-        bounds = params.move_bounds
-        potential_frames = []
-        for start, stop in zip(bounds.loc[bounds['event'] == eventNum, 'start_frame'], 
-                               bounds.loc[bounds['event'] == eventNum,  'stop_frame']):
-            potential_frames.extend(list(range(int(start), int(stop)+1)))
-            
-        
-        y_position_threshold = -1.25
-        y_peak_threshold = 1.25 # 1.5 
-        speed_threshold = 5 # cm/sec
-        # id peaks in y position
-        peaks = find_peaks(hand_pos[1], 
-                           height = y_peak_threshold, 
-                           distance = params.peak_dist, 
-                           prominence=params.peak_prominence, 
-                           wlen = params.prominence_wlen)
-        peaks = peaks[0].tolist()
-
-        # prominences = peak_prominences(hand_pos[1], peaks, wlen = 201)
-        # widths      = peak_widths(hand_pos[1], peaks, prominence_data = prominences, wlen = 101)
-        # print((peaks, prominences[0]))
-        # id threshold crossings of y position as candidate reach starts and stops
-        passed = hand_pos[1] > y_position_threshold
-        passed_i16 = passed.astype(np.int16)
-        passed_diff = np.diff(passed_i16)
-        reach_start_candidates = np.where(passed_diff == 1)[0]
-        reach_stop_candidates = np.where(passed_diff == -1)[0]
-        # refine starts and stops with hand speed threshold crossings
-        speed_thresh_crossing = hand_speed > speed_threshold
-        speed_thresh_crossing = speed_thresh_crossing.astype(np.int16)
-        n2p = np.where(np.diff(speed_thresh_crossing) == 1)[0] # negative to positive crossings
-        p2n = np.where(np.diff(speed_thresh_crossing) == -1)[0] # positive to negative crossings
-        
-        # checks if reaches are present
-        if len(reach_start_candidates) != 0 or len(reach_stop_candidates) != 0:
-            reaches_present = True
-            print('reaches may be present in event')
-            if len(peaks) == 0:
-                print('... but, no prominent peaks in y-position. so maybe not')
-        else:
-            reaches_present = False
-            print('reaches not present in event')
-            
-        if reaches_present == True:    
-            truncated_start = False
-            truncated_end = False
-            # check data for edge cases
-            
-            if len(reach_stop_candidates) > 0 and len(reach_start_candidates) > 0: 
-                if reach_stop_candidates[0]<= reach_start_candidates[0] or n2p[0] >= reach_start_candidates[0]:
-                    print(f'--> first reach starts before event <--')
-                    truncated_start = True
-                    if reach_stop_candidates[0] < reach_start_candidates[0] \
-                    and len(reach_start_candidates) > 1 and len(reach_stop_candidates) >1:
-                        reach_start_candidates = np.concatenate(([-1], reach_start_candidates.tolist())).tolist()
-                if reach_start_candidates[-1] >= reach_stop_candidates[-1]:
-                    print(f'-->last reach ends after event <--')
-                    truncated_end = True
-                    reach_stop_candidates = np.concatenate((reach_stop_candidates.tolist(), [hand_pos.shape[-1]])).tolist()
-            else:
-                print(f'--> there is no reach start or reach stop candidate <--')  
-                
-            if include_reaches_missing_start_or_stop and len(reach_stop_candidates) == 0 and len(peaks) > 0:
-                truncated_end = True
-                reach_stop_candidates = [hand_pos.shape[-1]]    
-            if include_reaches_missing_start_or_stop and len(reach_start_candidates) == 0 and len(peaks) > 0:
-                truncated_start = True
-                reach_start_candidates = [0]  
-                
-            # TODO - check for, and handle, nans
-
-            medfiltered_pos = medfilt(hand_pos[1], 31)
-            max_err  = np.nanmax (abs(hand_pos[1] - medfiltered_pos))
-            mean_err = np.nanmean(abs(hand_pos[1] - medfiltered_pos))
-
-            # id reach starts
-            print(('start', reach_start_candidates))
-            reach_starts = [0]*len(reach_start_candidates)
-            for reach_num, candidate_start_frame in enumerate(reach_start_candidates):
-                if truncated_start == True and reach_num == 0: # set start to -1 to flag before event start
-#                   prior_min = np.min(hand_data['y'].iloc[0:candidate_start_frame])
-                    if include_reaches_missing_start_or_stop:
-                        reach_starts[reach_num] = 0   
-                    print(f'setting reach {reach_num} start to -1 for before event_start')
-                elif candidate_start_frame >= n2p[reach_num]: # simple case
-                    print(f'adjusting reach {reach_num} start to prior speed threshold crossing')
-                    thresh_crossing_before_peak = np.max(n2p[n2p <= candidate_start_frame])
-                    reach_starts[reach_num] = thresh_crossing_before_peak
-                elif include_reaches_missing_start_or_stop and mean_err < .1:
-                    reach_starts[reach_num] = candidate_start_frame
-                else:
-                    print('un-considered start condition')
-
-            print(('stop', reach_stop_candidates))
-            # id reach stops
-            reach_stops = [0]*len(reach_stop_candidates)
-            for reach_num, candidate_stop_frame in enumerate(reach_stop_candidates):
-                # if truncated_start == True and reach_num == 0:
-                #     print(f'adjusting reach {reach_num} stop frame for truncated stop, TODO')
-                if truncated_end == True and reach_num == len(reach_starts)-1:
-                    if include_reaches_missing_start_or_stop and mean_err < .1:
-                        reach_stops[reach_num] = candidate_stop_frame
-                    print(f'reach {reach_num} may end after event, set stop to last frame')
-                elif len(p2n)>0 and candidate_stop_frame <= p2n[-1]:  #else:
-                    print(f'adjusting reach {reach_num} stop to next speed threshold crossing')
-                    try:
-                        thresh_crossing_after_peak = np.min(p2n[p2n >= candidate_stop_frame])
-                        reach_stops[reach_num] = thresh_crossing_after_peak
-                    except ValueError:
-                        reach_stops[reach_num] = np.nan
-                elif include_reaches_missing_start_or_stop and mean_err < .1:
-                    reach_stops[reach_num] = candidate_stop_frame
-            
-            if len(reach_stops) > len(reach_starts):
-                reach_stops = reach_stops[len(reach_stops) - len(reach_starts) : ]
-            reaches_to_remove = []
-            for reach_num, (start, stop) in enumerate(zip(reach_starts, reach_stops)):
-                if np.isnan(start) or np.isnan(stop):
-                    reaches_to_remove.append(reach_num)
-                    continue
-                if not any(peak in range(start, stop) for peak in peaks): # check if any peaks were detected within the potential reach
-                    reaches_to_remove.append(reach_num)
-
-            reach_starts = [start for reach_num, start in enumerate(reach_starts) if reach_num not in reaches_to_remove]
-            reach_stops  = [stop  for reach_num, stop  in enumerate(reach_stops)  if reach_num not in reaches_to_remove]
-
-            overlaps_potential_frames = [(True if start in potential_frames else False, True if stop in potential_frames else False) for start, stop in zip(reach_starts, reach_stops)]
-            
-            final_reach_starts = []
-            final_reach_stops  = [] 
-            final_peaks = []
-            for start, stop, overlaps in zip(reach_starts, reach_stops, overlaps_potential_frames):
-                if overlaps[0] and overlaps[1]:
-                    final_reach_starts.append(start)
-                    final_reach_stops.append(stop)
-                elif overlaps[0]:
-                    final_reach_starts.append(start)
-                    
-                    tmp_diff = np.array(potential_frames) - stop 
-                    tmp_diff[tmp_diff > 0] = -10000000
-                    new_stop = potential_frames[np.where(tmp_diff == tmp_diff.max())[0][0]]
-                    final_reach_stops.append(new_stop)
-                elif overlaps[1]:
-                    final_reach_stops.append(stop)
-                    
-                    tmp_diff = np.array(potential_frames) - start
-                    tmp_diff[tmp_diff < 0] = 10000000
-                    new_start = potential_frames[np.where(tmp_diff == tmp_diff.min())[0][0]]
-                    final_reach_starts.append(new_start)                    
-                
-                for pk in peaks:
-                    if pk > final_reach_starts[-1] and pk < final_reach_stops[-1]:
-                        final_peaks.append(pk)
-                
-            thresholds = {'y_position':y_position_threshold, 'y_peak':y_peak_threshold, 'speed':speed_threshold}
-            reach_timing = {'event': eventNum, 'starts':final_reach_starts, 'stops':final_reach_stops, 'peaks': final_peaks} 
-        
-        elif reaches_present == False:
-            thresholds = {'y_position':y_position_threshold, 'y_peak':y_peak_threshold, 'speed':speed_threshold}
-            reach_timing = {'event': eventNum, 'starts':[], 'stops':[], 'peaks': []}
-    
     # delete overlapping reaching epochs
     reach_timing = delete_overlapping(reach_timing)
  
@@ -1178,12 +906,12 @@ def get_reach_timing_from_event(hand_pos, eventNum, method = 2, include_reaches_
             return reach_timing
         elif method == 2:
             return reach_timing, yz_vel, yz_thresh_crossing
-        elif method in [3, 5, 6]:
+        elif method == 3:
             return reach_timing, hand_speed, thresholds
         elif method == 4:
             return 
-        
-def plot_reach_timing(event_name, hand_pos, plot_markers_pos, reach_timing, hand_speed, thresholds):
+
+def plot_reach_timing(event_name, hand_pos, reach_timing, hand_speed, thresholds):
     # create figure to show data relevant to reach parsing (start, stop, peaks)
     fig, ax1 = plt.subplots(figsize = (14,3))
 
@@ -1201,8 +929,6 @@ def plot_reach_timing(event_name, hand_pos, plot_markers_pos, reach_timing, hand
     color = 'tab:blue'
     ax2.set_ylabel('y position (cm)', color=color)  # we already handled the x-label with ax1
     ax2.plot(hand_pos[1], color=color)
-    for marker_pos in plot_markers_pos:
-        ax2.plot(marker_pos[1], color = 'tab:green')
     ax2.tick_params(axis='y', labelcolor=color)
     ax2.plot(np.ones(len(hand_pos[1]))*thresholds['y_position'], \
              linestyle='dotted', linewidth=1.5, color='tab:blue', label = 'y position thresh')
@@ -1223,7 +949,6 @@ def plot_reach_timing(event_name, hand_pos, plot_markers_pos, reach_timing, hand
     
     ax1.legend(loc='upper right', frameon = False)
     ax2.legend(loc='upper left', frameon = False)
-    ax2.set_ylim(params.yDir_limits)
     ax1.set_title(event_name);
     fig.tight_layout()
     plt.show()
@@ -1303,13 +1028,13 @@ def plot_event_3Dhand(event_data_3Dhand, event_name, window = [], reach_timing =
     return fig
 
 
-def get_3d_reach_data(dlc_filtered, markerIdx, plot_markerIdxs, include_reaches_missing_start_or_stop = False, events = None, plot = False):
-
-    events_to_check = dlc_filtered
+def get_3d_reach_data(dlc_filtered, markerIdx, include_reaches_missing_start_or_stop = False, events = None, plot = False):
     
     if events is None:
+        events_to_check = dlc_filtered
         eventNums = range(1, len(dlc_filtered) + 1)
     else:
+        events_to_check = [pos for eventNum, pos in enumerate(dlc_filtered) if eventNum+1 in events]
         eventNums = events
     
     all_reach_timing = []
@@ -1319,14 +1044,14 @@ def get_3d_reach_data(dlc_filtered, markerIdx, plot_markerIdxs, include_reaches_
         print(['data for event %d is good, getting reach timing' % eventNum])        
         reach_timing, hand_speed, thresholds = get_reach_timing_from_event(pos[markerIdx],
                                                                            eventNum,
-                                                                           method = params.reach_method, 
+                                                                           method = 3, 
                                                                            include_reaches_missing_start_or_stop = include_reaches_missing_start_or_stop, 
                                                                            return_all = True)
         # report reach timing
         print(reach_timing)
         
         if plot:
-            reach_timing_fig = plot_reach_timing('Event %d' % eventNum, pos[markerIdx], pos[plot_markerIdxs], 
+            reach_timing_fig = plot_reach_timing('Event %d' % eventNum, pos[markerIdx], 
                                    reach_timing, hand_speed, thresholds)
             # plot event data for inspection
             # fig = plot_event_3Dhand(pos[markerIdx], 'Event %d' % eventNum, window = [], reach_timing = reach_timing)
@@ -1335,16 +1060,12 @@ def get_3d_reach_data(dlc_filtered, markerIdx, plot_markerIdxs, include_reaches_
         
     return all_reach_timing
 
-def add_trajectories_to_reach_data(dlc_filtered, reach_data, dlc_metadata, dlc):
+def add_trajectories_to_reach_data(dlc_filtered, reach_data, dlc_metadata):
     
-    # try:
-    #     move_bounds = params.move_bounds
-    # except:
-    #     move_bounds = None
-    
-    for idx, event_data in enumerate(reach_data): 
-                
-        pos = dlc_filtered[idx]
+    for event_data in reach_data: 
+        eventNum = event_data['event']
+        
+        pos = dlc_filtered[eventNum - 1]
         vel = np.empty_like(pos)[..., :-1]
         for mIdx, markerPos in enumerate(pos):
             vel[mIdx], tmp_acc = compute_derivatives(markerPos, smooth=True) 
@@ -1352,8 +1073,7 @@ def add_trajectories_to_reach_data(dlc_filtered, reach_data, dlc_metadata, dlc):
         event_data['position'] = pos
         event_data['velocity'] = vel
         
-        print((idx, event_data['event']))
-        meta = dlc_metadata[idx]
+        meta = dlc_metadata[eventNum - 1]
         marker_names = meta.columns[slice(0, len(meta.columns), 3)]
         event_data['marker_names'] = [name[:-6] for name in marker_names]
 
@@ -1369,17 +1089,12 @@ if __name__ == "__main__":
             data_dirs.append(os.path.join(base, date, 'pose-3d'))
     
         dlc, dlc_metadata, event_info = load_dlc_data(data_dirs)
-        dlc_filtered, markerIdx, plot_markerIdxs = filter_dlc(dlc, dlc_metadata, event_info)
+        dlc_filtered, markerIdx = filter_dlc(dlc, dlc_metadata, event_info, events = None)
+
         dlc = [pos*params.factor_to_cm for pos in dlc]
-
-        # if params.events_list is not None:
-        #     dlc          = [dlc_element for idx, dlc_element in enumerate(dlc)          if idx+1 in params.events_list]    
-        #     dlc_metadata = [dlc_element for idx, dlc_element in enumerate(dlc_metadata) if idx+1 in params.events_list]    
-        #     event_info = event_info.loc[event_info['event'].isin(params.events_list), :]    
-
         evaluate_labeling_quality(dlc_filtered, dlc, dlc_metadata, event_info, 
                                   plotSet = None, 
-                                  plotEvents = params.events_list)      
+                                  plotEvents = [24, 37, 89] )      
         # evaluate_labeling_quality(dlc_filtered, dlc, dlc_metadata, event_info, 
         #                           plotSet = None, 
         #                           plotEvents = [4, 5, 7, 8, 10, 13, 16, 19, 22, 24, 26, 32, 33, 37, 39, 42, 47, 49, 53, 55, 56, 58, 60, 68, 71, 73, 74, 76])
@@ -1389,14 +1104,13 @@ if __name__ == "__main__":
     
         # plotEvents = [22, 37, 85, 88, 146, 160, 166, 171]
         #%%    
-        reach_data = get_3d_reach_data(dlc_filtered, markerIdx, plot_markerIdxs, include_reaches_missing_start_or_stop = True, 
-                                          events = params.events_list, 
-                                          plot = True)  
-        
-        total_samples = 0
-        for reaches in reach_data:
-            for dur in reaches['durations']:
-                total_samples += (dur/params.fps - 0.5) / 0.03
+        reach_data = get_3d_reach_data(dlc_filtered, markerIdx, include_reaches_missing_start_or_stop = True, 
+                                          events = [4  , 5  , 7  , 8  , 10, 13 , 16 , 19 , 22, 24, 26 , 32 , 33 , 37, 39, 42, 47, 
+                                                    49 , 53 , 55 , 56, 58 , 60, 68 , 71 , 73 , 74, 76 , 78 , 79 , 80 , 83 , 85, 86 , 88,
+                                                    89 , 92 , 96 , 100, 102, 110, 111, 112, 113, 116, 118, 121, 124, 125, 126, 
+                                                    127, 128, 131, 133, 134, 138, 139, 140, 142, 145, 146, 148, 151, 154, 155, 156, 157, 160, 161, 163, 165, 
+                                                    166, 167, 171, 172, 173, 175, 180, 181, 184, 186, 189, 190, 191], 
+                                          plot = False)  
         # reach_data = get_3d_reach_data(dlc_filtered, markerIdx, include_reaches_missing_start_or_stop = True, 
         #                                   events = [9], 
         #                                   plot = True)  
@@ -1414,7 +1128,7 @@ if __name__ == "__main__":
         #                                  events = [22, 60, 74, 116, 133, 138, 156, 157, 160, 163, 166, 171, 172, 181, 184, 186, 189, 190, 191], 
         #                                  plot = True) 
         
-        reach_data = add_trajectories_to_reach_data(dlc_filtered, reach_data, dlc_metadata, dlc)
+        reach_data = add_trajectories_to_reach_data(dlc_filtered, reach_data, dlc_metadata)
         
         # add to reach_data = [24, 37, 85, 88, 146]
         

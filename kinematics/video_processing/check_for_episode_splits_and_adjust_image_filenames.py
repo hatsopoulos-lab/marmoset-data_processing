@@ -14,6 +14,7 @@ import argparse
 import pandas as pd
 import dill
 import time
+from pathlib import Path
 
 # regex_patterns = {'event'      : re.compile('event_\d{3}'),
 #                   'start_time' : re.compile('\d{4}-\d{2}.jpg'),
@@ -28,6 +29,7 @@ def collect_episode_start_times_and_frame_counts(jpg_path, ncams):
     lastEvents = []
     for cam in range(1, ncams+1):
 
+        print(os.path.join(jpg_path, 'jpg_cam%d' % cam, '*'))
         jpg_file = sorted(glob.glob(os.path.join(jpg_path, 'jpg_cam%d' % cam, '*')))[-1]
             
         lastEvents.append(int(re.findall(event_pattern, jpg_file)[0].split('event_')[-1]))
@@ -60,7 +62,8 @@ def collect_episode_start_times_and_frame_counts(jpg_path, ncams):
     
     return event_frame_nums, event_start_times, lastEvent
 
-def adjust_episodes_to_align_matches(event_frame_nums, event_start_times, lastEvent, ncams):
+def adjust_episodes_to_align_matches(event_frame_nums, event_start_times, lastEvent, ncams, jpg_path):
+
     for eIdx in range(lastEvent-1, -1, -1):
         cam_event_time = [val for val in event_start_times[eIdx] if type(val) == str]
         if len(cam_event_time) < ncams:
@@ -122,7 +125,24 @@ def adjust_episodes_to_align_matches(event_frame_nums, event_start_times, lastEv
 
             else:
                 print('\n\n multiple different last event start times. LOOK INTO THIS!\n\n', flush=True)
-                
+                      
+    # TODO                  
+    # remove events if present in only 1 camera, at end of session, and brief
+    for eIdx in range(lastEvent):
+        if event_frame_nums[eIdx].ptp() == 0:
+            lastGoodEventIdx = eIdx        
+    
+    for eIdx in range(lastGoodEventIdx, lastEvent): 
+        num_nan_event_times = len([val for val in event_start_times[eIdx] if type(val) == float])
+        max_frame_nums = event_frame_nums[eIdx].max()
+        if (len(event_start_times[eIdx]) - num_nan_event_times) == 1 and max_frame_nums < 100:
+            cam = [cIdx for cIdx, val in enumerate(event_start_times[eIdx]) if type(val) == str][0]+1
+            event_start_times[eIdx] = np.nan        
+            event_frame_nums[eIdx] = 0
+            
+            event_files = list((Path(jpg_path) / f'jpg_cam{cam}').glob(f'*event_{str(eIdx+1).zfill(3)}*'))            
+            for img_file in event_files:                      
+                img_file.unlink()
     return event_frame_nums, event_start_times
 
 def collect_timestamps_and_filenames(jpg_path, ncams, event_start_times):
@@ -147,8 +167,6 @@ def collect_timestamps_and_filenames(jpg_path, ncams, event_start_times):
 
 def stitch_episodes_together(cam_timestamps, cam_event_image_files, event_frame_nums, event_start_times, fps):
     for cIdx, (timestamps, image_files) in enumerate(zip(cam_timestamps, cam_event_image_files)):
-        if type(image_files) == int:
-            catchHere = []
         for eIdx in range(1, len(timestamps)):
             
             prev_eIdx = np.where(~np.isnan(event_frame_nums[:eIdx, cIdx]))[0][-1]
@@ -338,7 +356,8 @@ def find_and_correct_splits_in_all_episodes(jpg_dir,
         event_frame_nums, event_start_times = adjust_episodes_to_align_matches(event_frame_nums, 
                                                                                event_start_times, 
                                                                                lastEvent,
-                                                                               ncams)       
+                                                                               ncams,
+                                                                               jpg_path)       
                 
         # if np.all(event_frame_nums == event_frame_nums_original):
         #     print('breaking out of session %d' % sIdx)
@@ -397,8 +416,8 @@ if __name__ == '__main__':
             help="path to directory for task and marmoset pair. E.g. /project/nicho/data/marmosets/kinematics_videos/")
         ap.add_argument("-m", "--marms", required=True, type=str,
          	help="marmoset 4-digit code, e.g. 'JLTY'")
-        ap.add_argument("-d", "--dates", nargs='+', required=True, type=str,
-         	help="date(s) of recording (can have multiple entries separated by spaces)")
+        ap.add_argument("-d", "--date", required=True, type=str,
+            help="date of recording in format YYYY_MM_DD")        
         ap.add_argument("-e", "--exp_name", required=True, type=str,
          	help="experiment name, e.g. free, foraging, BeTL, crickets, moths, etc")
         ap.add_argument("-s", "--session_nums", nargs='+', required=True, type=int,
@@ -408,60 +427,52 @@ if __name__ == '__main__':
         ap.add_argument("-n", "--ncams", required=True, type=int,
          	help="number of cameras")
         args = vars(ap.parse_args())
-        
-        print('\n\n Beginning check_for_episode_splits code at %s\n\n' % time.strftime('%c', time.localtime()), flush=True)
-        
+                
         session_nums = [int(num) for num in args['session_nums']]
     
         try:
             task_id = int(os.getenv('SLURM_ARRAY_TASK_ID'))
-            n_tasks = int(os.getenv('SLURM_ARRAY_TASK_COUNT'))
         except:
             task_id = 0
-            n_tasks = 1
+    else:
+        session_nums = [1]
+        args = {'date':'2023_09_21',
+                'vid_dir':'/project/nicho/data/marmosets/',
+                'exp_name': 'cricket',
+                'marms': 'JLTY',
+                'fps':200,
+                'ncams':5,
+                'jpg_dir':'/scratch/midway3/daltonm/kinematics_jpgs'}
+        task_id = 0
         
-        for date in args['dates']:
-            data_path = os.path.join(args['vid_dir'], '%s/%s/%s' % (args['exp_name'], args['marms'], date))
-            episode_correction_record_path = os.path.join(data_path, 'metadata_from_kinematics_processing')
-            unfiltered_videos_path         = os.path.join(data_path, 'unfiltered_videos')
-            os.makedirs(episode_correction_record_path, exist_ok=True)
-            
-            if task_id == 0:
-                find_and_correct_splits_in_all_episodes(args['jpg_dir'],
-                                                        args['vid_dir'],
-                                                        args['marms'], 
-                                                        date, 
-                                                        args['exp_name'], 
-                                                        session_nums, 
-                                                        args['fps'], 
-                                                        args['ncams'])
-            else:
-                jpg2avi_started = False
-                while not jpg2avi_started:
-                    jpg2avi_started = os.path.isdir(unfiltered_videos_path)
-
+    data_path = os.path.join(args['vid_dir'], args['exp_name'], args['marms'], args['date'])
+    episode_correction_record_path = os.path.join(data_path, 'metadata_from_kinematics_processing')
+    videos_path                    = os.path.join(data_path, 'avi_videos')
+    os.makedirs(episode_correction_record_path, exist_ok=True)
+    
+    if task_id == 0:
+        
+        print(f'\n\n Beginning check_for_episode_splits code at {time.strftime("%c", time.localtime())}\n\n', flush=True)
+        
+        find_and_correct_splits_in_all_episodes(args['jpg_dir'],
+                                                args['vid_dir'],
+                                                args['marms'], 
+                                                args['date'], 
+                                                args['exp_name'], 
+                                                session_nums, 
+                                                args['fps'], 
+                                                args['ncams'])
+        
+        print(f'\n\n Completed check_for_episode_splits code at {time.strftime("%c", time.localtime())}\n\n', flush=True)
 
     else:
-        session_nums = [359, 3592]
-        args = {'dates':['2022_12_01'],
-                'vid_dir':'/project/nicho/data/bci',
-                'exp_name': '2D_centerOut',
-                'marms': 'BCI02',
-                'fps':60,
-                'ncams':4,
-                'jpg_dir':'/scratch/midway3/daltonm/kinematics_jpgs'}
-
-        for date in args['dates']:
-            data_path = os.path.join(args['vid_dir'], '%s/%s/%s' % (args['exp_name'], args['marms'], date))
-            episode_correction_record_path = os.path.join(data_path, 'metadata_from_kinematics_processing')
-            unfiltered_videos_path         = os.path.join(data_path, 'unfiltered_videos')
-            os.makedirs(episode_correction_record_path, exist_ok=True)
+        
+        print(f'\n\n Waiting for task_0 to complete check/correction of episode splits and misalignment. Will move on when \n a directory is created at {videos_path} by task_0. Current time is {time.strftime("%c", time.localtime())}\n\n', flush=True)
+        
+        jpg2avi_started = False
+        while not jpg2avi_started:
+            jpg2avi_started = os.path.isdir(videos_path)
             
-            find_and_correct_splits_in_all_episodes(args['jpg_dir'],
-                                                    args['vid_dir'],
-                                                    args['marms'], 
-                                                    date, 
-                                                    args['exp_name'], 
-                                                    session_nums, 
-                                                    args['fps'], 
-                                                    args['ncams'])        
+        print(f'\n\n Moving on to jpg2avi conversion at {time.strftime("%c", time.localtime())}\n\n', flush=True)
+
+ 

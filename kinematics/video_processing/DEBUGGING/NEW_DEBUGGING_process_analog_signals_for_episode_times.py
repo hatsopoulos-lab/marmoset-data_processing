@@ -658,7 +658,7 @@ def get_analog_frame_counts_and_timestamps(eFold, nwbfiles, touchscreen = False,
                                 event_startSamples.append(signalSamplesTmp[trigSamples[0]])
                                 event_endSamples.append(signalSamplesTmp[trigSamples[1]])
                         else:
-                            largeDiff = np.where(np.diff(expOpen_samples) > params.eventDetector)[0]                    
+                            largeDiff = np.where(np.diff(expOpen_samples) > params.eventDetector)[0]
                             if len(largeDiff) > 0:  
                                 event_startSamples = expOpen_samples[largeDiff + 1];
                                 event_startSamples = np.insert(event_startSamples, 0, expOpen_samples[0])
@@ -779,7 +779,7 @@ def convert_string_inputs_to_int_float_or_bool(orig_var):
 
 if __name__ == '__main__':
     
-    debugging = False
+    debugging = True
     
     if not debugging:
     
@@ -819,9 +819,9 @@ if __name__ == '__main__':
                 'ephys_path'       : '/project/nicho/data/marmosets/electrophys_data_for_processing',
                 'marms'            : 'JLTY',
                 'marms_ephys'      : 'JL',
-                'date'             : '2023_09_14',
-                'exp_name'         : 'cricket',
-                'other_exp_name'   : 'cricket_free',
+                'date'             : '2023_11_26',
+                'exp_name'         : 'foraging',
+                'other_exp_name'   : 'foraging_free',
                 'touchscreen'      : 'False',
                 'touchscreen_path' : 'BLANK',
                 'neur_proc_path'   : '/project/nicho/projects/marmosets/code_database/data_processing/neural',

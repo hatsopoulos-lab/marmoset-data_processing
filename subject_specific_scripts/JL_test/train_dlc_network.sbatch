@@ -6,7 +6,7 @@
 #SBATCH --partition=beagle3
 #SBATCH --gres=gpu:1
 #SBATCH --nodes=1
-#SBATCH --mem=96G
+#SBATCH --mem=64G
 #SBATCH --account=pi-nicho
 
 #---------------------------------------------Params that may change often----------------#

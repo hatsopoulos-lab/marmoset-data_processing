@@ -267,23 +267,37 @@ def identify_dropout(filepath, binwin, dropout_method = 'spikes', plot = False):
     return drop_intervals, fraction_dropped
 
 if __name__ == '__main__':
-    # construct the argument parse and parse the arguments
-    ap = argparse.ArgumentParser()
-    ap.add_argument("-k", "--kin_dir", required=True, type=str,
-        help="path to directory for task and marmoset pair. E.g. /project/nicho/data/marmosets/kinematics_videos/")
-    ap.add_argument("-ep", "--ephys_path", required=True, type=str,
-        help="path to directory holding ephys data. E.g. /project/nicho/data/marmosets/electrophys_data_for_processing")
-    ap.add_argument("-m", "--marms", required=True, type=str,
-     	help="marmoset 4-digit code, e.g. 'JLTY'")
-    ap.add_argument("-me", "--marms_ephys", required=True, type=str,
-     	help="marmoset 2-digit code for ephys data, e.g. 'TY'")
-    ap.add_argument("-d", "--date", required=True, type=str,
-     	help="date(s) of recording (can have multiple entries separated by spaces)")
-    ap.add_argument("-e", "--exp_name", required=True, type=str,
-     	help="experiment name, e.g. free, foraging, BeTL, crickets, moths, etc")
-    ap.add_argument("-e2", "--other_exp_name", required=True, type=str,
-     	help="experiment name, e.g. free, foraging, BeTL, crickets, moths, etc") 
-    args = vars(ap.parse_args())
+    
+    debugging = True
+    
+    if not debugging:
+    
+        # construct the argument parse and parse the arguments
+        ap = argparse.ArgumentParser()
+        ap.add_argument("-k", "--kin_dir", required=True, type=str,
+            help="path to directory for task and marmoset pair. E.g. /project/nicho/data/marmosets/kinematics_videos/")
+        ap.add_argument("-ep", "--ephys_path", required=True, type=str,
+            help="path to directory holding ephys data. E.g. /project/nicho/data/marmosets/electrophys_data_for_processing")
+        ap.add_argument("-m", "--marms", required=True, type=str,
+         	help="marmoset 4-digit code, e.g. 'JLTY'")
+        ap.add_argument("-me", "--marms_ephys", required=True, type=str,
+         	help="marmoset 2-digit code for ephys data, e.g. 'TY'")
+        ap.add_argument("-d", "--date", required=True, type=str,
+         	help="date(s) of recording (can have multiple entries separated by spaces)")
+        ap.add_argument("-e", "--exp_name", required=True, type=str,
+         	help="experiment name, e.g. free, foraging, BeTL, crickets, moths, etc")
+        ap.add_argument("-e2", "--other_exp_name", required=True, type=str,
+         	help="experiment name, e.g. free, foraging, BeTL, crickets, moths, etc") 
+        args = vars(ap.parse_args())
+
+    else:
+        args = {'kin_dir' : '/project/nicho/data/marmosets/kinematics_videos',
+                'ephys_path' : '/project/nicho/data/marmosets/electrophys_data_for_processing',
+                'date' : '2023_08_11',
+                'marms': 'JLTY',
+                'marms_ephys': 'JL',
+                'exp_name':'moth',
+                'other_exp_name': 'moth_free'}
 
     use_nev = True
     binwin = 0.1

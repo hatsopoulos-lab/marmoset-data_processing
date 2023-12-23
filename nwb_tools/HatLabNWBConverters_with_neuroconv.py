@@ -12,7 +12,7 @@ v0.0a PLA 122321
 
 # import needed toolboxes
 from neuroconv import NWBConverter
-from neuroconv.datainterfaces import BlackrockRecordingInterface, BlackrockSortingInterface, MovieInterface
+from neuroconv.datainterfaces import BlackrockRecordingInterface, BlackrockSortingInterface  #, MovieInterface
 from pynwb import NWBHDF5IO
 from ndx_pose import PoseEstimationSeries, PoseEstimation
 import re

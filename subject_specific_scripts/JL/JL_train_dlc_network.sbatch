@@ -2,11 +2,11 @@
 #SBATCH --job-name=train_dlc_marms
 #SBATCH --output=/project/nicho/projects/marmosets/job_log_files/train_dlc_marms.out
 #SBATCH --error=/project/nicho/projects/marmosets/job_log_files/train_dlc_marms.err
-#SBATCH --time=10:00:00
+#SBATCH --time=36:00:00
 #SBATCH --partition=beagle3
 #SBATCH --gres=gpu:1
 #SBATCH --nodes=1
-#SBATCH --mem=96G
+#SBATCH --mem=64G
 #SBATCH --account=pi-nicho
 
 #---------------------------------------------Params that may change often----------------#
@@ -16,10 +16,10 @@ nlabels=3
 dlc_scorer=Dalton
 experiment=apparatus
 
-maxiters=2000000
-init_weights=/project/nicho/projects/marmosets/dlc_project_files/simple_marmoset_model-Dalton-2023-04-28/dlc-models/iteration-4/simple_marmoset_modelApr28-trainset95shuffle1/train/snapshot-1260000/
+maxiters=5000000
+init_weights=/project/nicho/projects/marmosets/dlc_project_files/simple_marmoset_model-Dalton-2023-04-28/dlc-models/iteration-9/simple_marmoset_modelApr28-trainset95shuffle1/train/snapshot-1060000
 #init_weights=None
-overwrite_trainset=True
+overwrite_trainset=False
 
 #---------------------------------------------Params unlikely to change-------------------#
 param_set=marmoset

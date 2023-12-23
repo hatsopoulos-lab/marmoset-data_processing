@@ -10,16 +10,21 @@ Created on Sat Jan 21 12:34:05 2023
 import numpy as np
 import re
 import pynwb
+import pandas as pd
 from pynwb import NWBHDF5IO, TimeSeries
 from pynwb.epoch import TimeIntervals
+from pynwb.ecephys import ElectricalSeries
 import glob
 import datetime
 import pytz
+import h5py
 import matplotlib.pyplot as plt
 from pathlib import Path
 import os
 import time
 import elephant
+from functools import reduce  # forward compatibility for Python 3
+import operator
 
 from probeinterface import Probe, ProbeGroup
 from probeinterface.plotting import plot_probe, plot_probe_group
@@ -106,7 +111,7 @@ def plot_prb(probegroup):
 def create_nwb_copy_without_acquisition(nwb_infile, nwb_outfile):
     with NWBHDF5IO(nwb_infile, 'r') as io:
         nwb = io.read()    
-        nwb.acquisition.clear()
+        # nwb.acquisition.clear()
         # video_timestamp_keys = [key for key in nwb.processing.keys() if 'video_event_timestamps' in key]
         # for key in video_timestamp_keys:
         #     nwb.processing.pop(key)
@@ -120,12 +125,134 @@ def create_nwb_copy_without_acquisition(nwb_infile, nwb_outfile):
         
         with NWBHDF5IO(nwb_outfile, mode='w') as export_io:
             export_io.export(src_io=io, nwbfile=nwb)  
+            
+def create_nwb_copy_with_external_links_to_acquisition(nwb_infile, nwb_outfile):
+    raw_io = NWBHDF5IO(nwb_infile, 'r')
+    nwb = raw_io.read()    
+    nwb_proc = nwb.copy()
+        # video_timestamp_keys = [key for key in nwb.processing.keys() if 'video_event_timestamps' in key]
+        # for key in video_timestamp_keys:
+        #     nwb.processing.pop(key)
+        # try:
+        #     mod_key = 'ecephys'
+        #     nev_keys = [key for key in nwb.processing[mod_key].data_interfaces.keys() if 'nevfile' in key]
+        #     for key in nev_keys:
+        #         nwb.processing[mod_key].data_interfaces.pop(key)
+        # except:
+        #     print('"%s" does not exist in the processing module' %mod_key)
+        
+    nwb_proc.add_scratch(np.array([]),
+                        name="placeholder",
+                        description="placeholdet to shallow copy acquisition file")
+    
+    with NWBHDF5IO(nwb_outfile, mode="w", manager=raw_io.manager) as io:
+        io.write(nwb_proc)
+    
+    raw_io.close()
+
+def save_dict_to_hdf5(data, filename, top_level_list_namebase=None):
+    """
+    ....
+    """
+    df_keys_list, df_data_list = [], []
+    with h5py.File(filename, 'w') as h5file:
+        if type(data) == list:
+            for idx, tmp_data in enumerate(data):
+                df_keys_list, df_data_list = recursively_save_dict_contents_to_group(h5file, f'/{top_level_list_namebase}_{idx}/', tmp_data)
+        elif type(data) == dict:
+            df_keys_list, df_data_list = recursively_save_dict_contents_to_group(h5file, '/', data, df_keys_list, df_data_list)
+    
+    for key, df in zip(df_keys_list, df_data_list):
+        df.to_hdf(filename, key, mode='a')
+
+
+def recursively_save_dict_contents_to_group(h5file, path, dic, df_keys_list = None, df_data_list = None):
+    """
+    ....
+    """
+    for key, item in dic.items():
+        if isinstance(item, (np.ndarray, int, float, np.int64, np.float64, str, bytes)):
+            h5file[path + key] = item
+        elif isinstance(item, list):
+            if len(item) > 0 and type(item[0]) == str:
+                h5file.create_dataset(path + key, dtype=h5py.string_dtype(encoding='utf-8'), data=item)
+            else:
+                h5file[path + key] = np.array(item)
+            
+        elif isinstance(item, dict):
+            df_keys_list, df_data_list = recursively_save_dict_contents_to_group(h5file, path + key + '/', item, df_keys_list, df_data_list)
+        elif isinstance(item, pd.DataFrame):
+            df_keys_list.extend([path + key])
+            df_data_list.extend([item])
+        else:
+            raise ValueError('Cannot save %s type'%type(item))
+     
+    return df_keys_list, df_data_list       
+     
+def recursively_load_dict_contents_from_group(h5file, path, df_key_list, convert_4d_array_to_list = False):
+    """
+    ....
+    """
+    ans = {}
+    for key, item in h5file[path].items():
+        if isinstance(item, h5py._hl.dataset.Dataset):
+            try:
+                ans[key] = item[:]
+            except:
+                ans[key] = item[()]
+            if convert_4d_array_to_list and isinstance(ans[key], np.ndarray) and ans[key].ndim == 4:
+                ans[key] = [arr for arr in ans[key]]
+        elif isinstance(item, h5py._hl.group.Group):
+            if 'axis0' in item.keys() and 'axis1' in item.keys():
+                df_key_list.extend([path + key])
+            else:
+                ans[key], df_key_list = recursively_load_dict_contents_from_group(h5file, path + key + '/', df_key_list)
+    return ans, df_key_list
+
+def load_dict_from_hdf5(filename, top_level_list=False, convert_4d_array_to_list = False):
+    """
+    ....
+    """
+    with h5py.File(filename, 'r') as h5file:
+        if top_level_list:
+            list_of_dicts = []
+            for key in h5file.keys():
+                df_key_list = []
+                tmp_dict, df_key_list = recursively_load_dict_contents_from_group(h5file, key+'/', df_key_list, convert_4d_array_to_list)
+                list_of_dicts.append(tmp_dict)
+            loaded_data = list_of_dicts
+        else:
+            df_key_list = []
+            tmp_dict, df_key_list = recursively_load_dict_contents_from_group(h5file, '/', df_key_list, convert_4d_array_to_list)
+            loaded_data = tmp_dict
+    
+    if isinstance(loaded_data, dict):
+        for df_key in df_key_list:
+            key_tree = [part for part in df_key.split('/') if part != '']
+            set_by_path(loaded_data, key_tree,  pd.read_hdf(filename, df_key) )
+
+            # for branch in key_tree[:-1]:
+            #     if branch in keys
+            #     loaded_data.setdefault(branch, {})
+            # loaded_data[key_tree[-1]] = pd.read_hdf(h5file, df_key) 
+    
+    # elif isinstance(loaded_data, list):
+    #     tmp = [] # write code to grab list index, then dict path
+    
+    return loaded_data
+
+def get_by_path(root, items):
+    """Access a nested object in root by item sequence."""
+    return reduce(operator.getitem, items, root)
+
+def set_by_path(root, items, value):
+    """Set a value in a nested object in root by item sequence."""
+    get_by_path(root, items[:-1])[items[-1]] = value
 
 def store_drop_records(timestamps, dropframes_proc_mod, drop_record_folder, exp_name, sNum, epNum):
     
     camPattern = re.compile(r'cam\d{1}')
-    drop_records = sorted(glob.glob(os.path.join(drop_record_folder, 
-                                                 '*session%d*event_%s_droppedFrames.txt' % (sNum, epNum))))
+    drop_records = sorted(glob.glob(os.path.join(drop_record_folder, f'*session{sNum}*event_{epNum}*droppedFrames.txt')))
     
     description = 'Boolean vector of good frames (True) and dropped/replaced frames (False) for given session/episode/camera.'
     if len(drop_records) > 0:
@@ -133,7 +260,9 @@ def store_drop_records(timestamps, dropframes_proc_mod, drop_record_folder, exp_
             camNum = re.findall(camPattern, rec)[0]
             record_name = '%s_s_%d_e_%s_%s_dropFramesMask' % (exp_name, sNum, epNum, camNum)
             dropped_frames = np.loadtxt(drop_records[0], delimiter=',', dtype=str)
-            dropped_frames = [int(framenum)-1 for framenum in dropped_frames[:-1]]
+            dropped_frames = [int(framenum)-1 for framenum in dropped_frames[:-1] if int(framenum)-1 < len(timestamps)]
+            if len(dropped_frames) == 0:
+                continue
             data = np.full((len(timestamps),), True)
             data[dropped_frames] = False 
             if record_name not in dropframes_proc_mod.data_interfaces.keys():
@@ -153,7 +282,7 @@ def remove_duplicate_spikes_from_good_single_units(units, mua_to_fix=[], plot=Fa
         unit = units.loc[units.index == unitID, :]
         spike_times = unit.spike_times.iloc[0]
 
-        fix_mua = True if int(unit.unit_name) in mua_to_fix else False
+        fix_mua = True if int(unit.unit_name.iloc[0]) in mua_to_fix else False
 
         thresh = 150
         if unit.quality.iloc[0] == 'good' or fix_mua:
@@ -214,7 +343,10 @@ def timestamps_to_nwb(nwbfile_path, kin_folders, saveData):
                 
                 file_error = False
                 
-                nwbfile.keywords = saveData['experiments']
+                try:
+                    nwbfile.keywords = saveData['experiments']
+                except:
+                    pass
                 
                 # create a TimeSeries and add it to the processing module 'episode_timestamps_EXPNAME'
                 sessPattern = re.compile('[0-9]{3}_acquisition') 
@@ -304,3 +436,67 @@ def timestamps_to_nwb(nwbfile_path, kin_folders, saveData):
             else:
                 print('error occurred after file was loaded. Quitting')
                 break
+
+def get_electricalseries_from_nwb(nwb):
+    
+    es_keys = [key for key in nwb.acquisition.keys() if 'ElectricalSeries' in key]
+    
+    if len(es_keys) == 1:
+        raw = nwb.acquisition[es_keys[0]]
+    else:
+        raw_list = [nwb.acquisition[key] for key in es_keys]
+        start_times = [raw_tmp.starting_time for raw_tmp in raw_list]
+        start_times, raw_list = zip(*sorted(zip(start_times, raw_list)))
+        step = 1/raw_list[0].rate
+        total_samples = 0
+        for raw_tmp in raw_list:
+            start = raw_tmp.starting_time
+            stop = start + step*raw_tmp.data.shape[0]  
+            total_samples += raw_tmp.data.shape[0]
+            print(f'start_time = {start:<18}, stop_time = {stop:<18}, samples = {raw_tmp.data.shape[0]}')
+        
+        new_raw = np.empty((total_samples, raw_list[0].data.shape[1]),  dtype='<i2')
+        chunk_size = 5000000
+        current_idx = 0
+        for raw_tmp in raw_list:
+            tmp_samples = raw_tmp.data.shape[0]
+            segCount = 0
+            for segment_idx, new_raw_idx in zip(range(          0,               tmp_samples, chunk_size), 
+                                                range(current_idx, current_idx + tmp_samples, chunk_size)):
+                print(f'segCount = {segCount}')
+                data_chunk = raw_tmp.data[segment_idx : segment_idx + chunk_size]
+                
+                new_raw[new_raw_idx : new_raw_idx + data_chunk.shape[0]] = data_chunk
+                segCount += 1
+            
+            current_idx += tmp_samples
+    
+        electrodes         = nwb.electrodes.to_dataframe()
+        electrodes_table_region = nwb.create_electrode_table_region(
+            region=list(range(electrodes.shape[0])),  # reference row indices 0 to N-1
+            description="all electrodes",
+        )
+        starting_time      = raw_list[0].starting_time                
+        rate               = raw_list[0].rate
+        conversion         = raw_list[0].conversion
+        channel_conversion = raw_list[0].channel_conversion
+        description        = raw_list[0].description
+        offset             = raw_list[0].offset
+        comments           = raw_list[0].comments
+        resolution         = raw_list[0].resolution 
+            
+        raw = ElectricalSeries(
+            name="ElectricalSeries",
+            data=new_raw,
+            electrodes=electrodes_table_region,
+            starting_time=starting_time,  # timestamp of the first sample in seconds relative to the session start time
+            rate=rate,
+            conversion = conversion,
+            channel_conversion=channel_conversion,
+            description=description,
+            offset=offset,
+            comments=comments,
+            resolution=resolution
+        ) 
+        
+    return raw

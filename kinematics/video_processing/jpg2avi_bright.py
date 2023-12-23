@@ -346,11 +346,6 @@ def run_video_production(video_task_info, vid_dir, drop_record_path, fps, video_
 
         jpg_files = sorted(glob.glob(jpgPattern))
 
-        
-        # n_event_files = []
-        # for cam in cams:
-            
-
         print(f'Looking for and fixing dropped frames, starting {time.strftime("%c", time.localtime())}', flush=True)
         print(f'Found {len(jpg_files)} frames', flush=True)
         fix_dropped_frames(jpg_files, jpgPattern, drop_record_path, fps)
@@ -477,7 +472,7 @@ def convert_string_inputs_to_int_float_or_bool(orig_var):
 if __name__ == '__main__':
     # construct the argument parse and parse the arguments
 
-    debugging = True
+    debugging = False
 
     if not debugging:
         ap = argparse.ArgumentParser()
@@ -508,21 +503,20 @@ if __name__ == '__main__':
         args = {'jpg_dir'        : '/scratch/midway3/daltonm/kinematics_jpgs',
                 'vid_dir'        : '/project/nicho/data/marmosets/kinematics_videos',
                 'marms'          : 'JLTY',
-                'date'           : '2023_09_21',
-                'exp_name'       : 'cricket',
+                'date'          : '2023_09_14',
+                'exp_name'       : 'cricket_free',
                 'session_nums'   : [1],
-                'fps'            : 200,
-                'cams'           : [ 1,  2,  3,  4, 5],
-                'video_transpose': [-1, -1, -1, -1, -1],
-                'calib_name'     : 'calib',
-                'apply_clahe'    : 'False'}
+                'fps'            : 30,
+                'cams'           : [ 1,  2,  3,  4],
+                'video_transpose': [ 2,  2,  1,  1],
+                'calib_name'     : 'calib'}
     try:
         task_id   = int(os.getenv('SLURM_ARRAY_TASK_ID'))
         n_tasks   = int(os.getenv('SLURM_ARRAY_TASK_COUNT'))
         last_task = int(os.getenv('SLURM_ARRAY_TASK_MAX'))
     except:
-        task_id = 75
-        n_tasks = 80
+        task_id = 0
+        n_tasks = 20
         last_task = task_id
     print(f'task_id = {task_id}', flush=True)
     

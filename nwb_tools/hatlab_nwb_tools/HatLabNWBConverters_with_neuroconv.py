@@ -12,7 +12,7 @@ v0.0a PLA 122321
 
 # import needed toolboxes
 from neuroconv import NWBConverter
-from neuroconv.datainterfaces import BlackrockRecordingInterface, BlackrockSortingInterface, MovieInterface
+from neuroconv.datainterfaces import BlackrockRecordingInterface, BlackrockSortingInterface#, MovieInterface
 from pynwb import NWBHDF5IO
 from ndx_pose import PoseEstimationSeries, PoseEstimation
 import re
@@ -73,16 +73,16 @@ class MarmForageNWBConverter(NWBConverter):
         BlackrockSortingInterface=BlackrockSortingInterface,
     )
 
-class MarmVideoNWBConverter(NWBConverter):
-    """
-    A converter for Marmoset videos. The raw data associated
-    with this experiment should be NS6 file, NEV file and videos from
-    multiple cameras.
-    """
+# class MarmVideoNWBConverter(NWBConverter):
+#     """
+#     A converter for Marmoset videos. The raw data associated
+#     with this experiment should be NS6 file, NEV file and videos from
+#     multiple cameras.
+#     """
 
-    data_interface_classes = dict(
-        ApparatusBehaviorVideos=MovieInterface,
-    )
+#     data_interface_classes = dict(
+#         ApparatusBehaviorVideos=MovieInterface,
+#     )
 
 def MarmAnipose2NWB(nwbfile_path, trajectory_data, signal_data): 
     

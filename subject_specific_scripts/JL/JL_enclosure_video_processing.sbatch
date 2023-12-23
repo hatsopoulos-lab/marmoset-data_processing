@@ -1,8 +1,8 @@
 #!/bin/bash
-#SBATCH --job-name=JL_free_video_proc
-#SBATCH --output=/project/nicho/projects/marmosets/job_log_files/Dalton08_JL_free_video_proc_%a.out
-#SBATCH --error=/project/nicho/projects/marmosets/job_log_files/Dalton08_JL_free_video_proc_%a.err
-#SBATCH --time=18:00:00
+#SBATCH --job-name=JL09_free_video_proc
+#SBATCH --output=/project/nicho/projects/marmosets/job_log_files/Dalton09_s2_JL_free_video_proc_%a.out
+#SBATCH --error=/project/nicho/projects/marmosets/job_log_files/Dalton09_s2_JL_free_video_proc_%a.err
+#SBATCH --time=24:00:00
 #SBATCH --partition=caslake
 #SBATCH --array=0-3
 #SBATCH --ntasks=8
@@ -10,9 +10,9 @@
 #SBATCH --account=pi-nicho
 
 #------------params that may change for each dataset/experiment----------------------#
-dates=(2023_08_08)
+dates=(2023_08_09)
 exp=moth_free
-sess=(1)
+sess=(2)
 calib_name=calib
 scratch_space_username=daltonm #walkerjd
 
@@ -32,7 +32,7 @@ module load python/anaconda-2022.05
 source activate /project/nicho/environments/dlc
 
 #---------------------Execute the programs-------------------------------------------#
-python $video_processing/check_for_episode_splits_and_adjust_image_filenames_preAVI.py -j $jpg_dir -v $vid_dir -m $marms -d ${dates[@]} -e $exp -s ${sess[@]} -f $fps -n $ncams
+#python $video_processing/check_for_episode_splits_and_adjust_image_filenames_preAVI.py -j $jpg_dir -v $vid_dir -m $marms -d ${dates[@]} -e $exp -s ${sess[@]} -f $fps -n $ncams
 python $video_processing/jpg2avi.py -j $jpg_dir -v $vid_dir -m $marms -d ${dates[@]} -e $exp -s ${sess[@]} -f $fps -n $ncams -t ${vid_transpose[@]} -c $calib_name
 python $video_processing/apply_clahe_filter_to_videos.py -i $vid_dir/$exp/$marms/ -d ${dates[@]}
 python $video_processing/recompress_filtered_avi.py      -i $vid_dir/$exp/$marms/ -d ${dates[@]}

@@ -42,8 +42,8 @@ anipose_base = '/project/nicho/data/marmosets/kinematics_videos/moths/HMMG/'
 
 class dpath:
     base = [anipose_base]
-    dates = ['2023_04_16']  # for now we can only do one date at a time
-    reach_data = '/project/nicho/data/marmosets/processed_datasets/reach_and_trajectory_information/20230416_reach_and_trajectory_info.pkl'
+    dates = ['2023_08_03']  # for now we can only do one date at a time
+    reach_data = '/project/nicho/data/marmosets/processed_datasets/reach_and_trajectory_information/20230803_reach_and_trajectory_info.h5'
     base_nwb_file_pattern = '/project/nicho/data/marmosets/electrophys_data_for_processing/MG20230416_1505_mothsAndFree/MG20230416_1505_mothsAndFree-002'
     nwb_acquisition_file  = base_nwb_file_pattern + '_acquisition.nwb'
     nwb_processed_infile  = base_nwb_file_pattern + '_processed_resorted_20230612.nwb'

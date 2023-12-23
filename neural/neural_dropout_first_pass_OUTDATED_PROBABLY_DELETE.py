@@ -103,52 +103,56 @@ def get_filepaths(ephys_path, kin_path, marms_ephys_code, marms_kin_code, date):
         
     return ephys_folders, kin_folders  
 
-def identify_dropout(filepath, binwin, dropout_method = 'spikes', plot = False):
-        
-    with NWBHDF5IO(filepath, 'r+') as io:
+def identify_dropout(filepath, binwin, plot = False):
+    
+    nwbfile_path = filepath.split('.')[0] + '_acquisition.nwb'
+    
+    with NWBHDF5IO(nwbfile_path, 'r+') as io:
         nwbfile = io.read()
 
-        if dropout_method == 'spikes':
+        if filepath[-3:] == 'nev':
+            sample_rate = 30000
             
-            units = nwbfile.processing['ecephys'].data_interfaces['units_from_nevfile'].to_dataframe()
-            spike_times = units['spike_times'].to_list()
+            nev = NevFile(filepath)
+            
+            spike_data = nev.getdata(wave_read='noread')
+        
+            spike_times = spike_data['spike_events']['TimeStamps']
+            
+            spike_times = [np.array(t)/sample_rate for t in spike_times]
+            
+            nev.close()
+            del spike_data
+        
             num_neurons = len(spike_times)
         
-        else: 
-            #TODO this method currently grabs spikes from filtered raw data, but this won't work during sleep 
-            #(downstates will look like dropout). Whoever is working with sleep data will need to figure a method out for this.
+        else:
             
-            raw = nwbfile.acquisition['ElectricalSeries']
-            elec_df = raw.electrodes.to_dataframe()
-            channel_idx = [idx for idx, name in elec_df['electrode_label'].iteritems() if 'ainp' not in name]
-            signals = raw.data[:, channel_idx] * elec_df['gain_to_uV'][channel_idx] * raw.conversion
-                            
-            start = raw.starting_time
-            step = 1/raw.rate
-            stop = start + step*signals.shape[0]
-            timestamps = np.arange(start, stop, step)
-            
+            downsamp = 10
             num_neurons = 96
             
+            nsx = NsxFile(filepath)
+            
             spike_times = []
-            for elec in channel_idx:
+            for elec in range(1, num_neurons+1):
             
-                chan_data = signals[:, elec]
-                # first_data_idx = np.where(chan_data[0] != 0)[0][0]
-                # signal = raw_data['data'][0, first_data_idx:]
+                raw_data = nsx.getdata(elec_ids=[elec], downsample=downsamp)
+                first_data_idx = np.where(raw_data['data'][0] != 0)[0][0]
+                signal = raw_data['data'][0, first_data_idx:]
             
-                # bandpass = butter(4, [300/downsamp, 3000/downsamp], btype='bandpass',
-                #                   fs=raw_data['samp_per_s'], output='sos')
-                # filtered_signal = sosfilt(bandpass, signal)
+                bandpass = butter(4, [300/downsamp, 3000/downsamp], btype='bandpass',
+                                  fs=raw_data['samp_per_s'], output='sos')
+                filtered_signal = sosfilt(bandpass, signal)
             
-                # thresh = 80
-                # min_isi = 0.001  # 2ms
+                thresh = 80
+                min_isi = 0.001  # 2ms
             
-                # spikes, heights = find_peaks(-1*filtered_signal,
-                #                              height=thresh, distance=min_isi*raw_data['samp_per_s'])
+                spikes, heights = find_peaks(-1*filtered_signal,
+                                             height=thresh, distance=min_isi*raw_data['samp_per_s'])
             
-                # spike_times.append(spikes/raw_data['samp_per_s'])
+                spike_times.append(spikes/raw_data['samp_per_s'])
             
+            nsx.close()
         
         data = {}
         data['binwin'] = binwin
@@ -231,14 +235,15 @@ def identify_dropout(filepath, binwin, dropout_method = 'spikes', plot = False):
         plt.xlabel('Time between Dropouts (s), log scale')
         sns.despine()
     
-        drop_starts = np.array([bin_num+1 for bin_num, (value, prev_val) in enumerate(zip(drop_bins[1:], drop_bins[:-1])) if value == 1 and prev_val == 0])
-        drop_ends   = np.array([bin_num+1 for bin_num, (value, prev_val) in enumerate(zip(drop_bins[1:], drop_bins[:-1])) if value == 0 and prev_val == 1])
-        
-        drop_intervals = pd.DataFrame(data=zip(bin_times[drop_starts], 
-                                               bin_times[drop_ends], 
-                                               bin_times[drop_ends] - bin_times[drop_starts]), 
-                                      columns = ['drop_start_time', 'drop_end_time', 'drop_length_sec'])
-        
+    drop_starts = np.array([bin_num+1 for bin_num, (value, prev_val) in enumerate(zip(drop_bins[1:], drop_bins[:-1])) if value == 1 and prev_val == 0])
+    drop_ends   = np.array([bin_num+1 for bin_num, (value, prev_val) in enumerate(zip(drop_bins[1:], drop_bins[:-1])) if value == 0 and prev_val == 1])
+    
+    drop_intervals = pd.DataFrame(data=zip(bin_times[drop_starts], 
+                                           bin_times[drop_ends], 
+                                           bin_times[drop_ends] - bin_times[drop_starts]), 
+                                  columns = ['drop_start_time', 'drop_end_time', 'drop_length_sec'])
+    
+    with NWBHDF5IO(nwbfile_path, 'r+') as io:
         nwbfile = io.read()
         dropout_intervals_name = 'neural_dropout'
         if dropout_intervals_name in nwbfile.intervals.keys():
@@ -261,6 +266,9 @@ def identify_dropout(filepath, binwin, dropout_method = 'spikes', plot = False):
             nwbfile.add_time_intervals(dropout)   
 
         io.write(nwbfile)                                                          
+
+    with open(filepath.split('.')[0] + '_exilis_dropout_intervals.pkl', 'wb') as f:
+        dill.dump(drop_intervals, f, recurse=True)
     
     fraction_dropped = np.round(sum(drop_bins) / len(drop_bins), 8)
     
@@ -286,23 +294,28 @@ if __name__ == '__main__':
     args = vars(ap.parse_args())
 
     use_nev = True
-    binwin = 0.1
-    dropout_method = 'spikes'    
+    binwin = 0.1    
     
     try:
         task_id = int(os.getenv('SLURM_ARRAY_TASK_ID'))
-        last_task = int(os.getenv('SLURM_ARRAY_TASK_MAX'))
     except:
         task_id = 0
-        last_task = task_id
     
-    if task_id == last_task:
+    # args = {'kin_dir' : '/project/nicho/data/marmosets/kinematics_videos',
+    #         'ephys_path' : '/project/nicho/data/marmosets/electrophys_data_for_processing',
+    #         'dates' : ['2022_10_24'],
+    #         'marms': 'TYJL',
+    #         'marms_ephys': 'TY',
+    #         'exp_name':'test',
+    #         'other_exp_name': 'test_free'}
+    
+    if task_id == 0:
         experiments = [args['exp_name'], args['other_exp_name']]
         
         datePattern = re.compile('[0-9]{8}')         
         ephys_folders, kin_folders = get_filepaths(args['ephys_path'], args['kin_dir'], args['marms_ephys'], args['marms'], args['date'])    
         
         for eFold in ephys_folders:
-            nwb_files = sorted(glob.glob(pjoin(eFold, '*_acquisition.nwb')))
-            for nfile in nwb_files:
-                drop_intervals, fraction_dropped = identify_dropout(nfile, binwin, dropout_method=dropout_method, plot = True)
+            nev_files = sorted(glob.glob(pjoin(eFold, '*.nev')))
+            for nfile in nev_files:
+                drop_intervals, fraction_dropped = identify_dropout(nfile, binwin, plot = True)

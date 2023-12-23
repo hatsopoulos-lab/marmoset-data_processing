@@ -119,6 +119,7 @@ if __name__ == '__main__':
         image_list = extract_images_from_video(vidpath, vid_detect)
         corrected_detections[camIdx] = manually_correct_calibration_detections(image_list, vid_detect, board_size)
         
+        
     with open(pjoin(project_path, 'calibration', 'detections.pickle'), 'wb') as f:
         dill.dump(corrected_detections, f, recurse=True)
     

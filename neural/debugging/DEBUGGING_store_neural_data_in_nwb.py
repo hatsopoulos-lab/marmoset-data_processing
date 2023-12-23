@@ -268,22 +268,26 @@ def create_nwb_and_store_raw_neural_data(ns6_path, meta_path, prb_path, swap_ab,
     return
 
 if __name__ == '__main__':
-    # construct the argument parse and parse the arguments
-    ap = argparse.ArgumentParser()
-    ap.add_argument("-f", "--ns6_path" , required=True, type=str,
-        help="path to ns6 file that will be stored in new NWB file, e.g. /project/nicho/data/marmosets/electrophys_data_for_processing/TY20221024_testbattery/TY20221024_testbattery_001.ns6")
-    ap.add_argument("-m", "--meta_path", required=True, type=str,
-        help="path to metadata yml file to be added to NWB file, e.g. /project/nicho/projects/marmosets/code_database/data_processing/nwb_tools/marms_complete_metadata.yml")
-    ap.add_argument("-p", "--prb_path" , required=True, type=str,
-        help="path to .prb file that provides probe/channel info to NWB file, e.g. /project/nicho/data/marmosets/prbfiles/MG_array.prb")
-    ap.add_argument("-ab", "--swap_ab" , required=True, type=str,
-        help="Can be 'yes' or 'no'. Indicates whether or not channel names need to be swapped for A/B bank swapping conde by exilis. For new data, this should be taken care of in cmp file. For TY data, will be necessary.")
-    args = vars(ap.parse_args())
+    debugging = True
     
-    # args = {'ns6_path' : '/project/nicho/data/marmosets/electrophys_data_for_processing/JL20230914_1153_freeAndCrickets_baseline/JL20230914_1153_freeAndCrickets_baseline001.ns6',
-    #         'meta_path': '/project/nicho/data/marmosets/metadata_yml_files/JL_complete_metadata.yml',
-    #         'prb_path' : '/project/nicho/data/marmosets/prbfiles/JL_01.prb',
-    #         'swap_ab'  : 'no'}
+    if not debugging:
+        # construct the argument parse and parse the arguments 
+        ap = argparse.ArgumentParser()
+        ap.add_argument("-f", "--ns6_path" , required=True, type=str,
+            help="path to ns6 file that will be stored in new NWB file, e.g. /project/nicho/data/marmosets/electrophys_data_for_processing/TY20221024_testbattery/TY20221024_testbattery_001.ns6")
+        ap.add_argument("-m", "--meta_path", required=True, type=str,
+            help="path to metadata yml file to be added to NWB file, e.g. /project/nicho/projects/marmosets/code_database/data_processing/nwb_tools/marms_complete_metadata.yml")
+        ap.add_argument("-p", "--prb_path" , required=True, type=str,
+            help="path to .prb file that provides probe/channel info to NWB file, e.g. /project/nicho/data/marmosets/prbfiles/MG_array.prb")
+        ap.add_argument("-ab", "--swap_ab" , required=True, type=str,
+            help="Can be 'yes' or 'no'. Indicates whether or not channel names need to be swapped for A/B bank swapping conde by exilis. For new data, this should be taken care of in cmp file. For TY data, will be necessary.")
+        args = vars(ap.parse_args())
+    
+    else:
+        args = {'ns6_path' : '/project/nicho/data/marmosets/electrophys_data_for_processing/JL20230803_1330_freeAndMoths_day01/JL20230803_1330_freeAndMoths_day01001.ns6',
+                'meta_path': '/project/nicho/data/marmosets/metadata_yml_files/JL_complete_metadata.yml',
+                'prb_path' : '/project/nicho/data/marmosets/prbfiles/JL_01.prb',
+                'swap_ab'  : 'no'}
     
     # args = {'ns6_path' : '/project/nicho/data/marmosets/electrophys_data_for_processing/MG20230416_1505_mothsAndFree/MG20230416_1505_mothsAndFree-002.ns6',
     #         'meta_path': '/project/nicho/data/marmosets/metadata_yml_files/MG_complete_metadata.yml',

@@ -1,0 +1,5 @@
+#+++
+/project/nicho/environments/spyder/lib/python3.9/site-packages/spikeinterface/extractors/neoextractors/neobaseextractors:
+class NeoBaseSortingExtractor(_NeoBaseExtractor, BaseRecording):
+      below line 218: BaseSorting.__init__(self, sampling_frequency, unit_ids)
+      insert:         self.set_property('spike_channel_name', spike_channels["name"])

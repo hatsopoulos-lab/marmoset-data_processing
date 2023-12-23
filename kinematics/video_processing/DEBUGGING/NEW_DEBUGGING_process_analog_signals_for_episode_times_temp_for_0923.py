@@ -33,7 +33,7 @@ import argparse
 
 from importlib import sys
 sys.path.insert(0, '/project/nicho/projects/marmosets/code_database/data_processing/nwb_tools/hatlab_nwb_tools/')
-from hatlab_nwb_functions import timestamps_to_nwb, store_drop_records, get_electricalseries_from_nwb
+from hatlab_nwb_functions import timestamps_to_nwb, store_drop_records
 
 session_pattern = re.compile('_s[0-9]{1,2}')
 event_pattern   = re.compile('_e[0-9]{3}')
@@ -625,7 +625,10 @@ def get_analog_frame_counts_and_timestamps(eFold, nwbfiles, touchscreen = False,
         with NWBHDF5IO(nwbfile_path, 'r') as io:
             nwbfile = io.read()
             
-            raw = get_electricalseries_from_nwb(nwbfile)
+            try:
+                raw = nwbfile.acquisition['ElectricalSeries']
+            except:
+                raw = nwbfile.acquisition['ElectricalSeriesRaw']
 
             elec_df = raw.electrodes.to_dataframe()
             analog_idx = [idx for idx, name in elec_df['electrode_label'].items() if 'ainp' in name]
@@ -658,7 +661,7 @@ def get_analog_frame_counts_and_timestamps(eFold, nwbfiles, touchscreen = False,
                                 event_startSamples.append(signalSamplesTmp[trigSamples[0]])
                                 event_endSamples.append(signalSamplesTmp[trigSamples[1]])
                         else:
-                            largeDiff = np.where(np.diff(expOpen_samples) > params.eventDetector)[0]                    
+                            largeDiff = np.where(np.diff(expOpen_samples) > params.eventDetector)[0]
                             if len(largeDiff) > 0:  
                                 event_startSamples = expOpen_samples[largeDiff + 1];
                                 event_startSamples = np.insert(event_startSamples, 0, expOpen_samples[0])
@@ -779,7 +782,7 @@ def convert_string_inputs_to_int_float_or_bool(orig_var):
 
 if __name__ == '__main__':
     
-    debugging = False
+    debugging = True
     
     if not debugging:
     
@@ -819,7 +822,7 @@ if __name__ == '__main__':
                 'ephys_path'       : '/project/nicho/data/marmosets/electrophys_data_for_processing',
                 'marms'            : 'JLTY',
                 'marms_ephys'      : 'JL',
-                'date'             : '2023_09_14',
+                'date'             : '2023_09_23',
                 'exp_name'         : 'cricket',
                 'other_exp_name'   : 'cricket_free',
                 'touchscreen'      : 'False',

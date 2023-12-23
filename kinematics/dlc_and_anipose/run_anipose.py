@@ -238,13 +238,10 @@ def compute_pose_with_anipose(anipose_args):
                 shutil.move(f, dst_dir)
     if anipose_args['task_id'] == 0:
         shutil.move(pjoin(task_path, 'scorer_info.txt'), anipose_args['date_dir'])
-    
-    ###### NEED TO REMOVE TEMP FOLDERS HERE #####
-    
-    os.remove(pjoin(anipose_args['date_dir'], 'autoencoder.pickle'))
-    os.removedirs(pjoin(anipose_args['date_dir'], 'temp_anipose_processing'))
-    
+            
     if anipose_args['task_id'] == 0:
+        os.removedirs(pjoin(anipose_args['date_dir'], 'temp_anipose_processing'))
+
         print("resetting snapshotindex and iteration")
         dlc_cfg['iteration'] = original_iteration
         dlc_cfg['snapshotindex'] = original_snapshotindex
