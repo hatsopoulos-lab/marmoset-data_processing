@@ -293,11 +293,11 @@ if __name__ == '__main__':
     else:
         args = {'kin_dir' : '/project/nicho/data/marmosets/kinematics_videos',
                 'ephys_path' : '/project/nicho/data/marmosets/electrophys_data_for_processing',
-                'date' : '2023_08_11',
+                'date' : '2023_11_26',
                 'marms': 'JLTY',
                 'marms_ephys': 'JL',
-                'exp_name':'moth',
-                'other_exp_name': 'moth_free'}
+                'exp_name':'foraging',
+                'other_exp_name': 'foraging_free'}
 
     use_nev = True
     binwin = 0.1

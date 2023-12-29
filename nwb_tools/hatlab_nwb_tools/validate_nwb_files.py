@@ -20,7 +20,7 @@ from hatlab_nwb_functions import read_prb_hatlab, plot_prb
 
 processed=False
 marmscode = 'JLTY'
-nwb_acquisition_file = '/project/nicho/data/marmosets/electrophys_data_for_processing/JL20231126_1325_foraging_day4/JL20231126_1325_foraging_day4002_acquisition.nwb'
+nwb_acquisition_file = '/project/nicho/data/marmosets/electrophys_data_for_processing/JL20231126_1325_foraging_day4/JL20231126_1325_foraging_day4001_acquisition.nwb'
 nwb_processed_file = '/project/nicho/data/marmosets/electrophys_data_for_processing/MG20230416_1505_mothsAndFree/MG20230416_1505_mothsAndFree-002_processed_OLD_NEUROCONV.nwb'
 
 kinematics_video_path = Path('/project/nicho/data/marmosets/kinematics_videos/')
