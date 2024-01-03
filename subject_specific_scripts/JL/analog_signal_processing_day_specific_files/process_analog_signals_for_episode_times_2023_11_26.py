@@ -822,6 +822,10 @@ if __name__ == '__main__':
             help="path to .prb file that provides probe/channel info to NWB file, e.g. /project/nicho/data/marmosets/prbfiles/MG_array.prb")
         ap.add_argument("-ab", "--swap_ab" , required=True, type=str,
             help="Can be 'yes' or 'no'. Indicates whether or not channel names need to be swapped for A/B bank swapping conde by exilis. For new data, this should be taken care of in cmp file. For TY data, 'yes' should be indicated.")
+        ap.add_argument("-al", "--vid_neural_align" , required=True, type=str,
+            help="Can be 'matched' or 'all_in_one_neural_recording'. These indicate that each separate .ns6 file corresponds to a camera session (matched) or that all of the camera sessions occur in a single neural recording (all_in_one_neural_recording). Either option should work when there is one neural recording and one camera session.")
+        ap.add_argument("-f", "--fps" , required=True, type=int,
+            help="Camera frame rate.")
         args = vars(ap.parse_args())
 
     else:
@@ -844,7 +848,7 @@ if __name__ == '__main__':
     
     touchscreen = convert_string_inputs_to_int_float_or_bool(args['touchscreen'])
     
-    eventDetectTime = 1/args['fps'] * 5
+    eventDetectTime = 1/args['fps'] * 5 # this matches the 5-frame event_separator parameter in the camera acqusition code files.
     params.eventDetector = eventDetectTime * 30000 
     
     try:

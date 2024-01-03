@@ -521,7 +521,7 @@ if __name__ == '__main__':
         n_tasks   = int(os.getenv('SLURM_ARRAY_TASK_COUNT'))
         last_task = int(os.getenv('SLURM_ARRAY_TASK_MAX'))
     except:
-        task_id = 75
+        task_id = 0
         n_tasks = 80
         last_task = task_id
     print(f'task_id = {task_id}', flush=True)

@@ -30,7 +30,6 @@ import time
 # from ndx_pose import PoseEstimationSeries, PoseEstimation
 # import datetime
 import argparse
-from itertools import product
 
 from importlib import sys
 sys.path.insert(0, '/project/nicho/projects/marmosets/code_database/data_processing/nwb_tools/hatlab_nwb_tools/')
@@ -38,7 +37,6 @@ from hatlab_nwb_functions import timestamps_to_nwb, store_drop_records, get_elec
 
 session_pattern = re.compile('_s[0-9]{1,2}')
 event_pattern   = re.compile('_e[0-9]{3}')
-cam_pattern     = re.compile('cam[0-9]{1}.avi')
 
 class params:
     
@@ -332,8 +330,6 @@ def clean_remaining_spurious_signals(eventTimes, allExp_signalTimes, allExp_fram
 
                 adjIdx = ctIdx + idx_adjust
                 if abs(nsxCount[adjIdx] - fCt) > mismatch_thresh:
-                    if ctIdx+1 == fCounts.shape[0] and nsxCount[adjIdx] > fCt:
-                        continue
                     try:
                         shift = np.where(       abs(fCt - nsxCount[max(0, adjIdx-10):adjIdx+10]) == 
                                          np.min(abs(fCt - nsxCount[max(0, adjIdx-10):adjIdx+10])))[0][0] - (adjIdx - max(0, adjIdx-10)) 
@@ -341,7 +337,7 @@ def clean_remaining_spurious_signals(eventTimes, allExp_signalTimes, allExp_fram
                         if shift > 0: 
                             remove_signal_idxs.extend(range(adjIdx, adjIdx+shift))
                         elif shift < 0:
-                            remove_signal_idxs.extend(range(adjIdx+shift, adjIdx))
+                            remove_signal_idxs.append(range(adjIdx+shift, adjIdx))
                         idx_adjust += shift
                     except:
                         print('exception raised in spurious signal code for expNum %d and ctIdx %d' % (expNum, ctIdx))
@@ -368,11 +364,25 @@ def clean_remaining_spurious_signals(eventTimes, allExp_signalTimes, allExp_fram
                     eventTimes[chanIdx] = eventTimes[chanIdx][:, tmp_keep_idxs] 
                     
                     sessEventCounters[sessNum] += evTimes.shape[-1]
+            # expEventCounters = [0]*int(len(eventTimes) / chans_per_sess)
+            # for chanIdx, evTimes in enumerate(eventTimes):
+            #     if chanIdx % chans_per_sess == expNum:
+            #         print(expNum, evTimes.shape, len(expEventCounters), expEventCounters)
+            #         tmp_keep_idxs   = [i - expEventCounters[expNum] for i in keep_signal_idxs   
+            #                            if i >= expEventCounters[expNum] and i < evTimes.shape[-1] + expEventCounters[expNum]]
+                    
+            #         tmp_remove_idxs = [i - expEventCounters[expNum] for i in remove_signal_idxs 
+            #                            if i >= expEventCounters[expNum] and i < evTimes.shape[-1] + expEventCounters[expNum]]
+                    
+            #         removed_eventTimes.append(eventTimes[chanIdx][:, tmp_remove_idxs])
+            #         eventTimes[chanIdx] = eventTimes[chanIdx][:, tmp_keep_idxs] 
+                    
+            #         expEventCounters[expNum] += evTimes.shape[-1]
     
     return eventTimes, removed_eventTimes 
 
 def prepare_final_data_and_metadata(expNames, allExp_frameCounts, allExp_signalTimes, allExp_vidPaths, 
-                                    eventTimes, removed_eventTimes, numSessions, uniqueSessions, chans_per_sess, kinFolders):
+                                    eventTimes, removed_eventTimes, numSessions, chans_per_sess, kinFolders):
     allExp_eventInfo = []
     allExp_event_frameTimes = []
     allExp_bad_frameTimes = []
@@ -380,6 +390,14 @@ def prepare_final_data_and_metadata(expNames, allExp_frameCounts, allExp_signalT
     for expNum, (exp, fCounts) in enumerate(zip(expNames, allExp_frameCounts)):
         event_info = pd.DataFrame()
 
+        # event_info = pd.DataFrame(np.empty((fCounts.shape[0], 7)), 
+        #                           columns = ['exp_name', 
+        #                                      'ephys_session', 
+        #                                      'video_session',
+        #                                      'episode_num',
+        #                                      'start_time', 
+        #                                      'end_time',
+        #                                      'analog_signals_cut_at_end_of_session'])
         brExp = []
         brEphysSess = []
         brVidSess = []
@@ -388,7 +406,6 @@ def prepare_final_data_and_metadata(expNames, allExp_frameCounts, allExp_signalT
         
         event_frameTimes = []
         badEvent_frameTimes = []
-        cam_keys = [col for col in fCounts.columns if 'cam' in col]
         evCount = 0
         for sess in range(numSessions):
             
@@ -403,10 +420,10 @@ def prepare_final_data_and_metadata(expNames, allExp_frameCounts, allExp_signalT
                 event_camTimes = camTimes[np.logical_and(camTimes >= start_time, camTimes <= end_time)]
                 fCounts.nsx_count[evCount] = event_camTimes.shape[0]
                 
-                max_frames = int(np.max(fCounts.loc[evCount, cam_keys]))
+                max_frames = int(np.max(fCounts.iloc[evCount, :-1]))
                 analog_cut = fCounts.nsx_count[evCount] - max_frames
                 if analog_cut > 0:
-                    fCounts.nsx_count[evCount] = np.max(fCounts.loc[evCount, cam_keys]) 
+                    fCounts.nsx_count[evCount] = np.max(fCounts.iloc[evCount, :-1])
                     event_camTimes = event_camTimes[ : max_frames]  
                     end_time = event_camTimes[-1]
                 
@@ -436,6 +453,14 @@ def prepare_final_data_and_metadata(expNames, allExp_frameCounts, allExp_signalT
                                                  'analog_signals_cut_at_end_of_session'])
                 
                 event_info = pd.concat((event_info, tmp_df), axis = 0, ignore_index=True) 
+                
+                # event_info.iloc[evCount, :] = [exp, 
+                #                                uniqueSessions[sess], 
+                #                                video_session, 
+                #                                eventNum+1, 
+                #                                start_time, 
+                #                                end_time, 
+                #                                analog_cut]
                 
                 evCount += 1
             for eventNum in range(bad_evTimes.shape[-1]):
@@ -555,7 +580,6 @@ def get_video_frame_counts(matched_kinFolders, expNames):
             colNames.append(f'cam{cNum+1}')
         
         colNames.append('nsx_count')
-        colNames.append('session')
         vidCounts = np.array([len(v) for v in vidPaths])
         nVids = max(vidCounts)
         vidCountMatch = np.where(vidCounts == nVids)[0]
@@ -572,20 +596,17 @@ def get_video_frame_counts(matched_kinFolders, expNames):
                     currentEvents = [int(vp.split('event')[1][:3]) for vp in v]
                     missingEventIdxs.append([ev-1 for ev in events if ev not in currentEvents])      
         
-        frameCounts = pd.DataFrame(np.empty((nVids, len(colNames))), columns=colNames)                    
+        frameCounts = pd.DataFrame(np.empty((nVids, num_cams+1)), columns=colNames)                    
         for cNum, vPaths in enumerate(vidPaths):
-            cam_key = re.findall(cam_pattern, vPaths[0])[0].split('.avi')[0]
             for vNum, vid in enumerate(vPaths):
-                video_session = int(re.findall(session_pattern, os.path.basename(vid))[0].split('_s')[-1])
-                frameCounts.loc[vNum, 'session'] = video_session
                 cap = cv2.VideoCapture(vid)
-                frameCounts.loc[vNum, cam_key] = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) # FIXME
+                frameCounts.iloc[vNum, cNum] = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
             
             if len(missingEventIdxs) > 0:
                 missEvs = missingEventIdxs[cNum]    
                 for mEv in missEvs:
-                    frameCounts.loc[mEv+1:, cam_key] = frameCounts.loc[mEv:-2, cam_key]
-                    frameCounts.loc[mEv, cam_key] = np.nan
+                    frameCounts.iloc[mEv+1:, cNum] = frameCounts.iloc[mEv:-1, cNum]
+                    frameCounts.iloc[mEv, cNum] = np.nan
         
         maxEvent_camNum.append(vidCountMatch[0])
         allExp_vidPaths.append(vidPaths)
@@ -637,7 +658,7 @@ def get_analog_frame_counts_and_timestamps(eFold, nwbfiles, touchscreen = False,
                                 event_startSamples.append(signalSamplesTmp[trigSamples[0]])
                                 event_endSamples.append(signalSamplesTmp[trigSamples[1]])
                         else:
-                            largeDiff = np.where(np.diff(expOpen_samples) > params.eventDetector)[0]
+                            largeDiff = np.where(np.diff(expOpen_samples) > params.eventDetector)[0]                    
                             if len(largeDiff) > 0:  
                                 event_startSamples = expOpen_samples[largeDiff + 1];
                                 event_startSamples = np.insert(event_startSamples, 0, expOpen_samples[0])
@@ -732,39 +753,6 @@ def wait_for_all_batch_jobs_to_finish_video_conversion(matched_kinFolders):
     
     return
 
-def clean_and_align_signals(allExp_frameCounts,
-                            allExp_vidPaths,
-                            eventTimes,
-                            allExp_signalTimes,
-                            session,
-                            chans_per_sess,
-                            breakTimes,
-                            numSessions,
-                            free_idx,
-                            matched_kinFolders,
-                            nwbfiles,
-                            kin_folders):
-    
-    removed_eventTimes = []
-    for tmpIdx in range(2):
-        spurious_out = remove_spurious_signals_and_sessions(eventTimes, 
-                                                            session, 
-                                                            chans_per_sess, 
-                                                            allExp_signalTimes, 
-                                                            breakTimes)       
-        (eventTimes, breakTimes, allExp_signalTimes, session, uniqueSessions, numSessions, chans_per_sess) = spurious_out
-        
-        eventTimes, removed_eventTimes = clean_remaining_spurious_signals(eventTimes, allExp_signalTimes, 
-                                                                          allExp_frameCounts, numSessions, 
-                                                                          chans_per_sess, removed_eventTimes, 
-                                                                          free_idx)
-    
-    saveData = prepare_final_data_and_metadata(expNames, allExp_frameCounts, allExp_signalTimes, allExp_vidPaths, 
-                                                eventTimes, removed_eventTimes, numSessions, uniqueSessions, chans_per_sess, matched_kinFolders) 
-    # saveData_mat = convert_saveData_to_matlab_compatible(saveData, expNames, allExp_frameCounts, removed_eventTimes, matched_kinFolders)            
-    for nwbfile_path in nwbfiles:
-        timestamps_to_nwb(nwbfile_path, kin_folders, saveData)
-    
 def convert_string_inputs_to_int_float_or_bool(orig_var):
     if type(orig_var) == str:
         orig_var = [orig_var]
@@ -791,7 +779,7 @@ def convert_string_inputs_to_int_float_or_bool(orig_var):
 
 if __name__ == '__main__':
     
-    debugging = True
+    debugging = False
     
     if not debugging:
     
@@ -831,16 +819,15 @@ if __name__ == '__main__':
                 'ephys_path'       : '/project/nicho/data/marmosets/electrophys_data_for_processing',
                 'marms'            : 'JLTY',
                 'marms_ephys'      : 'JL',
-                'date'             : '2023_11_26',
-                'exp_name'         : 'foraging',
-                'other_exp_name'   : 'foraging_free',
+                'date'             : '2023_09_14',
+                'exp_name'         : 'cricket',
+                'other_exp_name'   : 'cricket_free',
                 'touchscreen'      : 'False',
                 'touchscreen_path' : 'BLANK',
                 'neur_proc_path'   : '/project/nicho/projects/marmosets/code_database/data_processing/neural',
                 'meta_path'        : '/project/nicho/data/marmosets/metadata_yml_files/JL_complete_metadata.yml',
                 'prb_path'         : '/project/nicho/data/marmosets/prbfiles/JL_01.prb',
                 'swap_ab'          : 'no',
-                'vid_neural_align' : 'matched',
                 'debugging'        : True}
     
     touchscreen = convert_string_inputs_to_int_float_or_bool(args['touchscreen'])
@@ -884,69 +871,32 @@ if __name__ == '__main__':
         
             print(expNames)
             print(matched_kinFolders)
-            if not debugging:
-                wait_for_all_batch_jobs_to_finish_video_conversion(matched_kinFolders)
+            wait_for_all_batch_jobs_to_finish_video_conversion(matched_kinFolders)
         
             if touchscreen:
                 ts_trialData = load_touchscreen_data(args['touchscreen_path'], date)
             allExp_vidPaths, allExp_frameCounts, maxEvent_camNum = get_video_frame_counts(matched_kinFolders, expNames)
             
-            
             allExp_signalTimes, eventTimes, breakTimes, session, numSessions, chans_per_sess = get_analog_frame_counts_and_timestamps(eFold, nwbfiles)
-
+        
             allExp_frameCounts, allExp_vidPaths, expNames, maxEvent_camNum, free_idx = reorder_signals_in_lists(allExp_frameCounts, 
                                                                                                                 allExp_vidPaths, 
                                                                                                                 expNames, 
-                                                                                                                maxEvent_camNum)  
+                                                                                                                maxEvent_camNum)        
             
-            if args['vid_neural_align'] == 'matched':
-                tmp_vidPaths    = []
-                tmp_frameCounts = []
-                video_sessions = np.unique(allExp_frameCounts[0]['session'])
-                for vid_sess in video_sessions:
-                    for vidPaths, frameCounts in zip(allExp_vidPaths, allExp_frameCounts):
-                        sess_counts_df = frameCounts.loc[frameCounts['session'] == vid_sess, :]
-                        sess_counts_df = sess_counts_df.reset_index(drop=True)
-                        tmp_frameCounts.append(sess_counts_df)
-    
-                        sess_vid_paths = []
-                        for cam_idx, cam_vid_paths in enumerate(vidPaths):
-                            sess_vid_paths.append([vpath for vpath in cam_vid_paths if int(re.findall(session_pattern, os.path.basename(vpath))[0].split('_s')[-1]) == vid_sess])
-                        
-                        tmp_vidPaths.append(sess_vid_paths)
-                allExp_vidPaths = tmp_vidPaths
-                allExp_frameCounts = tmp_frameCounts
-                numSessions = 1
-                
-                for sess in np.unique(session):
-                    sess_matched_idx = [i for i, s in enumerate(session) if s == sess]
-                    clean_and_align_signals([data for i, data in enumerate(allExp_frameCounts) if i in sess_matched_idx],
-                                            [data for i, data in enumerate(allExp_vidPaths)    if i in sess_matched_idx],
-                                            [data for i, data in enumerate(eventTimes)         if i in sess_matched_idx],
-                                            [data for i, data in enumerate(allExp_signalTimes) if i in sess_matched_idx],
-                                            [data for i, data in enumerate(session)            if i in sess_matched_idx],
-                                            chans_per_sess,
-                                            breakTimes,
-                                            numSessions,
-                                            free_idx,
-                                            matched_kinFolders,
-                                            nwbfiles,
-                                            kin_folders)
-            elif args['vid_neural_align'] == 'all_in_one_neural_recording':
-                clean_and_align_signals(allExp_frameCounts,
-                                        allExp_vidPaths,
-                                        eventTimes,
-                                        allExp_signalTimes,
-                                        session,
-                                        chans_per_sess,
-                                        breakTimes,
-                                        numSessions,
-                                        free_idx,
-                                        matched_kinFolders,
-                                        nwbfiles,
-                                        kin_folders)    
-                  
+            removed_eventTimes = []
+            for tmpIdx in range(2):
+                eventTimes, breakTimes, allExp_signalTimes, session, uniqueSessions, numSessions, chans_per_sess = remove_spurious_signals_and_sessions(eventTimes, session, chans_per_sess, allExp_signalTimes, breakTimes)       
+                eventTimes, removed_eventTimes = clean_remaining_spurious_signals(eventTimes, allExp_signalTimes, 
+                                                                                  allExp_frameCounts, numSessions, 
+                                                                                  chans_per_sess, removed_eventTimes, 
+                                                                                  free_idx)
         
+            saveData = prepare_final_data_and_metadata(expNames, allExp_frameCounts, allExp_signalTimes, allExp_vidPaths, 
+                                                        eventTimes, removed_eventTimes, numSessions, chans_per_sess, matched_kinFolders) 
+            # saveData_mat = convert_saveData_to_matlab_compatible(saveData, expNames, allExp_frameCounts, removed_eventTimes, matched_kinFolders)            
+            for nwbfile_path in nwbfiles:
+                timestamps_to_nwb(nwbfile_path, kin_folders, saveData)
                 
         print('\n\n Ended process_analog_signals_for_episode_times.py at %s\n\n' % time.strftime('%c', time.localtime()), flush=True)
         

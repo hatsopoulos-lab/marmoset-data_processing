@@ -47,8 +47,8 @@ module load python/anaconda-2022.05
 source activate /project/nicho/environments/dlc
 
 #---------------------Execute the programs-------------------------------------------#
-python $video_processing/check_for_episode_splits_and_adjust_image_filenames.py \
--j $jpg_dir -v $vid_dir -m $marms -d $date -e $exp1 -s ${sess[@]} -f $fps -n $ncams
+#python $video_processing/check_for_episode_splits_and_adjust_image_filenames.py \
+#-j $jpg_dir -v $vid_dir -m $marms -d $date -e $exp1 -s ${sess[@]} -f $fps -n $ncams
 
-python $video_processing/jpg2avi_bright.py -j $jpg_dir -v $vid_dir -m $marms -d $date \
+python $video_processing/jpg2avi.py -j $jpg_dir -v $vid_dir -m $marms -d $date \
 -e $exp1 -s ${sess[@]} -f $fps -cm ${cams[@]} -t ${vid_transpose[@]} -c $calib_name -cl $applyCLAHE

@@ -1,22 +1,25 @@
 #!/bin/bash
-#SBATCH --job-name=TEMP_app_video_proc
-#SBATCH --output=/project/nicho/projects/marmosets/job_log_files/TEMP_app_video_proc_%a.out
-#SBATCH --error=/project/nicho/projects/marmosets/job_log_files/TEMP_app_video_proc_%a.err
-#SBATCH --time=3:00:00
+#SBATCH --job-name=JL1125s1_app_video_proc
+#SBATCH --output=/project/nicho/projects/marmosets/job_log_files/Dalton1125s1_JL_app_video_proc_%a.out
+#SBATCH --error=/project/nicho/projects/marmosets/job_log_files/Dalton1125s1_JL_app_video_proc_%a.err
+#SBATCH --time=03:00:00
 #SBATCH --partition=caslake
-#SBATCH --array=0-19
+#SBATCH --array=0-79 #0-19
 #SBATCH --ntasks=8
-#SBATCH --mem=128G
+#SBATCH --mem=64G
 #SBATCH --account=pi-nicho
+#SBATCH --mail-type=ARRAY_TASKS,FAIL
+#SBATCH --mail-user=daltonm@uchicago.edu
 
 #------------params that may change for each dataset/experiment---------------#
-dates=(2023_08_08)
-exp1=moth
-exp2=moth_free  # free
+date=2023_11_25
+exp1=foraging
+exp2=foraging_free
 sess=(1)
 calib_name=calib
+applyCLAHE=True
 touchscreen=False
-scratch_space_username=daltonm #walkerjd
+scratch_space_username=daltonm
 
 
 #----------------------params that rarely change------------------------------#
@@ -27,6 +30,7 @@ prb_path=/project/nicho/data/marmosets/prbfiles/JL_01.prb
 metadata_path=/project/nicho/data/marmosets/metadata_yml_files/JL_complete_metadata.yml
 fps=200 #150 #200
 ncams=5 #2 #5
+cams=(1 2 3 4 5)
 vid_transpose=(-1 -1 -1 -1 -1) #(-1 -1) #(-1 -1 -1 -1 -1)  # number of arguments MUST match ncams 
 
 #-----------paths to input and output data, and to processing scripts----------------#
@@ -43,16 +47,8 @@ module load python/anaconda-2022.05
 source activate /project/nicho/environments/dlc
 
 #---------------------Execute the programs-------------------------------------------#
-python $video_processing/check_for_episode_splits_and_adjust_image_filenames_preAVI.py \
--j $jpg_dir -v $vid_dir -m $marms -d ${dates[@]} -e $exp1 -s ${sess[@]} -f $fps -n $ncams
+python $video_processing/check_for_episode_splits_and_adjust_image_filenames.py \
+-j $jpg_dir -v $vid_dir -m $marms -d $date -e $exp1 -s ${sess[@]} -f $fps -n $ncams
 
-python $video_processing/jpg2avi.py -j $jpg_dir -v $vid_dir -m $marms -d ${dates[@]} -e $exp1 -s ${sess[@]} -f $fps -n $ncams -t ${vid_transpose[@]} -c $calib_name
-python $video_processing/apply_clahe_filter_to_videos.py -i $vid_dir/$exp1/$marms/ -d ${dates[@]}
-python $video_processing/recompress_filtered_avi.py      -i $vid_dir/$exp1/$marms/ -d ${dates[@]} 
-
-source activate /project/nicho/environments/spyder
-python $video_processing/process_analog_signals_for_episode_times.py \
--v $vid_dir -ep $ephys_dir -m $marms -me $marms_ephys -d ${dates[@]} -e $exp1 -e2 $exp2 \
--t $touchscreen -tp $touchscreen_path -np $neural_processing -meta $metadata_path -prb $prb_path -ab $swap_ab
-
-python $neural_processing/neural_dropout_first_pass.py -k $vid_dir -ep $ephys_dir -m $marms -me $marms_ephys -d ${dates[@]} -e $exp1 -e2 $exp2
+python $video_processing/jpg2avi.py -j $jpg_dir -v $vid_dir -m $marms -d $date \
+-e $exp1 -s ${sess[@]} -f $fps -cm ${cams[@]} -t ${vid_transpose[@]} -c $calib_name -cl $applyCLAHE

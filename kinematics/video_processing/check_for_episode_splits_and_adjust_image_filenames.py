@@ -201,9 +201,9 @@ def stitch_episodes_together(cam_timestamps, cam_event_image_files, event_frame_
                     print(eIdx)
                     continue
                 
-                frame_period_prev = np.round(np.mean(np.diff(prev_timestamps))*1e-6).astype(int) # in ms
+                frame_period_prev = np.round(np.mean(np.diff(prev_timestamps))*1e-9).astype(int) # in sec
 
-                inter_event_frame_count = np.round((event_timestamps[0] - prev_timestamps[-1])*1e-6 / frame_period_prev).astype(int)
+                inter_event_frame_count = np.round((event_timestamps[0] - prev_timestamps[-1])*1e-9 / frame_period_prev).astype(int)
                 if (type(prevIdx_all_cams_start_times[cIdx]) != str 
                     and np.isnan(prevIdx_all_cams_start_times[cIdx])
                     and any([start_time == start for start in prevIdx_all_cams_start_times])):  
@@ -437,7 +437,7 @@ if __name__ == '__main__':
     else:
         session_nums = [1]
         args = {'date':'2023_09_21',
-                'vid_dir':'/project/nicho/data/marmosets/',
+                'vid_dir':'/project/nicho/data/marmosets/kinematics_videos',
                 'exp_name': 'cricket',
                 'marms': 'JLTY',
                 'fps':200,

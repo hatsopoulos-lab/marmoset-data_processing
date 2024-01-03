@@ -125,9 +125,7 @@ def adjust_episodes_to_align_matches(event_frame_nums, event_start_times, lastEv
 
             else:
                 print('\n\n multiple different last event start times. LOOK INTO THIS!\n\n', flush=True) 
-                
-    # TODO
-                      
+                                      
     # remove events if present in only 1 camera, at end of session, and brief
     for eIdx in range(lastEvent):
         if event_frame_nums[eIdx].ptp() == 0:
@@ -203,9 +201,9 @@ def stitch_episodes_together(cam_timestamps, cam_event_image_files, event_frame_
                     print(eIdx)
                     continue
                 
-                frame_period_prev = np.round(np.mean(np.diff(prev_timestamps))*1e-6).astype(int) # in ms
+                frame_period_prev = np.round(np.mean(np.diff(prev_timestamps))*1e-9).astype(int) # in sec
 
-                inter_event_frame_count = np.round((event_timestamps[0] - prev_timestamps[-1])*1e-6 / frame_period_prev).astype(int)
+                inter_event_frame_count = np.round((event_timestamps[0] - prev_timestamps[-1])*1e-9 / frame_period_prev).astype(int)
                 if (type(prevIdx_all_cams_start_times[cIdx]) != str 
                     and np.isnan(prevIdx_all_cams_start_times[cIdx])
                     and any([start_time == start for start in prevIdx_all_cams_start_times])):  
@@ -346,10 +344,16 @@ def find_and_correct_splits_in_all_episodes(jpg_dir,
     for sIdx, sNum in enumerate(session_nums):
         jpg_path = os.path.join(jpg_dir, '%s/%s/%s/session%d' % (exp_name, marms, date, sNum))
         
-        print('started collecting episode info', flush=True)
-        event_frame_nums, event_start_times, lastEvent = collect_episode_start_times_and_frame_counts(jpg_path, ncams)
-
-        
+        try:
+            with open(os.path.join(episode_correction_record_path, 'INTERMEDIATE_episode_correction_record.pkl'), 'rb') as f:
+                inter_data = dill.load(f)
+                event_frame_nums = inter_data['event_frame_nums']
+                event_start_times = inter_data['event_start_times']
+                lastEvent = inter_data['lastEvent']
+        except:
+            print('started collecting episode info', flush=True)
+            event_frame_nums, event_start_times, lastEvent = collect_episode_start_times_and_frame_counts(jpg_path, ncams)
+            
         event_start_times_original = event_start_times.copy()
         event_frame_nums_original  = event_frame_nums.copy()
 
@@ -438,9 +442,9 @@ if __name__ == '__main__':
             task_id = 0
     else:
         session_nums = [1]
-        args = {'date':'2023_09_21',
-                'vid_dir':'/project/nicho/data/marmosets/',
-                'exp_name': 'cricket',
+        args = {'date':'2023_11_25',
+                'vid_dir':'/project/nicho/data/marmosets/kinematics_videos', 
+                'exp_name': 'foraging',
                 'marms': 'JLTY',
                 'fps':200,
                 'ncams':5,

@@ -5,13 +5,13 @@ Created on Wed Nov  3 09:54:29 2021
 @author: Dalton
 """
 
-import pickle
 import dill
 import pandas as pd
 import numpy as np
 import os
 import glob
 import re
+import h5py
 import matplotlib
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -23,7 +23,10 @@ from scipy.signal import find_peaks, peak_prominences, peak_widths
 from scipy.stats import mode
 from scipy.interpolate import interp1d
 from scipy.signal import savgol_filter
+from importlib import sys
 
+sys.path.insert(0, '/project/nicho/projects/marmosets/code_database/data_processing/nwb_tools/hatlab_nwb_tools/')
+from hatlab_nwb_functions import save_dict_to_hdf5
 
 # anipose_base = r'C:\Users\Dalton\Documents\lab_files\dlc_temp\anipose_files'
 
@@ -32,14 +35,16 @@ from scipy.signal import savgol_filter
 #     dates = ['2021_02_11']  # for now we can only do one date at a time
 #     reach_data_storage = r'Z:/marmosets/processed_datasets/reach_and_trajectory_information/%s_reach_and_trajectory_info_updated.pkl' % dates[0].replace('_', '')
 
-marm = 'MG'
+marm = 'JL'
 
-anipose_base = '/project/nicho/data/marmosets/kinematics_videos/moths/HMMG/'
+anipose_base = '/project/nicho/data/marmosets/kinematics_videos/moth/JLTY/'
 
 class dpath:
     base = [anipose_base]
-    dates = ['2023_04_16']  # for now we can only do one date at a time
-    reach_data_storage = '/project/nicho/data/marmosets/processed_datasets/reach_and_trajectory_information/20230416_reach_and_trajectory_info.pkl'
+    dates = ['2023_08_03_old_conversion']  # for now we can only do one date at a time
+    # reach_data_storage = '/project/nicho/data/marmosets/processed_datasets/reach_and_trajectory_information/20230803_reach_and_trajectory_info.pkl'
+    reach_data_storage = '/project/nicho/data/marmosets/processed_datasets/reach_and_trajectory_information/20230803_reach_and_trajectory_info.h5'
+
     # nwb_file = '/project/nicho/data/marmosets/electrophys_data_for_processing/TY20210211_freeAndMoths/TY20210211_freeAndMoths-003_testing_pose.nwb'
     # session = 1
     # expName = 'moths'
@@ -67,6 +72,12 @@ class params:
     elif marm=='TY':
         fps=150
         reach_method=3
+        
+    elif marm=='JL':
+        events_list = [2, 3]
+        #events_list = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 37, 38, 39, 40]
+        fps = 200
+        reach_method = 3
         
     # events_list = [3, 8, 17]
     
@@ -1359,7 +1370,10 @@ def add_trajectories_to_reach_data(dlc_filtered, reach_data, dlc_metadata, dlc):
 
     return reach_data
 
+
 if __name__ == "__main__":
+ 
+    # reach_data_loaded = load_dict_from_hdf5(dpath.reach_data_storage, top_level_list = True)
  
     for base in dpath.base:
         print('\n\n\n' + base + '\n\n\n')
@@ -1429,5 +1443,7 @@ if __name__ == "__main__":
         # bad events [24, 37]
         # events to look at later [89, 110, 113, 134, 142] - has nans, but pass tests and have identified reaches!
         
-        with open(dpath.reach_data_storage, 'wb') as fp:
-            dill.dump(reach_data, fp, recurse=True)
+        save_dict_to_hdf5(reach_data, dpath.reach_data_storage, top_level_list_namebase='reaching_event_idx')
+        
+        # with open(dpath.reach_data_storage, 'wb') as fp:
+        #     dill.dump(reach_data, fp, recurse=True)

@@ -12,7 +12,6 @@ import ndx_pose
 from importlib import sys
 import os
 
-
 sys.path.insert(0, '/project/nicho/projects/marmosets/code_database/data_processing/nwb_tools/hatlab_nwb_tools/')
 from hatlab_nwb_functions import create_nwb_copy_without_acquisition, create_nwb_copy_with_external_links_to_acquisition    
 
