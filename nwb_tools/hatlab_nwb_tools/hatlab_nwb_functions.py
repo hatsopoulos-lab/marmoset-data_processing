@@ -150,28 +150,35 @@ def create_nwb_copy_with_external_links_to_acquisition(nwb_infile, nwb_outfile):
     
     raw_io.close()
 
-def save_dict_to_hdf5(data, filename, top_level_list_namebase=None):
-    """
-    ....
-    """
+def save_dict_to_hdf5(data, filename, first_level_key = None):
+    
+    if first_level_key is None:
+        first_key = '/'
+    elif type(data) == list:
+        first_key = f'/{first_level_key}'
+    else:
+        first_key = f'/{first_level_key}/'
+    
     df_keys_list, df_data_list = [], []
-    with h5py.File(filename, 'w') as h5file:
+    with h5py.File(filename, 'a') as h5file:
         if type(data) == list:
             for idx, tmp_data in enumerate(data):
-                df_keys_list, df_data_list = recursively_save_dict_contents_to_group(h5file, f'/{top_level_list_namebase}_{idx}/', tmp_data)
+                df_keys_list, df_data_list = recursively_save_dict_contents_to_group(h5file, f'/{first_key}_{idx}/', tmp_data)
         elif type(data) == dict:
-            df_keys_list, df_data_list = recursively_save_dict_contents_to_group(h5file, '/', data, df_keys_list, df_data_list)
+            df_keys_list, df_data_list = recursively_save_dict_contents_to_group(h5file, first_key, data, df_keys_list, df_data_list)
+        elif type(data) == pd.DataFrame:
+            df_keys_list.append('df')
+            df_data_list.append(data)
     
     for key, df in zip(df_keys_list, df_data_list):
         df.to_hdf(filename, key, mode='a')
-
 
 def recursively_save_dict_contents_to_group(h5file, path, dic, df_keys_list = None, df_data_list = None):
     """
     ....
     """
     for key, item in dic.items():
-        if isinstance(item, (np.ndarray, int, float, np.int64, np.float64, str, bytes)):
+        if isinstance(item, (np.ndarray, int, float, np.integer, np.float32, np.float64, str, bytes)):
             h5file[path + key] = item
         elif isinstance(item, list):
             if len(item) > 0 and type(item[0]) == str:

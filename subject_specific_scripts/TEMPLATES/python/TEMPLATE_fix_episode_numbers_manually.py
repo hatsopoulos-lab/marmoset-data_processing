@@ -6,11 +6,6 @@ Created on Tue Jan  2 15:12:43 2024
 @author: daltonm
 """
 
-'''
-    Meant to run in conda environment located at /beagle3/nicho/environments/nwb_and_neuroconv, which uses Python 3.11.5
-'''
-
-
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -22,10 +17,28 @@ from importlib import sys
 sys.path.insert(0, '/project/nicho/projects/marmosets/code_database/data_processing/nwb_tools/hatlab_nwb_tools/')
 from hatlab_nwb_functions import save_dict_to_hdf5, load_dict_from_hdf5
 
-first_run = False
+'''   IMPORTANT!
 
-session=1
-date='2023_11_25'
+    If you are running this for the very first time: 
+        - set first_run=True
+        - In intermediate_data_path, replace /project/ with /cds3/
+        - Run the code. 
+        - Open and examine all the stored metadata, starting with 'original'. Use 'original' to walk thru each 
+          correction step and understand why the ranges and idxs were set to those values. 
+         
+        - Once you understand how to use this code, change the session/exp/marms/date info and 
+          change /cds3/ back to /project/. 
+          
+        - Remember that this code actually changes the jpg filenames, whcih is difficult to undo.
+          Make sure you have the data stored elsewhere as a backup until you are sure you correctly
+          fixed the events.
+    
+'''
+
+first_run = True # set True so that you can see all the event metadata first. After addressing all the FIXME elements set to False to actually make the changes.
+
+session=2
+date='2023_11_24'
 exp = 'foraging'
 marms = 'JLTY'
 intermediate_data_path = Path(f'/project/nicho/data/marmosets/kinematics_videos/{exp}/{marms}/{date}/manual_corrections_records/session{session}_episode_correction_record.h5')
@@ -233,9 +246,9 @@ if __name__ == '__main__':
         If the data is already stored in the h5 file, the function will load it and skip this step.
         '''
         key = 'fragments'
-        event_dict, inter_data = load_or_run_event_fragments(cam_list               = [           3,            4,            5], # FIXME
-                                                             event_idx_range_list   = [range(1, 46), range(1, 50), range(1, 11)], # FIXME
-                                                             correct_event_idx_list = [           1,            1,            1], # FIXME
+        event_dict, inter_data = load_or_run_event_fragments(cam_list               = [            3,             4,            5], # FIXME
+                                                             event_idx_range_list   = [range(8, 178), range(8, 156), range(8, 41)], # FIXME
+                                                             correct_event_idx_list = [           7,              7,            7], # FIXME
                                                              fps                    = fps,
                                                              jpg_dir                = jpg_dir,
                                                              all_cams_list          = all_cams_list,
@@ -261,9 +274,9 @@ if __name__ == '__main__':
         If the data is already stored in the h5 file, the function will load it and skip this step.
         '''
         key += '_eventNum'
-        event_dict, inter_data = load_or_run_change_event_nums(cam_list                     = [            3,             4,             5], # FIXME
-                                                               event_idx_range_list         = [range(46, 49), range(50, 53), range(11, 14)], # FIXME
-                                                               correct_event_idx_range_list = [range( 2,  5), range( 2,  5), range( 2,  5)], # FIXME
+        event_dict, inter_data = load_or_run_change_event_nums(cam_list                     = [             3,                4,             5], # FIXME
+                                                               event_idx_range_list         = [range(178, 188), range(156, 166), range(41, 64)], # FIXME
+                                                               correct_event_idx_range_list = [range(  8,  18), range(  8,  18), range( 8, 31)], # FIXME
                                                                jpg_dir                      = jpg_dir,
                                                                all_cams_list                = all_cams_list,
                                                                key                          = key)
@@ -274,10 +287,21 @@ if __name__ == '__main__':
         '''
         key += '_fragments'
         lastEvent = event_collection_dict['lastEvent']
-        event_dict, inter_data = load_or_run_event_fragments(cam_list               = [                   3,                    4,                    5], # FIXME
-                                                             event_idx_range_list   = [range(49, lastEvent), range(53, lastEvent), range(14, lastEvent)], # FIXME
-                                                             correct_event_idx_list = [                   4,                    4,                    4], # FIXME
+        event_dict, inter_data = load_or_run_event_fragments(cam_list               = [              3,               4], # FIXME
+                                                             event_idx_range_list   = [range(188, 228), range(166, 229)], # FIXME
+                                                             correct_event_idx_list = [             17,              17], # FIXME
                                                              fps                    = fps,
                                                              jpg_dir                = jpg_dir,
                                                              all_cams_list          = all_cams_list,
                                                              key                    = key) 
+        
+        '''
+            Same logic described for previous eventNum correction.
+        '''
+        key += '_eventNum'
+        event_dict, inter_data = load_or_run_change_event_nums(cam_list                     = [             3,                4], # FIXME
+                                                               event_idx_range_list         = [range(228, 241), range(229, 242)], # FIXME
+                                                               correct_event_idx_range_list = [range( 18,  31), range( 18,  31)], # FIXME
+                                                               jpg_dir                      = jpg_dir,
+                                                               all_cams_list                = all_cams_list,
+                                                               key                          = key)

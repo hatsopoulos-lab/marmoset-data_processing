@@ -22,10 +22,10 @@ from importlib import sys
 sys.path.insert(0, '/project/nicho/projects/marmosets/code_database/data_processing/nwb_tools/hatlab_nwb_tools/')
 from hatlab_nwb_functions import save_dict_to_hdf5, load_dict_from_hdf5
 
-first_run = False
+first_run = True
 
 session=1
-date='2023_11_25'
+date='2023_11_24'
 exp = 'foraging'
 marms = 'JLTY'
 intermediate_data_path = Path(f'/project/nicho/data/marmosets/kinematics_videos/{exp}/{marms}/{date}/manual_corrections_records/session{session}_episode_correction_record.h5')
@@ -219,64 +219,34 @@ if __name__ == '__main__':
     
     
     if not first_run:
-        '''For each camera that needs event fragments tacked on to the end of the a previous event:
-            - Add the cam_num (not index) to cam_list.   
-            - Set the corresponding element of event_idx_range_list to range(firstFragment_idx, nextGoodEvent_idx).
-            - Set the corresponding element of correct_event_idx_list to prevGoodEvent_idx.
-            - check that <key> is set to something sensible. I have been documenting each step by adding an underscore and the type of the step at each step.
-            
-            prevGoodEvent_idx: found by identifying the event that started at the same time as a "good" reference camera event, but eventually gets fragmented.
-            firstFragment_idx: the next index after prevGoodEvent_idx.
-            nextGoodEvent_idx: the index at which the event_start_time matches the reference event_start_time in a "good" camera. 
-                               Typically, the frame count here also matches the frame count for the good reference camera.
-        
-        If the data is already stored in the h5 file, the function will load it and skip this step.
-        '''
+        # Fixing events (2-57: cam3, 2-46: cam4) to add them to the end of event_002 (eIdx=1).
+        # If the data is already stored in the h5 file, load it and skip this step.
         key = 'fragments'
-        event_dict, inter_data = load_or_run_event_fragments(cam_list               = [           3,            4,            5], # FIXME
-                                                             event_idx_range_list   = [range(1, 46), range(1, 50), range(1, 11)], # FIXME
-                                                             correct_event_idx_list = [           1,            1,            1], # FIXME
+        event_dict, inter_data = load_or_run_event_fragments(cam_list               = [           3,            4], # FIXME
+                                                             event_idx_range_list   = [range(2, 57), range(2, 46)], # FIXME
+                                                             correct_event_idx_list = [           1,            1], # FIXME
                                                              fps                    = fps,
                                                              jpg_dir                = jpg_dir,
                                                              all_cams_list          = all_cams_list,
                                                              key                    = key) 
         
-        '''For each camera that needs to change a set of events to the now-corrected event number:
-            - Add the cam_num (not index) to cam_list.   
-            - Set the corresponding element of event_idx_range_list to range(nextGoodEvent_idx, nextFragment_idx).
-            - Set the corresponding element of correct_event_idx_range_list to 
-                        range(prevGoodEvent_idx +1, prevGoodEvent_idx +1 + (nextFragment_idx-nextGoodEvent_idx)).
-            - check that <key> is set to something sensible. I have been documenting each step by adding an underscore and the type of the step at each step.
-            
-            nextGoodEvent_idx: Taken from the fragments correction step.
-            nextFragment_idx : basically, for the next block of events you should identify the last event that started at the same time as the reference good camera event.
-                               Then add 1, so that the range changes everything up through the beginning of the event that will eventually fragment. (same logic as firstFragment_idx above)
-            firstFragment_idx: Taken from the fragments correction step.
-            prevGoodEvent_idx: Taken from the fragments correction step.
-
-        IMPORTANT: Make sure when setting the event_idx_range_list, you ***ADD 1*** at the end of the range. 
-                   It will be natural to set it to stop at the last event idx you want to correct, but just remember
-                   that python range variables run up to but do not include the "stop" index.
-        
-        If the data is already stored in the h5 file, the function will load it and skip this step.
-        '''
+        # Change event idx (57, 61) for cam3 and (46, 50) for cam4 to event index (2, 6).
+        # If the data is already stored in the h5 file, load it and skip this step.
         key += '_eventNum'
-        event_dict, inter_data = load_or_run_change_event_nums(cam_list                     = [            3,             4,             5], # FIXME
-                                                               event_idx_range_list         = [range(46, 49), range(50, 53), range(11, 14)], # FIXME
-                                                               correct_event_idx_range_list = [range( 2,  5), range( 2,  5), range( 2,  5)], # FIXME
+        event_dict, inter_data = load_or_run_change_event_nums(cam_list                     = [            3,             4], # FIXME
+                                                               event_idx_range_list         = [range(57, 62), range(46, 51)], # FIXME
+                                                               correct_event_idx_range_list = [range( 2,  7), range( 2,  7)], # FIXME
                                                                jpg_dir                      = jpg_dir,
                                                                all_cams_list                = all_cams_list,
                                                                key                          = key)
-
-        '''
-            Same logic described for previous fragments correction. 
-            The correct_event_idx_list element = 1 less than the stop value of the previous correct_event_idx_range_list.
-        '''
+        
+        # Fixing events (62-end: cam3, 51-end: cam4, 7-end: cam5) to add them to the end of event idx 6.
+        # If the data is already stored in the h5 file, load it and skip this step.
         key += '_fragments'
         lastEvent = event_collection_dict['lastEvent']
-        event_dict, inter_data = load_or_run_event_fragments(cam_list               = [                   3,                    4,                    5], # FIXME
-                                                             event_idx_range_list   = [range(49, lastEvent), range(53, lastEvent), range(14, lastEvent)], # FIXME
-                                                             correct_event_idx_list = [                   4,                    4,                    4], # FIXME
+        event_dict, inter_data = load_or_run_event_fragments(cam_list               = [                   3,                    4,                   5], # FIXME
+                                                             event_idx_range_list   = [range(62, lastEvent), range(51, lastEvent), range(7, lastEvent)], # FIXME
+                                                             correct_event_idx_list = [                   6,                    6,                   6], # FIXME
                                                              fps                    = fps,
                                                              jpg_dir                = jpg_dir,
                                                              all_cams_list          = all_cams_list,

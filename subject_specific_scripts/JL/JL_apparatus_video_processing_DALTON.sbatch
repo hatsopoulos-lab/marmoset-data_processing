@@ -4,7 +4,7 @@
 #SBATCH --error=/project/nicho/projects/marmosets/job_log_files/Dalton1125s1_JL_app_video_proc_%a.err
 #SBATCH --time=03:00:00
 #SBATCH --partition=caslake
-#SBATCH --array=0-79 #0-19
+#SBATCH --array=0-9 #0-19
 #SBATCH --ntasks=8
 #SBATCH --mem=64G
 #SBATCH --account=pi-nicho

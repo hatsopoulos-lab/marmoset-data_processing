@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH --job-name=JL1125_free_video_proc
-#SBATCH --output=/project/nicho/projects/marmosets/job_log_files/Dalton1125NEW_JL_free_video_proc_%a.out
-#SBATCH --error=/project/nicho/projects/marmosets/job_log_files/Dalton1125NEW_JL_free_video_proc_%a.err
+#SBATCH --job-name=JL1124_free_video_proc
+#SBATCH --output=/project/nicho/projects/marmosets/job_log_files/Dalton1124_JL_free_video_proc_%a.out
+#SBATCH --error=/project/nicho/projects/marmosets/job_log_files/Dalton1124_JL_free_video_proc_%a.err
 #SBATCH --time=12:00:00
 #SBATCH --partition=caslake
 #SBATCH --array=0-23
@@ -12,11 +12,11 @@
 #SBATCH --mail-user=daltonm@uchicago.edu
 
 #------------params that may change for each dataset/experiment----------------------#
-date=2023_11_25
+date=2023_11_24
 exp1=foraging
 exp2=foraging_free
 sess=(1 2)
-video_neural_session_alignment=matched
+video_neural_session_alignment=matched #all_in_one_neural_recording
 calib_name=calib
 applyCLAHE=True
 touchscreen=False
@@ -28,7 +28,7 @@ fps=30
 ncams=4
 cams=(1 2 3 4)
 vid_transpose=(2 2 1 1)  # number of arguments MUST match ncams 
-analog_signals_fps=(150 $fps)
+analog_signals_fps=(200 $fps)
 
 marms_ephys=JL
 swap_ab=no
