@@ -24,6 +24,7 @@ import os
 import glob
 import re
 import time
+from pathlib import Path
 # from scipy.signal import savgol_filter
 # from pynwb import NWBFile, NWBHDF5IO, TimeSeries, behavior
 # from pynwb.epoch import TimeIntervals
@@ -37,8 +38,9 @@ sys.path.insert(0, '/project/nicho/projects/marmosets/code_database/data_process
 from hatlab_nwb_functions import timestamps_to_nwb, store_drop_records, get_electricalseries_from_nwb
 
 session_pattern = re.compile('_s[0-9]{1,2}')
-event_pattern   = re.compile('_e[0-9]{3}')
+event_pattern   = re.compile('_e[0-9]{3,5}_')
 cam_pattern     = re.compile('cam[0-9]{1}.avi')
+date_pattern    = re.compile('/[a-zA-Z]{2,4}\d{8}_')
 
 class params:
     
@@ -79,176 +81,6 @@ def get_filepaths(ephys_path, kin_path, marms_ephys_code, marms_kin_code, date):
         kin_folders.extend(inner_folders)
         
     return ephys_folders, kin_folders    
-
-# def store_drop_records(timestamps, dropframes_proc_mod, drop_record_folder, exp_name, sNum, epNum):
-    
-#     camPattern = re.compile(r'cam\d{1}')
-#     drop_records = sorted(glob.glob(os.path.join(drop_record_folder, 
-#                                                  '*session%d*event_%s_droppedFrames.txt' % (sNum, epNum))))
-    
-#     description = 'Boolean vector of good frames (True) and dropped/replaced frames (False) for given session/episode/camera.'
-#     if len(drop_records) > 0:
-#         for rec in drop_records:
-#             camNum = re.findall(camPattern, rec)[0]
-#             record_name = '%s_s_%d_e_%s_%s_dropFramesMask' % (exp_name, sNum, epNum, camNum)
-#             dropped_frames = np.loadtxt(drop_records[0], delimiter=',', dtype=str)
-#             dropped_frames = [int(framenum)-1 for framenum in dropped_frames[:-1]]
-#             data = np.full((len(timestamps),), True)
-#             data[dropped_frames] = False 
-#             if record_name not in dropframes_proc_mod.data_interfaces.keys():
-#                 cam_drop_record = TimeSeries(name=record_name,
-#                                              data=data,
-#                                              unit="None",
-#                                              timestamps=timestamps,
-#                                              description = description,
-#                                              continuity = 'continuous'
-#                                              )
-#                 dropframes_proc_mod.add(cam_drop_record)
-    
-#     return
-            
-            
-# def timestamps_to_nwb(nwbfile_path, kin_folders, saveData):
-#     ###### TO NWB ######
-#     # open the NWB file in r+ mode    
-
-#     opened = False
-#     file_error = True
-#     while not opened:
-#         try:
-#             with NWBHDF5IO(nwbfile_path, 'r+') as io:
-#                 nwbfile = io.read()
-                
-#                 file_error = False
-                
-#                 nwbfile.keywords = saveData['experiments']
-                
-#                 # create a TimeSeries and add it to the processing module 'episode_timestamps_EXPNAME'
-#                 sessPattern = re.compile('[0-9]{3}.nwb') 
-#                 sessNum = int(re.findall(sessPattern, nwbfile_path)[-1][:3])
-#                 for frame_times, event_info, exp_name, kfold in zip(saveData['frameTimes_byEvent'], saveData['event_info'], saveData['experiments'], kin_folders):
-
-#                     timestamps_module_name = 'episode_timestamps_%s' % exp_name
-#                     timestamps_module_desc = '''set of timeseries holding timestamps for each behavior/video event for experiment = %s. 
-#                     Videos are located at %s.
-#                     This first few elements of the path may need to be changed to the new storage location for the "data" directory.''' % (exp_name, kfold)    
-#                     if timestamps_module_name in nwbfile.processing.keys():
-#                         timestamps_proc_mod = nwbfile.processing[timestamps_module_name]
-#                     else:
-#                         timestamps_proc_mod = nwbfile.create_processing_module(name=timestamps_module_name,
-#                                                                                description=timestamps_module_desc)
-                    
-#                     dropframes_module_name = 'dropped_frames_%s' % exp_name
-#                     dropframes_module_desc = ('Record of dropped frames. The dropped frames have ' +
-#                                               'been replaced by copies of the previous good frame. ' + 
-#                                               'Pose estimation may not be effected if most of the cameras ' +
-#                                               'captured that frame or if the drop is brief. Use the boolean ' +
-#                                               'mask vectors stored here as needed.')
-#                     if dropframes_module_name in nwbfile.processing.keys():
-#                         dropframes_proc_mod = nwbfile.processing[dropframes_module_name]
-#                     else:
-#                         dropframes_proc_mod = nwbfile.create_processing_module(name=dropframes_module_name,
-#                                                                                description=dropframes_module_desc)
-                    
-#                     episodes_intervals_name = 'episodes_%s' % exp_name
-#                     if episodes_intervals_name in nwbfile.intervals.keys():
-#                         epi_mod_already_exists = True
-#                         episodes = nwbfile.intervals[episodes_intervals_name]
-#                         episodes_df = episodes.to_dataframe()                    
-#                     else:
-#                         epi_mod_already_exists = False
-#                         episodes = TimeIntervals(name = episodes_intervals_name,
-#                                                  description = 'metadata for behavior/video episodes associated with kinematics')
-#                         episodes.add_column(name="video_session", description="video session number of recorded video files")
-#                         episodes.add_column(name="analog_signals_cut_at_end", description="The number of analog signals (if any) that occurred after the end of video recording session. If they existed, they were cut during processing.")
-                    
-
-#                     drop_record_folder = os.path.join([fold for fold in kin_folders if '/%s/' % exp_name in fold][0],
-#                                                       'drop_records')
-#                     for eventIdx, timestamps in enumerate(frame_times):
-#                         if event_info.ephys_session[eventIdx] == sessNum:
-#                             series_name = '%s_s_%d_e_%s_timestamps' % (event_info.exp_name[eventIdx], 
-#                                                                        int(event_info.video_session[eventIdx]), 
-#                                                                        str(int(event_info.episode_num[eventIdx])).zfill(3)) 
-                                                
-#                             if series_name not in nwbfile.processing[timestamps_module_name].data_interfaces.keys(): 
-#                                 data = np.full((len(timestamps), ), np.nan)
-#                                 episode_timestamps = TimeSeries(name=series_name,
-#                                                                 data=data,
-#                                                                 unit="None",
-#                                                                 timestamps=timestamps,
-#                                                                 description = 'empty time series holding analog signal timestamps for video frames/DLC pose estimation that will be associated with PoseEstimationSeries data',
-#                                                                 continuity = 'continuous'
-#                                                                 )
-                                
-#                                 timestamps_proc_mod.add(episode_timestamps)
-                            
-#                                 if not epi_mod_already_exists or not any(episodes_df.start_time == event_info.start_time[eventIdx]):
-#                                     episodes.add_row(start_time                = event_info.start_time[eventIdx], 
-#                                                      stop_time                 = event_info.end_time[eventIdx], 
-#                                                      video_session             = event_info.video_session[eventIdx], 
-#                                                      analog_signals_cut_at_end = event_info.analog_signals_cut_at_end_of_session[eventIdx])
-                                
-#                                 store_drop_records(timestamps, 
-#                                                    dropframes_proc_mod,
-#                                                    drop_record_folder,
-#                                                    exp_name,
-#                                                    int(event_info.video_session[eventIdx]),
-#                                                    str(int(event_info.episode_num[eventIdx])).zfill(3))
-                                
-#                     if episodes_intervals_name not in nwbfile.intervals.keys():
-#                         nwbfile.add_time_intervals(episodes) 
-                            
-#                             # pose_estimation_series = []                    
-#                             # for mIdx, mName in enumerate(marker_names):
-#                             #     data = np.ones((len(timestamps), 3))
-#                             #     confidence = np.random.rand(len(timestamps))  # a confidence value for every frame
-#                             #     marker_pose = PoseEstimationSeries(
-#                             #         name=mName,
-#                             #         description='Marker placed at ___. Dimensions of data are [time, x/y/z]',
-#                             #         data=data,
-#                             #         unit='m',
-#                             #         conversion = 1e-2,
-#                             #         reference_frame='(0,0,0) corresponds to the near left corner of the prey capture/foraging arena or touchscreen, viewed from the marmoset perspective',
-#                             #         timestamps=timestamps,  # link to timestamps of front_left_paw
-#                             #         confidence=confidence,
-#                             #         confidence_definition='Reprojection error output from Anipose',
-#                             #     )
-                    
-#                             #     pose_estimation_series.append(marker_pose) 
-                
-#                             # pe = PoseEstimation(
-#                             #     pose_estimation_series=pose_estimation_series,
-#                             #     name = series_name,
-#                             #     description='Estimated positions of all markers using DLC+Anipose, with post-Anipose cleanup',
-#                             #     original_videos=['camera1.mp4', 'camera2.mp4'],
-#                             #     labeled_videos=['camera1_labeled.mp4', 'camera2_labeled.mp4'],
-#                             #     dimensions=np.array([[1440, 1080], [1440, 1080]], dtype='uint8'),
-#                             #     scorer='DLC_resnet50_openfieldOct30shuffle1_1600',
-#                             #     source_software='DeepLabCut+Anipose',
-#                             #     source_software_version='2.2b8',
-#                             #     nodes=marker_names,
-#                             #     edges=np.array([[0, 1]], dtype='uint8'),
-#                             #     # devices=[camera1, camera2],  # this is not yet supported
-#                             # )
-                            
-#                             # behavior_pm.add(pe)
-                    
-#                 # write the modified NWB file
-#                 # behavior_pm.add(position_series)
-#                 io.write(nwbfile)        
-            
-#             print('%s opened, edited, and written back to file. It is now closed.' % nwbfile_path)
-#             opened=True
-#         except:
-#             if file_error:
-#                 print('%s is already open elsewhere. Waiting 10 seconds before trying again' % nwbfile_path)
-#                 time.sleep(10)
-#             else:
-#                 print('error occurred after file was loaded. Quitting')
-#                 break
-
-
 
 def remove_spurious_signals_and_sessions(eventTimes, session, chans_per_sess, allExp_signalTimes, breakTimes):       
 
@@ -542,7 +374,7 @@ def get_video_frame_counts(matched_kinFolders, expNames):
                     # vSess = str(int(os.path.basename(vPath).split('_s')[1][0]))
                     # vEvent = str(int(os.path.basename(vPath).split('_e')[1][:3])).zfill(3)
                     vSess = str(int(re.findall(session_pattern, os.path.basename(vPath))[0].split('_s')[-1]))
-                    vEvent = re.findall(event_pattern, os.path.basename(vPath))[0].split('_e')[-1].zfill(3)
+                    vEvent = re.findall(event_pattern, os.path.basename(vPath))[0].split('_e')[-1][:-1].zfill(3)
                 except:
                     vSess = str(int(os.path.basename(vPath).split('_session')[1][0]))
                     vEvent = str(int(os.path.basename(vPath).split('_event')[1][:3])).zfill(3)
@@ -559,16 +391,10 @@ def get_video_frame_counts(matched_kinFolders, expNames):
         vidCountMatch = np.where(vidCounts == nVids)[0]
         missingEventIdxs = []
         if len(vidCountMatch) != len(vidPaths):
-            try:
-                events = [int(vp.split('e')[1][:3]) for vp in vidPaths[vidCountMatch[0]]]
-                for v in vidPaths:
-                    currentEvents = [int(vp.split('e')[1][:3]) for vp in v]
-                    missingEventIdxs.append([ev-1 for ev in events if ev not in currentEvents])
-            except:
-                events = [int(vp.split('event')[1][:3]) for vp in vidPaths[vidCountMatch[0]]]
-                for v in vidPaths:
-                    currentEvents = [int(vp.split('event')[1][:3]) for vp in v]
-                    missingEventIdxs.append([ev-1 for ev in events if ev not in currentEvents])      
+            events = [int(re.findall(event_pattern, vp)[0].split('_e')[-1][:-1][:3]) for vp in vidPaths[vidCountMatch[0]]]
+            for v in vidPaths:
+                currentEvents = [int((re.findall(event_pattern, vp)[0].split('_e')[-1][:-1])) for vp in v]
+                missingEventIdxs.append([ev-1 for ev in events if ev not in currentEvents])    
         
         frameCounts = pd.DataFrame(np.empty((nVids, len(colNames))), columns=colNames)                    
         for cNum, vPaths in enumerate(vidPaths):
@@ -598,6 +424,10 @@ def get_analog_frame_counts_and_timestamps(eFold, nwbfiles, touchscreen = False,
     breakTimes = []
     session = []
     for fNum, nwbfile_path in enumerate(nwbfiles): #enumerate(analogFiles):
+        
+        if re.findall(date_pattern, nwbfile_path)[0].split('JL')[-1][:-1] == '20231125':
+            tmp_fps = 200 if fNum==0 else 150
+            params.eventDetector[0] = 1/tmp_fps * 5 * 30000 
         
         with NWBHDF5IO(nwbfile_path, 'r') as io:
             nwbfile = io.read()
@@ -833,9 +663,9 @@ if __name__ == '__main__':
                 'ephys_path'       : '/project/nicho/data/marmosets/electrophys_data_for_processing',
                 'marms'            : 'JLTY',
                 'marms_ephys'      : 'JL',
-                'date'             : '2023_11_26',
-                'exp_name'         : 'foraging',
-                'other_exp_name'   : 'foraging_free',
+                'date'             : '2023_08_09',
+                'exp_name'         : 'moth',
+                'other_exp_name'   : 'moth_free',
                 'touchscreen'      : 'False',
                 'touchscreen_path' : 'BLANK',
                 'neur_proc_path'   : '/project/nicho/projects/marmosets/code_database/data_processing/neural',
@@ -844,7 +674,7 @@ if __name__ == '__main__':
                 'swap_ab'          : 'no',
                 'vid_neural_align' : 'matched',
                 'debugging'        : True,
-                'fps'              : [150, 30]}
+                'fps'              : [200, 30]}
     
     touchscreen = convert_string_inputs_to_int_float_or_bool(args['touchscreen'])
     
@@ -895,10 +725,35 @@ if __name__ == '__main__':
         
             if touchscreen:
                 ts_trialData = load_touchscreen_data(args['touchscreen_path'], date)
-            allExp_vidPaths, allExp_frameCounts, maxEvent_camNum = get_video_frame_counts(matched_kinFolders, expNames)
-            
-            
+                
+            ''' Debugging Tip:
+                If you are working on a manual fix for a session of fragmented video events
+                and there is NO good reference camera to use for adjusting the event idxs, then
+                do the following:
+                    1. put a breakpoint at "get_video_frame_counts"
+
+                    2. Using the spyder instance with fix_episode_numbers script, look at the very first start time.
+                       In the example in the step below, the start time was '1501-03'.
+                       Also, the fragmented events were in apparatus_experiment, session1, so the analog_chan_idx=0. 
+                    3. Then run the following code in terminal:
+                        
+                        import datetime
+                        approx_start_times = ['1501-03']
+                        analog_chan_idx = 0
+                        tmp_time = datetime.datetime(100, 1, 1, int(approx_start_times[0][:2]), int(approx_start_times[0][2:4]), int(approx_start_times[0][-2:]))
+                        
+                        time_diffs = np.diff(eventTimes[analog_chan_idx][0])
+                        for tdiff in time_diffs:
+                            tmp_time = tmp_time + datetime.timedelta(seconds=tdiff)
+                            approx_start_times.append(tmp_time.strftime('%H%M-%S'))
+                            
+                    5. Finally, use the approx_start_time variable to search for the beginning of each event 
+                       and use this info to adjust the fix_episode_numbers script accordingly. 
+            '''
+                            
             allExp_signalTimes, eventTimes, breakTimes, session, numSessions, chans_per_sess = get_analog_frame_counts_and_timestamps(eFold, nwbfiles)
+
+            allExp_vidPaths, allExp_frameCounts, maxEvent_camNum = get_video_frame_counts(matched_kinFolders, expNames)
 
             allExp_frameCounts, allExp_vidPaths, expNames, maxEvent_camNum, free_idx = reorder_signals_in_lists(allExp_frameCounts, 
                                                                                                                 allExp_vidPaths, 

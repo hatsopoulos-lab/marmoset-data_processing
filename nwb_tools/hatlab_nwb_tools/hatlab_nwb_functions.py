@@ -111,7 +111,7 @@ def plot_prb(probegroup):
 def create_nwb_copy_without_acquisition(nwb_infile, nwb_outfile):
     with NWBHDF5IO(nwb_infile, 'r') as io:
         nwb = io.read()    
-        # nwb.acquisition.clear()
+        nwb.acquisition.clear()
         # video_timestamp_keys = [key for key in nwb.processing.keys() if 'video_event_timestamps' in key]
         # for key in video_timestamp_keys:
         #     nwb.processing.pop(key)
@@ -265,8 +265,8 @@ def store_drop_records(timestamps, dropframes_proc_mod, drop_record_folder, exp_
     if len(drop_records) > 0:
         for rec in drop_records:
             camNum = re.findall(camPattern, rec)[0]
-            record_name = '%s_s_%d_e_%s_%s_dropFramesMask' % (exp_name, sNum, epNum, camNum)
-            dropped_frames = np.loadtxt(drop_records[0], delimiter=',', dtype=str)
+            record_name = f'{exp_name}_s_{sNum}_e_{epNum}_{camNum}_dropFramesMask'
+            dropped_frames = np.loadtxt(rec, delimiter=',', dtype=str)
             dropped_frames = [int(framenum)-1 for framenum in dropped_frames[:-1] if int(framenum)-1 < len(timestamps)]
             if len(dropped_frames) == 0:
                 continue

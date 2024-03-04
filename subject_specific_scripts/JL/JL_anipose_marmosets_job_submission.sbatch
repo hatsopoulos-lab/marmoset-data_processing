@@ -2,7 +2,7 @@
 #SBATCH --job-name=JL_anipose
 #SBATCH --output=/project/nicho/projects/marmosets/job_log_files/JL_anipose_%a.out
 #SBATCH --error=/project/nicho/projects/marmosets/job_log_files/JL_anipose_%a.err
-#SBATCH --time=36:00:00
+#SBATCH --time=18:00:00
 #SBATCH --partition=beagle3
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=16

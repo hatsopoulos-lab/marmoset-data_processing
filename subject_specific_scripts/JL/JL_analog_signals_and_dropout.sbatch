@@ -1,10 +1,10 @@
 #!/bin/bash
-#SBATCH --job-name=JL1125_free_video_proc
-#SBATCH --output=/project/nicho/projects/marmosets/job_log_files/Dalton1125NEW_JL_free_video_proc_%a.out
-#SBATCH --error=/project/nicho/projects/marmosets/job_log_files/Dalton1125NEW_JL_free_video_proc_%a.err
-#SBATCH --time=12:00:00
+#SBATCH --job-name=0809_analog
+#SBATCH --output=/project/nicho/projects/marmosets/job_log_files/Dalton0809_analog.out
+#SBATCH --error=/project/nicho/projects/marmosets/job_log_files/Dalton0809_analog.err
+#SBATCH --time=4:00:00
 #SBATCH --partition=caslake
-#SBATCH --array=0-23
+#SBATCH --array=0
 #SBATCH --ntasks=8
 #SBATCH --mem=64G
 #SBATCH --account=pi-nicho
@@ -12,15 +12,12 @@
 #SBATCH --mail-user=daltonm@uchicago.edu
 
 #------------params that may change for each dataset/experiment----------------------#
-date=2023_11_24
-exp1=foraging
-exp2=foraging_free
+date=2023_08_09
+exp1=moth
+exp2=moth_free
 sess=(1 2)
-video_neural_session_alignment=matched #
-calib_name=calib
-applyCLAHE=True
+video_neural_session_alignment=matched #(matched, all_in_one_neural_recording)
 touchscreen=False
-scratch_space_username=daltonm
 
 #----------------------params that rarely change-------------------------------------#
 marms=JLTY

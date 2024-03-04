@@ -68,16 +68,22 @@ class params:
         move_bounds['start_frame'] = move_bounds['start_time']*fps
         move_bounds['stop_frame' ] = move_bounds['stop_time']*fps
         reach_method=6
+        marker_to_evaluate = 'r-wrist'
+        extra_plot_markers = ['r-shoulder'] 
         
     elif marm=='TY':
         fps=150
         reach_method=3
+        marker_to_evaluate = 'l-wrist'
+        extra_plot_markers = ['l-shoulder'] 
         
     elif marm=='JL':
         events_list = [2, 3]
         #events_list = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 37, 38, 39, 40]
         fps = 200
         reach_method = 3
+        marker_to_evaluate = 'l-wrist'
+        extra_plot_markers = ['l-shoulder'] 
         
     # events_list = [3, 8, 17]
     
@@ -94,12 +100,10 @@ class params:
     reproj_threshold = 35#20
     
     helmet_percent_tracked_thresh = 0.05
-    marker_to_evaluate = 'r-wrist'
-    if marker_to_evaluate == 'r-wrist':
+    if 'wrist' in marker_to_evaluate:
         yDir_limits = [-100*factor_to_cm, 125*factor_to_cm]
-    elif marker_to_evaluate == 'shoulder':
+    elif 'shoulder' in marker_to_evaluate:
         yDir_limits  = [-75*factor_to_cm, 125*factor_to_cm]
-    extra_plot_markers = ['r-shoulder'] 
     extra_plot_ylims = [[-150*factor_to_cm, 50*factor_to_cm]]
     errPlot_ylim = [0, 40]
     
@@ -727,6 +731,9 @@ def evaluate_labeling_quality(dlc_filtered, dlc, dlc_metadata, event_info, plotS
                 markers_df = pd.concat((markers_df, tmp_df), axis = 0, ignore_index=True)
             
             rel = sns.relplot(data=markers_df, x='Time (s)', y='Y-Position (cm)', hue='Filtering', row='Marker', kind='line', height=3, aspect=4)                                                                  
+            rel.axes[0][0].set_ylim(params.yDir_limits)
+            rel.axes[1][0].set_ylim(params.yDir_limits)
+
             rel.fig.subplots_adjust(top=0.875) # adjust the Figure in rp
             rel.fig.suptitle(f'Event {eventNum}')
             plt.show()

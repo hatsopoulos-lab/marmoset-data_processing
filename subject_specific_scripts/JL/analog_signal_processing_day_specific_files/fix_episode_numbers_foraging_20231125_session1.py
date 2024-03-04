@@ -281,3 +281,25 @@ if __name__ == '__main__':
                                                              jpg_dir                = jpg_dir,
                                                              all_cams_list          = all_cams_list,
                                                              key                    = key) 
+        inter_data = load_dict_from_hdf5(intermediate_data_path)
+        
+        # made an error at beginning, fixing now. correct_event_idx should have been 0, not 1.
+        key += '_fragmentsCorrection'
+        event_dict, inter_data = load_or_run_event_fragments(cam_list               = [          3,           4,           5], # FIXME
+                                                             event_idx_range_list   = [range(1, 2), range(1, 2), range(1, 2)], # FIXME
+                                                             correct_event_idx_list = [          0,           0,           0], # FIXME
+                                                             fps                    = fps,
+                                                             jpg_dir                = jpg_dir,
+                                                             all_cams_list          = all_cams_list,
+                                                             key                    = key) 
+        inter_data = load_dict_from_hdf5(intermediate_data_path)
+        
+        # made an error at beginning, fixing now. Event Indexes should be 1-3, not 2-4.
+        key += '_eventNumCorrection'
+        event_dict, inter_data = load_or_run_change_event_nums(cam_list                     = [          3,           4,           5], # FIXME
+                                                               event_idx_range_list         = [range(2, 5), range(2, 5), range(2, 5)], # FIXME
+                                                               correct_event_idx_range_list = [range(1, 4), range(1, 4), range(1, 4)], # FIXME
+                                                               jpg_dir                      = jpg_dir,
+                                                               all_cams_list                = all_cams_list,
+                                                               key                          = key)
+        inter_data = load_dict_from_hdf5(intermediate_data_path)

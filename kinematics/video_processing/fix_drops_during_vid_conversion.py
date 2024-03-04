@@ -10,6 +10,8 @@ import glob
 import numpy as np
 import shutil
 import os
+import re
+from pathlib import Path
 
 filePattern = sys.argv[1]
 drop_record_path = sys.argv[2]
@@ -21,8 +23,11 @@ frames = sorted(glob.glob(filePattern))
 
 print('\n\n Found %d frames at %s \n\n' % (len(frames), filePattern))
 
-event = frames[0].split('event_')[1][:3] 
-subject_date_exp = os.path.basename(frames[0]).split('_session')[0]
+event_pattern      = re.compile('event_\d{3,5}_')
+
+first_frame = Path(frames[0])
+event = re.findall(event_pattern, first_frame.stem).split('event_')[-1][:-1] 
+subject_date_exp = first_frame.stem.split('_session')[0]
 
 timestamps = []
 frameNums = []
@@ -77,7 +82,7 @@ if len(dropFrames) > 0:
     
     dropRecord = sorted(dropRecord)
 
-    if dropRecord[-1] == dropRecord[-2]:
+    if len(dropRecord) >1 and dropRecord[-1] == dropRecord[-2]:
         dropRecord = dropRecord[:-1]
 
     for fr in dropRecord:

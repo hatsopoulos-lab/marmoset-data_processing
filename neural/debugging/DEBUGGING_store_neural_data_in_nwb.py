@@ -284,9 +284,9 @@ if __name__ == '__main__':
         args = vars(ap.parse_args())
     
     else:
-        args = {'ns6_path' : '/project/nicho/data/marmosets/electrophys_data_for_processing/JL20230803_1330_freeAndMoths_day01/JL20230803_1330_freeAndMoths_day01001.ns6',
-                'meta_path': '/project/nicho/data/marmosets/metadata_yml_files/JL_complete_metadata.yml',
-                'prb_path' : '/project/nicho/data/marmosets/prbfiles/JL_01.prb',
+        args = {'ns6_path' : '/project/nicho/data/marmosets/electrophys_data_for_processing/TY20210211_inHammock_night/TY20210211_inHammock_night-002.ns6',
+                'meta_path': '/project/nicho/data/marmosets/metadata_yml_files/TY_complete_metadata.yml',
+                'prb_path' : '/project/nicho/data/marmosets/prbfiles/TY_02.prb',
                 'swap_ab'  : 'no'}
     
     # args = {'ns6_path' : '/project/nicho/data/marmosets/electrophys_data_for_processing/MG20230416_1505_mothsAndFree/MG20230416_1505_mothsAndFree-002.ns6',

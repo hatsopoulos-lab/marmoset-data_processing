@@ -305,3 +305,4 @@ if __name__ == '__main__':
                                                                jpg_dir                      = jpg_dir,
                                                                all_cams_list                = all_cams_list,
                                                                key                          = key)
+        inter_data = load_dict_from_hdf5(intermediate_data_path)

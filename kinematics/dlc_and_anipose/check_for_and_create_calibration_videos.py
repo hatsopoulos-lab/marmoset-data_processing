@@ -96,22 +96,22 @@ if __name__ == '__main__':
      	help="number of cameras")
     args = vars(ap.parse_args())
     
-    print('\n\n Beginning check_for_calibration code at %s\n\n' % time.strftime('%c', time.localtime()), flush=True)
+    task_id = int(os.getenv('SLURM_ARRAY_TASK_ID'))
+    if task_id == 0:
+        print('\n\n Beginning check_for_calibration code at %s\n\n' % time.strftime('%c', time.localtime()), flush=True)
+        transpose = []
+        for trans in args['video_transpose']:
+            if trans in [0, 1, 2, 3]:
+                transpose.append(trans)
+            else:
+                transpose.append(-1)
     
-    # session_nums = [int(num) for num in args['session_nums']]
-    # calib_name = args['calib_name']
-    # if calib_name == 'None':
-    #     calib_name = None
+        create_calib_videos_if_nonexistent(args['anipose_path'],
+                                           transpose = transpose,
+                                           ncams = args['ncams'],
+                                           video_ext = 'avi')
+    else:
+        print('\n\n Waiting for task0 to finish checking for and creating calbration videos at %s\n\n' % time.strftime('%c', time.localtime()), flush=True)
         
-    transpose = []
-    for trans in args['video_transpose']:
-        if trans in [0, 1, 2, 3]:
-            transpose.append(trans)
-        else:
-            transpose.append(-1)
 
-    create_calib_videos_if_nonexistent(args['anipose_path'],
-                                       transpose = transpose,
-                                       ncams = args['ncams'],
-                                       video_ext = 'avi')
 

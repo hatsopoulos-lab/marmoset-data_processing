@@ -1429,5 +1429,5 @@ if __name__ == "__main__":
         # bad events [24, 37]
         # events to look at later [89, 110, 113, 134, 142] - has nans, but pass tests and have identified reaches!
         
-        with open(dpath.reach_data_storage, 'wb') as fp:
-            dill.dump(reach_data, fp, recurse=True)
+        # with open(dpath.reach_data_storage, 'wb') as fp:
+        #     dill.dump(reach_data, fp, recurse=True)

@@ -19,6 +19,17 @@ import numpy as np
 import pandas as pd
 import shutil
 import itertools
+from pathlib import Path
+
+event_pattern = re.compile('event_\d{3,5}_')
+event_pattern_backup = re.compile('_e_\d{3,5}_')
+session_pattern = re.compile('_session\d{1,2}_')
+session_pattern_backup = re.compile('_s{1,2}_')
+
+start_time_pattern = re.compile('\d{4}-\d{2}.jpg')
+timestamp_pattern  = re.compile('currentTime_\d{9,20}')
+framenum_pattern   = re.compile('frame_\d{7}')
+date_pattern       = re.compile('\d{4}_\d{2}_\d{2}') 
 
 class paths: 
     processing_code   = '/project/nicho/projects/marmosets/code_database/data_processing/kinematics/video_processing'    
@@ -47,15 +58,16 @@ def fix_dropped_frames(jpg_files, jpgPattern, drop_record_path, fps):
 
     period_ns = 1/fps * 1e9
 
+    first_frame = Path(jpg_files[0])
     try:
-        event = jpg_files[0].split('event_')[1][:3] 
+        event = re.findall(event_pattern, first_frame.stem)[0].split('event_')[1][:-1] 
     except:
-        event = jpg_files[0].split('_e_')[1][:3]
+        event = re.findall(event_pattern_backup, first_frame.stem)[0].split('e_')[1][:-1] 
         
     try:
-        subject_date_exp = os.path.basename(jpg_files[0]).split('_session')[0]
+        subject_date_exp = first_frame.stem.split('_session')[0]
     except:
-        subject_date_exp = os.path.basename(jpg_files[0]).split('_s')[0]
+        subject_date_exp = first_frame.stem.split('_s')[0]
 
     timestamps = []
     frameNums = []
@@ -68,11 +80,17 @@ def fix_dropped_frames(jpg_files, jpgPattern, drop_record_path, fps):
     frameDiffs = np.diff(frameNums)
     dropFrames = np.where(frameDiffs > 1)[0]
 
+
+    dropRecord = []
+    
+    # add dummy frames at beginning if necessary (very rare, seen only once on 2023_08_09, moth_s1_e1_cam1 and moth_free_s1_e1_cam2)
+    if frameNums[0] > 1:
+        dropFrames = np.insert(dropFrames, 0, np.array(range(1, frameNums[0])))
+        
     # check if last frame was dropped by comparing to other camera folders
     bases = [jpgPattern.split('jpg_cam')[0]]
 
     lastFrameNums = []
-    dropRecord = []
     for base in bases:
         cam_folders = glob.glob(os.path.join(base, 'jpg_cam*'))
         for f in cam_folders:
@@ -96,20 +114,30 @@ def fix_dropped_frames(jpg_files, jpgPattern, drop_record_path, fps):
         with open(drop_record_file, 'w') as f:
         
             for dFr in dropFrames:
-                lastGoodFrame, lastGoodTime, lastGoodFile = frameNums[dFr], timestamps[dFr], jpg_files[dFr]        
-                print('\n\n')
-                for copyNum in range(1, frameDiffs[dFr]):
-                    newFrame = lastGoodFrame + copyNum
-                    newFile = lastGoodFile.replace(f'frame_{str(lastGoodFrame).zfill(7)}', f'frame_{str(newFrame).zfill(7)}')
-                    newFile = newFile.replace(f'currentTime_{str(lastGoodTime)}', f'currentTime_{str(int(lastGoodTime + period_ns*copyNum))}')
-    
-                    shutil.copyfile(lastGoodFile, newFile)
+                
+                if dFr < frameNums[0]:
+                    firstGoodFrame, firstGoodTime, firstGoodFile = frameNums[0], timestamps[0], jpg_files[0]        
+                    for copyNum in range(1, firstGoodFrame):
+                        newFrame = firstGoodFrame - copyNum
+                        newFile  = firstGoodFile.replace(f'frame_{str(firstGoodFrame).zfill(7)}', f'frame_{str(newFrame).zfill(7)}')
+                        newFile  = newFile.replace(f'currentTime_{str(firstGoodTime)}', f'currentTime_{str(int(firstGoodTime - period_ns*copyNum))}')
+                        shutil.copyfile(firstGoodFile, newFile)
+                        dropRecord.append(newFrame)
                     
-                    dropRecord.append(newFrame)
+                else:
+                    lastGoodFrame, lastGoodTime, lastGoodFile = frameNums[dFr], timestamps[dFr], jpg_files[dFr]        
+                    for copyNum in range(1, frameDiffs[dFr]):
+                        newFrame = lastGoodFrame + copyNum
+                        newFile = lastGoodFile.replace(f'frame_{str(lastGoodFrame).zfill(7)}', f'frame_{str(newFrame).zfill(7)}')
+                        newFile = newFile.replace(f'currentTime_{str(lastGoodTime)}', f'currentTime_{str(int(lastGoodTime + period_ns*copyNum))}')
+        
+                        shutil.copyfile(lastGoodFile, newFile)
+                        
+                        dropRecord.append(newFrame)
             
             dropRecord = sorted(dropRecord)
     
-            if dropRecord[-1] == dropRecord[-2]:
+            if len(dropRecord) > 1 and dropRecord[-1] == dropRecord[-2]:
                 dropRecord = dropRecord[:-1]
     
             for fr in dropRecord:
@@ -508,9 +536,9 @@ if __name__ == '__main__':
         args = {'jpg_dir'        : '/scratch/midway3/daltonm/kinematics_jpgs',
                 'vid_dir'        : '/project/nicho/data/marmosets/kinematics_videos',
                 'marms'          : 'JLTY',
-                'date'           : '2023_09_21',
-                'exp_name'       : 'cricket',
-                'session_nums'   : [1],
+                'date'           : '2023_08_09',
+                'exp_name'       : 'moth',
+                'session_nums'   : [1, 2],
                 'fps'            : 200,
                 'cams'           : [ 1,  2,  3,  4, 5],
                 'video_transpose': [-1, -1, -1, -1, -1],
@@ -522,7 +550,7 @@ if __name__ == '__main__':
         last_task = int(os.getenv('SLURM_ARRAY_TASK_MAX'))
     except:
         task_id = 0
-        n_tasks = 80
+        n_tasks = 40
         last_task = task_id
     print(f'task_id = {task_id}', flush=True)
     

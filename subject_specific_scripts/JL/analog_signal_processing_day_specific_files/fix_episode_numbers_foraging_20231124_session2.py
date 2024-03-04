@@ -22,7 +22,7 @@ from importlib import sys
 sys.path.insert(0, '/project/nicho/projects/marmosets/code_database/data_processing/nwb_tools/hatlab_nwb_tools/')
 from hatlab_nwb_functions import save_dict_to_hdf5, load_dict_from_hdf5
 
-first_run = False
+first_run = True
 
 session=2
 date='2023_11_24'
@@ -292,3 +292,4 @@ if __name__ == '__main__':
                                                                jpg_dir                      = jpg_dir,
                                                                all_cams_list                = all_cams_list,
                                                                key                          = key)
+        inter_data = load_dict_from_hdf5(intermediate_data_path)

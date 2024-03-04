@@ -315,7 +315,8 @@ if __name__ == '__main__':
     train_frac = convert_string_inputs_to_int_float_or_bool(args['train_frac'])
     extra_vars = convert_string_inputs_to_int_float_or_bool(args['extra_vars'])
 
-    epPattern = re.compile('_e[0-9]{3}')    
+    epPattern = re.compile('_e[0-9]{3}') 
+    epPattern_backup = re.compile('_event[0-9]{3}')    
     for date in args['dates']:
         ddir = pjoin(args['anipose_path'], date)
         videos = sorted(glob.glob(pjoin(ddir, 'avi_videos', '*.avi')))
@@ -329,7 +330,11 @@ if __name__ == '__main__':
         #     vid_size = [size_tuple[1] for size_tuple in event_video_sizes if size_tuple[0] == event][0]
         #     full_vid_size_list.append(vid_size)
         
-        events = np.unique([int(re.findall(epPattern, os.path.basename(vid))[0].split('e')[-1]) for vid in videos])
+        try:
+            events = np.unique([int(re.findall(epPattern, os.path.basename(vid))[0].split('_e')[-1]) for vid in videos])
+        except:
+            events = np.unique([int(re.findall(epPattern_backup, os.path.basename(vid))[0].split('_event')[-1]) for vid in videos])
+            
         cam1_videos = [vidpath for vidpath in videos if 'cam1' in vidpath]
         event_video_sizes = [round(os.stat(vidpath).st_size/(1024**2)) for event, vidpath in zip(events, cam1_videos)]
         
@@ -351,7 +356,10 @@ if __name__ == '__main__':
             assigned_events.append(tmp_info['event'])
         
         task_events = all_task_events_lists[task_id]
-        task_videos = [vid for vid in videos if int(re.findall(epPattern, os.path.basename(vid))[0].split('e')[-1]) in task_events]   
+        try:
+            task_videos = [vid for vid in videos if int(re.findall(epPattern, os.path.basename(vid))[0].split('_e')[-1]) in task_events]   
+        except:
+            task_videos = [vid for vid in videos if int(re.findall(epPattern_backup, os.path.basename(vid))[0].split('_event')[-1]) in task_events]   
 
         anipose_args = {'projectpath'     : args['dlc_path'],
                         'aniposepath'     : args['anipose_path'],
