@@ -23,7 +23,10 @@ from scipy.signal import find_peaks, peak_prominences, peak_widths
 from scipy.stats import mode
 from scipy.interpolate import interp1d
 from scipy.signal import savgol_filter
+from importlib import sys
 
+sys.path.insert(0, '/project/nicho/projects/marmosets/code_database/data_processing/nwb_tools/hatlab_nwb_tools/')
+from hatlab_nwb_functions import save_dict_to_hdf5
 
 # anipose_base = r'C:\Users\Dalton\Documents\lab_files\dlc_temp\anipose_files'
 
@@ -39,7 +42,7 @@ anipose_base = '/project/nicho/data/marmosets/kinematics_videos/moths/HMMG/'
 class dpath:
     base = [anipose_base]
     dates = ['2023_04_16']  # for now we can only do one date at a time
-    reach_data_storage = '/project/nicho/data/marmosets/processed_datasets/reach_and_trajectory_information/20230416_reach_and_trajectory_info.pkl'
+    reach_data_storage = '/project/nicho/data/marmosets/processed_datasets/reach_and_trajectory_information/20230416_reach_and_trajectory_info.h5'
     # nwb_file = '/project/nicho/data/marmosets/electrophys_data_for_processing/TY20210211_freeAndMoths/TY20210211_freeAndMoths-003_testing_pose.nwb'
     # session = 1
     # expName = 'moths'
@@ -1428,6 +1431,8 @@ if __name__ == "__main__":
         # events with no reach_start = [5, 13, 32, 111, 121, 125, 128, 161, 167, 172, 189] - SOLVED
         # bad events [24, 37]
         # events to look at later [89, 110, 113, 134, 142] - has nans, but pass tests and have identified reaches!
+        
+        save_dict_to_hdf5(reach_data, dpath.reach_data_storage, first_level_key='reaching_event_idx')
         
         # with open(dpath.reach_data_storage, 'wb') as fp:
         #     dill.dump(reach_data, fp, recurse=True)

@@ -111,6 +111,7 @@ def plot_prb(probegroup):
 def create_nwb_copy_without_acquisition(nwb_infile, nwb_outfile):
     with NWBHDF5IO(nwb_infile, 'r') as io:
         nwb = io.read()    
+        nwb.generate_new_id()
         nwb.acquisition.clear()
         # video_timestamp_keys = [key for key in nwb.processing.keys() if 'video_event_timestamps' in key]
         # for key in video_timestamp_keys:
@@ -170,8 +171,9 @@ def save_dict_to_hdf5(data, filename, first_level_key = None):
             df_keys_list.append('df')
             df_data_list.append(data)
     
-    for key, df in zip(df_keys_list, df_data_list):
-        df.to_hdf(filename, key, mode='a')
+    if df_keys_list is not None:
+        for key, df in zip(df_keys_list, df_data_list):
+            df.to_hdf(filename, key, mode='a')
 
 def recursively_save_dict_contents_to_group(h5file, path, dic, df_keys_list = None, df_data_list = None):
     """

@@ -1,21 +1,20 @@
 #!/bin/bash
 #SBATCH --job-name=MG_nwb_conv
-#SBATCH --output=/project/nicho/projects/marmosets/job_log_files/MG_nwb_conv_20230317.out
-#SBATCH --error=/project/nicho/projects/marmosets/job_log_files/MG_nwb_conv_20230317.err
-#SBATCH --time=1:00:00
+#SBATCH --output=/project/nicho/projects/marmosets/job_log_files/MG_nwb_conv_20230416.out
+#SBATCH --error=/project/nicho/projects/marmosets/job_log_files/MG_nwb_conv_20230416.err
+#SBATCH --time=2:00:00
 #SBATCH --partition=caslake
 #SBATCH --ntasks=32
 #SBATCH --mem=64G
 #SBATCH --account=pi-nicho
 
 #------------params that may change for each dataset/experiment----------------------#
-dates=(2023_03_17)
+dates=(2023_04_16)
 exp1=moths
 exp2=free
 sess=(1)
-calib_name=calib
+video_neural_session_alignment=all_in_one_neural_recording #(matched, all_in_one_neural_recording)
 touchscreen=False
-scratch_space_username=daltonm
 
 
 #----------------------params that rarely change-------------------------------------#
@@ -24,9 +23,7 @@ marms_ephys=MG
 swap_ab=no
 prb_path=/project/nicho/data/marmosets/prbfiles/MG_01.prb
 metadata_path=/project/nicho/data/marmosets/metadata_yml_files/MG_complete_metadata.yml
-fps=200
-ncams=5
-vid_transpose=(-1 -1 -1 -1 -1) #(-1 -1) #(-1 -1 -1 -1 -1)  # number of arguments MUST match ncams 
+analog_signals_fps=(200 60)
 
 #-----------paths to input and output data, and to processing scripts----------------#
 vid_dir=/project/nicho/data/marmosets/kinematics_videos
@@ -42,8 +39,15 @@ source activate /project/nicho/environments/spyder
 
 #---------------------Execute the programs-------------------------------------------#
 
-python $video_processing/process_analog_signals_for_episode_times.py \
--v $vid_dir -ep $ephys_dir -m $marms -me $marms_ephys -d ${dates[@]} -e $exp1 -e2 $exp2 \
--t $touchscreen -tp $touchscreen_path -np $neural_processing -meta $metadata_path -prb $prb_path -ab $swap_ab
+source activate /beagle3/nicho/environments/nwb_and_neuroconv
 
-python $neural_processing/neural_dropout_first_pass.py -k $vid_dir -ep $ephys_dir -m $marms -me $marms_ephys -d ${dates[@]} -e $exp1 -e2 $exp2
+for date in ${dates[@]}
+do
+    python $video_processing/process_analog_signals_for_episode_times.py  \
+    -v $vid_dir -ep $ephys_dir -m $marms -me $marms_ephys -d $date -e $exp1 -e2 $exp2 \
+    -t $touchscreen -tp $touchscreen_path -np $neural_processing -meta $metadata_path \
+    -prb $prb_path -ab $swap_ab -al $video_neural_session_alignment -f ${analog_signals_fps[@]}
+
+    python $neural_processing/neural_dropout_first_pass.py -k $vid_dir -ep $ephys_dir -m $marms \
+    -me $marms_ephys -d $date -e $exp1 -e2 $exp2
+done

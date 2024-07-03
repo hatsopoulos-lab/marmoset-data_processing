@@ -85,7 +85,7 @@ def get_filepaths(ephys_path, kin_path, marms_ephys_code, marms_kin_code, date):
     ephys_folders = sorted(glob.glob(os.path.join(ephys_path, marms_ephys_code + '*')))
     ephys_folders = [fold for fold in ephys_folders 
                      if re.findall(datePattern, os.path.basename(fold))[0] == date
-                     and any(exp.lower() in os.path.basename(fold).lower() for exp in experiments)]  
+                     and any(exp.lower() in os.path.basename(fold).lower() for exp in experiments)]    
 
     kin_outer_folders = sorted(glob.glob(os.path.join(kin_path, '*')))
     kin_outer_folders = [fold for fold in kin_outer_folders if any(exp in os.path.basename(fold).lower() for exp in experiments)]
@@ -108,27 +108,24 @@ def identify_dropout(filepath, binwin, dropout_method = 'spikes', plot = False):
     with NWBHDF5IO(filepath, 'r+') as io:
         nwbfile = io.read()
 
-        # create timestamps for raw neural data from starting_time, rate, and data shape
-        es_key = [key for key in nwbfile.acquisition.keys() if 'Electrical' in key][0]
-        start = nwbfile.acquisition[es_key].starting_time
-        step = 1/nwbfile.acquisition[es_key].rate
-        stop = start + step*nwbfile.acquisition[es_key].data.shape[0]
-        raw = nwbfile.acquisition[es_key]
-
         if dropout_method == 'spikes':
             
             units = nwbfile.processing['ecephys'].data_interfaces['units_from_nevfile'].to_dataframe()
             spike_times = units['spike_times'].to_list()
             num_neurons = len(spike_times)
-                    
+        
         else: 
             #TODO this method currently grabs spikes from filtered raw data, but this won't work during sleep 
             #(downstates will look like dropout). Whoever is working with sleep data will need to figure a method out for this.
             
+            raw = nwbfile.acquisition['ElectricalSeries']
             elec_df = raw.electrodes.to_dataframe()
             channel_idx = [idx for idx, name in elec_df['electrode_label'].iteritems() if 'ainp' not in name]
             signals = raw.data[:, channel_idx] * elec_df['gain_to_uV'][channel_idx] * raw.conversion
                             
+            start = raw.starting_time
+            step = 1/raw.rate
+            stop = start + step*signals.shape[0]
             timestamps = np.arange(start, stop, step)
             
             num_neurons = 96
@@ -155,11 +152,8 @@ def identify_dropout(filepath, binwin, dropout_method = 'spikes', plot = False):
         
         data = {}
         data['binwin'] = binwin
-        # data['times'] = {'start': np.min([np.min(x) for x in spike_times]),
-        #                  'end': np.max([np.max(x) for x in spike_times])}
-        
-        data['times'] = {'start': start,
-                         'end': stop}
+        data['times'] = {'start': np.min([np.min(x) for x in spike_times]),
+                         'end': np.max([np.max(x) for x in spike_times])}
         
         data['spiketimes'] = [np.array(spike_times[x])[np.where(np.logical_and(spike_times[x] >= data['times']['start'], 
                                                                                spike_times[x] <= data['times']['end']))[0]] for x in range(num_neurons)]
@@ -240,28 +234,16 @@ def identify_dropout(filepath, binwin, dropout_method = 'spikes', plot = False):
         drop_starts = np.array([bin_num+1 for bin_num, (value, prev_val) in enumerate(zip(drop_bins[1:], drop_bins[:-1])) if value == 1 and prev_val == 0])
         drop_ends   = np.array([bin_num+1 for bin_num, (value, prev_val) in enumerate(zip(drop_bins[1:], drop_bins[:-1])) if value == 0 and prev_val == 1])
         
-        if len(drop_starts) == 0 and len(drop_ends) == 0:
+        if len(drop_starts) == 0:
             drop_intervals = pd.DataFrame(data=zip([0], [0], [0]),
                                           columns = ['drop_start_time', 'drop_end_time', 'drop_length_sec'])
         else:
-            if len(drop_starts) == 0 and len(drop_ends) != 0:
-                drop_start_times = np.array([start])
-                drop_end_times = bin_times[drop_ends]
-            elif len(drop_ends) == 0 and len(drop_starts) != 0:
-                drop_end_times = np.array([stop])
-                drop_start_times = bin_times[drop_starts]
-            else:
-                drop_start_times, drop_end_times = bin_times[drop_starts], bin_times[drop_ends]
-                
-            if len(drop_end_times) < len(drop_start_times) or drop_end_times[-1] < drop_start_times[-1]:
-                drop_end_times = np.hstack((drop_end_times, stop))
-            if len(drop_start_times) < len(drop_end_times) or drop_end_times[0] < drop_start_times[0]:
-                drop_start_times = np.hstack((start, drop_start_times))
-            drop_intervals = pd.DataFrame(data=zip(drop_start_times, 
-                                                   drop_end_times, 
-                                                   drop_end_times - drop_start_times), 
+            drop_intervals = pd.DataFrame(data=zip(bin_times[drop_starts], 
+                                                   bin_times[drop_ends], 
+                                                   bin_times[drop_ends] - bin_times[drop_starts]), 
                                           columns = ['drop_start_time', 'drop_end_time', 'drop_length_sec'])
         
+        nwbfile = io.read()
         dropout_intervals_name = 'neural_dropout'
         if dropout_intervals_name in nwbfile.intervals.keys():
             drop_mod_already_exists = True
@@ -289,37 +271,23 @@ def identify_dropout(filepath, binwin, dropout_method = 'spikes', plot = False):
     return drop_intervals, fraction_dropped
 
 if __name__ == '__main__':
-    
-    debugging = True
-    
-    if not debugging:
-    
-        # construct the argument parse and parse the arguments
-        ap = argparse.ArgumentParser()
-        ap.add_argument("-k", "--kin_dir", required=True, type=str,
-            help="path to directory for task and marmoset pair. E.g. /project/nicho/data/marmosets/kinematics_videos/")
-        ap.add_argument("-ep", "--ephys_path", required=True, type=str,
-            help="path to directory holding ephys data. E.g. /project/nicho/data/marmosets/electrophys_data_for_processing")
-        ap.add_argument("-m", "--marms", required=True, type=str,
-         	help="marmoset 4-digit code, e.g. 'JLTY'")
-        ap.add_argument("-me", "--marms_ephys", required=True, type=str,
-         	help="marmoset 2-digit code for ephys data, e.g. 'TY'")
-        ap.add_argument("-d", "--date", required=True, type=str,
-         	help="date(s) of recording (can have multiple entries separated by spaces)")
-        ap.add_argument("-e", "--exp_name", required=True, type=str,
-         	help="experiment name, e.g. free, foraging, BeTL, crickets, moths, etc")
-        ap.add_argument("-e2", "--other_exp_name", required=True, type=str,
-         	help="experiment name, e.g. free, foraging, BeTL, crickets, moths, etc") 
-        args = vars(ap.parse_args())
-
-    else:
-        args = {'kin_dir' : '/project/nicho/data/marmosets/kinematics_videos',
-                'ephys_path' : '/project/nicho/data/marmosets/electrophys_data_for_processing',
-                'date' : '2023_04_16',
-                'marms': 'HMMG',
-                'marms_ephys': 'MG',
-                'exp_name':'moths',
-                'other_exp_name': 'free'}
+    # construct the argument parse and parse the arguments
+    ap = argparse.ArgumentParser()
+    ap.add_argument("-k", "--kin_dir", required=True, type=str,
+        help="path to directory for task and marmoset pair. E.g. /project/nicho/data/marmosets/kinematics_videos/")
+    ap.add_argument("-ep", "--ephys_path", required=True, type=str,
+        help="path to directory holding ephys data. E.g. /project/nicho/data/marmosets/electrophys_data_for_processing")
+    ap.add_argument("-m", "--marms", required=True, type=str,
+     	help="marmoset 4-digit code, e.g. 'JLTY'")
+    ap.add_argument("-me", "--marms_ephys", required=True, type=str,
+     	help="marmoset 2-digit code for ephys data, e.g. 'TY'")
+    ap.add_argument("-d", "--date", required=True, type=str,
+     	help="date(s) of recording (can have multiple entries separated by spaces)")
+    ap.add_argument("-e", "--exp_name", required=True, type=str,
+     	help="experiment name, e.g. free, foraging, BeTL, crickets, moths, etc")
+    ap.add_argument("-e2", "--other_exp_name", required=True, type=str,
+     	help="experiment name, e.g. free, foraging, BeTL, crickets, moths, etc") 
+    args = vars(ap.parse_args())
 
     binwin = 0.1
     dropout_method = 'spikes'    
@@ -340,7 +308,4 @@ if __name__ == '__main__':
         for eFold in ephys_folders:
             nwb_files = sorted(glob.glob(pjoin(eFold, '*_acquisition.nwb')))
             for nfile in nwb_files:
-                try:
-                    drop_intervals, fraction_dropped = identify_dropout(nfile, binwin, dropout_method=dropout_method, plot = True)
-                except Exception as error:
-                    print(f'Exception: {error}\nFile:       {os.path.basename(nfile)}\n')
+                drop_intervals, fraction_dropped = identify_dropout(nfile, binwin, dropout_method=dropout_method, plot = True)

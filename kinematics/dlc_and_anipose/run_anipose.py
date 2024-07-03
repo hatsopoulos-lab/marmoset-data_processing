@@ -11,12 +11,12 @@ import deeplabcut
 import toml
 import argparse
 import numpy as np
-import glob
 import shutil
 import time
 import re
 import pandas as pd
-from os.path import join as pjoin
+from pathlib import Path
+from itertools import product
 
 def edit_anipose_params(config_data, config_file, categories, keys, values):
     print(type(categories), categories)
@@ -35,9 +35,17 @@ def edit_anipose_params(config_data, config_file, categories, keys, values):
         
     return
 
-def compute_pose_with_anipose(anipose_args):  
+def count_files_in_folders(task_path, folders):
+    
+    task_paths = task_path.parent.glob('*') 
+    
+    filecount = 0
+    for task_dir, fold in product(task_paths, folders):
+        filecount += len(list((task_dir / fold).glob('*')))
 
-    aniposepath = anipose_args['aniposepath']
+    return filecount           
+
+def compute_pose_with_anipose(anipose_args):  
     
     param_category = ['filter', 'filter', 'triangulation', 'triangulation', 'triangulation', 'triangulation', 'triangulation']
 
@@ -65,8 +73,10 @@ def compute_pose_with_anipose(anipose_args):
     param_values.extend([anipose_args['projectpath'], 0])
     param_category.extend(['model_folder', 'nesting'])
     
+    date_dir = Path(anipose_args['date_dir'])
+    
     if anipose_args['task_id'] == 0:
-        dlc_config=pjoin(anipose_args['projectpath'],'config.yaml')
+        dlc_config=Path(anipose_args['projectpath']) / 'config.yaml'
         print(dlc_config, flush=True)
         dlc_cfg=deeplabcut.auxiliaryfunctions.read_config(dlc_config)
         
@@ -84,11 +94,11 @@ def compute_pose_with_anipose(anipose_args):
         deeplabcut.auxiliaryfunctions.write_config(dlc_config, dlc_cfg)
     
     # copy config.toml file into date directory and edit parameters, then calibrate cameras
-    ani_config = pjoin(anipose_args['date_dir'], 'config.toml')
-    ani_template = pjoin(aniposepath, 'config.toml')
+    ani_config   = date_dir                          / 'config.toml'
+    ani_template = Path(anipose_args['aniposepath']) / 'config.toml'
     shutil.copy(ani_template, ani_config)    
     
-    os.chdir(anipose_args['date_dir'])
+    os.chdir(date_dir)
     
     ani_cfg_data = toml.load(ani_config) 
     edit_anipose_params(ani_cfg_data, ani_config, 
@@ -100,36 +110,51 @@ def compute_pose_with_anipose(anipose_args):
         print('\n\nMade it to the calibrate line!!!\n\n', flush=True)
         subprocess.call(['anipose', 'calibrate'])
     else:
-        task_0_calib_path = pjoin(anipose_args['date_dir'], 'temp_anipose_processing', '0', 'calibration', 'calibration.toml')
+        task_0_calib_path = date_dir / 'temp_anipose_processing' / '0' / 'calibration' / 'calibration.toml'
         ct = 0
-        print((task_0_calib_path, os.path.isfile(task_0_calib_path), ct), flush=True) 
-        while not os.path.isfile(task_0_calib_path):
+        print((task_0_calib_path, task_0_calib_path.is_file(), ct), flush=True) 
+        while not task_0_calib_path.is_file():
             time.sleep(5)
             ct+=1
-            print((task_0_calib_path, os.path.isfile(task_0_calib_path), ct), flush=True) 
+            print((task_0_calib_path, task_0_calib_path.is_file(), ct), flush=True) 
 
 
         print('passed this point')
     
-    # copy config file and alibration results temp_anipose_processing/TASKID folders
-    task_path = pjoin(anipose_args['date_dir'], 'temp_anipose_processing', str(anipose_args['task_id']))
-    os.makedirs(pjoin(task_path, 'calibration'), exist_ok=True)
-    os.makedirs(pjoin(task_path, 'avi_videos') , exist_ok=True)
+    # copy config file and calibration results temp_anipose_processing/TASKID folders
+    task_path = date_dir / 'temp_anipose_processing' / str(anipose_args['task_id'])
+    os.makedirs(task_path / 'calibration', exist_ok=True)
+    os.makedirs(task_path / 'avi_videos' , exist_ok=True)
     shutil.copy(ani_config, task_path)
-    shutil.copy(pjoin(anipose_args['date_dir'], 'calibration', 'calibration.toml'), pjoin(task_path, 'calibration'))
+    shutil.copy(date_dir / 'calibration' / 'calibration.toml', task_path / 'calibration')
     
     # move into directory for task processing
     os.chdir(task_path)
     
-    task_ani_config = pjoin(task_path, 'config.toml')
+    task_ani_config = task_path / 'config.toml'
     task_ani_cfg_data = toml.load(task_ani_config) 
     
+    # copy the videos and for this task into the TASK_ID folder
+    for vidpath in anipose_args['task_videos']:
+        shutil.copy(vidpath, task_path / 'avi_videos')
+    
+    # Copy additional files into the TASK_ID folder, up to the "copy_up_to" input argument.
+    # This allows for skippng steps that have already been completed if a job is canceled for some undesired reason and 
+    # you want to restart without re-doing everything (particularly the initial inference step by DLC)
+    if copy_up_to is not None:
+        folders_in_order = ['pose-2d-unfiltered', 'pose-2d-viterbi', 'pose-2d-viterbi_and_autoencoder',
+                            'pose-3d', 'pose-2d-proj', 'videos-2d-proj', 'videos-labeled-filtered']
+        for fold in folders_in_order:
+            os.makedirs(task_path / fold, exist_ok=True)
+            for vid in anipose_args['task_videos']:
+                vidpath = Path(vid)
+                for src_file in (vidpath.parent.parent / fold).glob(f'{vidpath.stem}*'):
+                    shutil.copy(src_file, task_path / fold)
+            if fold == anipose_args['copy_up_to']:
+                break
+
     print('\n' + os.getcwd(), flush=True)
     if not anipose_args['only_3D']:        
-
-        # copy the videos for this task into the TASK_ID folder
-        for vidpath in anipose_args['task_videos']:
-            shutil.copy(vidpath, pjoin(task_path, 'avi_videos'))        
 
         print(task_ani_cfg_data, flush=True)
         print(task_ani_config, flush=True)
@@ -152,34 +177,21 @@ def compute_pose_with_anipose(anipose_args):
                             ['autoencoder', 'pose-2d-viterbi_and_autoencoder', 'pose-2d-viterbi'])
         
         # copy files to date folder, train autoencoder and apply it in the primary folder. Then triangulate in primary folder 
-        for src_file in sorted(glob.glob(pjoin(task_path, 'pose-2d-viterbi', '*'))):
-            dst_file = pjoin(anipose_args['date_dir'], 'pose-2d-viterbi', os.path.basename(src_file))
+        for src_file in sorted(list((task_path / 'pose-2d-viterbi').glob('*'))):
+            dst_file = date_dir / 'pose-2d-viterbi' / src_file.name
             shutil.copy(src_file, dst_file)
         
         if anipose_args['task_id'] == 0:
-            os.chdir(anipose_args['date_dir'])
-            while len(glob.glob(pjoin(anipose_args['date_dir'], 'pose-2d-viterbi', '*'))) < len(glob.glob(pjoin(anipose_args['date_dir'], 'avi_videos', '*.avi'))):
+            os.chdir(date_dir)
+            while len(list((date_dir / 'pose-2d-viterbi').glob('*'))) < len(list((date_dir / 'avi_videos').glob('*.avi'))):
                 time.sleep(10)
             subprocess.call(['anipose', 'train-autoencoder'])  
-            shutil.copy(pjoin(anipose_args['date_dir'], 'autoencoder.pickle'), task_path)
+            shutil.copy(date_dir / 'autoencoder.pickle', task_path)
         else:
-            task_0_path = pjoin(anipose_args['date_dir'], 'temp_anipose_processing', '0')
-            while not os.path.isfile(pjoin(task_0_path, 'autoencoder.pickle')):
+            task_0_path = date_dir / 'temp_anipose_processing' / '0'
+            while not (task_0_path / 'autoencoder.pickle').exists():
                 time.sleep(5)
-            shutil.copy(pjoin(anipose_args['date_dir'], 'autoencoder.pickle'), task_path)
-                        
-        # os.makedirs(pjoin(task_path, 'pose-2d-viterbi_and_autoencoder'), exist_ok = True)
-        # os.makedirs(pjoin(task_path, 'pose-2d-proj'), exist_ok = True)
-        # for vidpath in anipose_args['task_videos']:
-        #     base_path, filename = os.path.split(vidpath)
-        #     base_path = os.path.dirname(base_path)
-        #     filename = os.path.splitext(filename)[0] + '.h5'
-           
-        #     pose_path = pjoin(base_path, 'pose-2d-viterbi_and_autoencoder', filename)
-        #     shutil.copy(pose_path, pjoin(task_path, 'pose-2d-viterbi_and_autoencoder')) 
-
-        #     pose_path = pjoin(base_path, 'pose-2d-proj', filename)
-        #     shutil.copy(pose_path, pjoin(task_path, 'pose-2d-proj')) 
+            shutil.copy(date_dir / 'autoencoder.pickle', task_path)
             
         os.chdir(task_path)    
         
@@ -190,13 +202,15 @@ def compute_pose_with_anipose(anipose_args):
         if anipose_args['label_videos']:
             subprocess.call(['anipose', 'label-2d-proj']) 
             subprocess.call(['anipose', 'label-2d-filter']) 
+            subprocess.call(['anipose', 'label-3d'])
         
         folders_with_new_info = ['pose-2d-unfiltered',
                                  'pose-2d-viterbi_and_autoencoder',
                                  'pose-2d-proj',
                                  'pose-3d',
                                  'videos-labeled-filtered',
-                                 'videos-2d-proj']
+                                 'videos-2d-proj',
+                                 'videos-3d']
                 
     else:
         
@@ -206,13 +220,11 @@ def compute_pose_with_anipose(anipose_args):
                             ['pose-2d-viterbi_and_autoencoder', 'pose-2d-viterbi'])
             
         # copy filtered pose files to temp_anipose folders
-        os.makedirs(pjoin(task_path, 'pose-2d-viterbi_and_autoencoder'), exist_ok = True)
+        os.makedirs(task_path / 'pose-2d-viterbi_and_autoencoder', exist_ok = True)
         for vidpath in anipose_args['task_videos']:
-            base_path, filename = os.path.split(vidpath)
-            base_path = os.path.dirname(base_path)
-            filename = os.path.splitext(filename)[0] + '.h5'
-            pose_path = pjoin(base_path, 'pose-2d-viterbi_and_autoencoder', filename)
-            shutil.copy(pose_path, pjoin(task_path, 'pose-2d-viterbi_and_autoencoder')) 
+            vidpath = Path(vidpath)
+            pose_path = vidpath.parent.parent / 'pose-2d-viterbi_and_autoencoder' / vidpath.with_suffix('.h5').name
+            shutil.copy(pose_path, task_path / 'pose-2d-viterbi_and_autoencoder') 
             
         subprocess.call(['anipose', 'triangulate']) 
         subprocess.call(['anipose', 'project-2d'])           
@@ -220,27 +232,38 @@ def compute_pose_with_anipose(anipose_args):
         if anipose_args['label_videos']:
             subprocess.call(['anipose', 'label-2d-proj']) 
             subprocess.call(['anipose', 'label-2d-filter']) 
+            subprocess.call(['anipose', 'label-3d']) 
             
         folders_with_new_info = ['pose-2d-proj',
                                  'pose-3d',
                                  'videos-labeled-filtered',
-                                 'videos-2d-proj']    
+                                 'videos-2d-proj',
+                                 'videos-3d']    
                 
     # move all new files back to primary anipose folder
     for folder_name in folders_with_new_info:
-        src_dir = pjoin(task_path, folder_name)
-        if os.path.isdir(src_dir):
-            dst_dir = pjoin(anipose_args['date_dir'], folder_name)
+        src_dir = task_path / folder_name
+        if src_dir.is_dir():
+            dst_dir = date_dir / folder_name
             os.makedirs(dst_dir, exist_ok=True)
-            src_files = glob.glob(pjoin(src_dir, '*'))
             print('moving files from \n%s to \n%s' % (src_dir, dst_dir))
-            for f in src_files:
-                shutil.move(f, dst_dir)
-    if anipose_args['task_id'] == 0:
-        shutil.move(pjoin(task_path, 'scorer_info.txt'), anipose_args['date_dir'])
+            for f in src_dir.glob('*'):
+                shutil.move(f, dst_dir / f.name)
+    
+    if anipose_args['task_id'] == last_task:
+        shutil.move(task_path / 'scorer_info.txt', date_dir / 'scorer_info.txt')
             
-    if anipose_args['task_id'] == 0:
-        os.removedirs(pjoin(anipose_args['date_dir'], 'temp_anipose_processing'))
+    if anipose_args['task_id'] == last_task:
+        filecount = count_files_in_folders(task_path, folders_with_new_info)
+        while filecount > 0:
+            print(f'File count = {filecount}. Waiting 5 minutes, then checking if all files have been moved from temp_anipose_processing/ to parent')
+            time.sleep(60*5)
+            filecount = count_files_in_folders(task_path, folders_with_new_info)
+        print('\nAbout to remove "temp_anipose_processing"')
+        
+        # shutil.rmtree(date_dir / 'temp_anipose_processing', ignore_errors=True)
+        shutil.rmtree(date_dir / 'temp_anipose_processing' / 'avi_videos')
+        os.removedirs(date_dir / 'temp_anipose_processing')
 
         print("resetting snapshotindex and iteration")
         dlc_cfg['iteration'] = original_iteration
@@ -270,7 +293,7 @@ def convert_string_inputs_to_int_float_or_bool(orig_var):
         except:
             v = None  if v == 'none'  else v
             v = True  if v == 'true'  else v
-            v = False if v == 'false' else v 
+            v = False if v == 'false' else v
         converted_var.append(v)
     
     if len(converted_var) == 1:
@@ -299,43 +322,41 @@ if __name__ == '__main__':
      	help="date(s) of videos to run thru anipose (can have multiple entries separated by spaces)")
     ap.add_argument("-n", "--ncams", required=True, type=int,
      	help="number of cameras")
+    ap.add_argument("-c", "--copy_up_to", required=False, type=str,
+        help="last folder to copy from the base date folder for anipose to 'temp_anipose_processing', \nallowing some steps to be skipped in individual tasks")
     args = vars(ap.parse_args())
 
     print('\n\n Beginning anipose processing at %s\n\n' % time.strftime('%c', time.localtime()), flush=True)
-
 
     print(type(args['dlc_iter']), args['dlc_iter'], args['dlc_iter'] is None)
     print(type(args['train_frac']), args['train_frac'], args['train_frac'] is None)
     print(type(args['extra_vars']), args['extra_vars'])
     
-    task_id = int(os.getenv('SLURM_ARRAY_TASK_ID'))
-    n_tasks = int(os.getenv('SLURM_ARRAY_TASK_COUNT'))
+    task_id   = int(os.getenv('SLURM_ARRAY_TASK_ID'))
+    n_tasks   = int(os.getenv('SLURM_ARRAY_TASK_COUNT'))
+    last_task = int(os.getenv('SLURM_ARRAY_TASK_MAX'))
 
     iteration  = convert_string_inputs_to_int_float_or_bool(args['dlc_iter'])
     train_frac = convert_string_inputs_to_int_float_or_bool(args['train_frac'])
     extra_vars = convert_string_inputs_to_int_float_or_bool(args['extra_vars'])
+    
+    if 'copy_up_to' in args.keys():
+        copy_up_to = convert_string_inputs_to_int_float_or_bool(args['copy_up_to'])
+    else:
+        copy_up_to = None
 
     epPattern = re.compile('_e[0-9]{3}') 
     epPattern_backup = re.compile('_event[0-9]{3}')    
     for date in args['dates']:
-        ddir = pjoin(args['anipose_path'], date)
-        videos = sorted(glob.glob(pjoin(ddir, 'avi_videos', '*.avi')))
-        # event_nums = [int(re.findall(epPattern, os.path.basename(vid))[0].split('e')[-1]) for vid in videos]
-        # events = np.unique(event_nums)
-        # cam1_videos = [vidpath for vidpath in videos if 'cam1' in vidpath]
-        # event_video_sizes = [(event, round(os.stat(vidpath).st_size/(1024**2))) for event, vidpath in zip(events, cam1_videos)]
-        
-        # full_vid_size_list = []
-        # for event in event_nums:
-        #     vid_size = [size_tuple[1] for size_tuple in event_video_sizes if size_tuple[0] == event][0]
-        #     full_vid_size_list.append(vid_size)
+        ddir = Path(args['anipose_path']) / date
+        videos = sorted(list((ddir / 'avi_videos').glob('*.avi')))
         
         try:
-            events = np.unique([int(re.findall(epPattern, os.path.basename(vid))[0].split('_e')[-1]) for vid in videos])
+            events = np.unique([int(re.findall(epPattern,        vid.name)[0].split('_e')[-1]) for vid in videos])
         except:
-            events = np.unique([int(re.findall(epPattern_backup, os.path.basename(vid))[0].split('_event')[-1]) for vid in videos])
+            events = np.unique([int(re.findall(epPattern_backup, vid.name)[0].split('_event')[-1]) for vid in videos])
             
-        cam1_videos = [vidpath for vidpath in videos if 'cam1' in vidpath]
+        cam1_videos = [vidpath for vidpath in videos if 'cam1' in vidpath.name]
         event_video_sizes = [round(os.stat(vidpath).st_size/(1024**2)) for event, vidpath in zip(events, cam1_videos)]
         
         event_video_size_df = pd.DataFrame(data=zip(events, event_video_sizes),
@@ -357,9 +378,9 @@ if __name__ == '__main__':
         
         task_events = all_task_events_lists[task_id]
         try:
-            task_videos = [vid for vid in videos if int(re.findall(epPattern, os.path.basename(vid))[0].split('_e')[-1]) in task_events]   
+            task_videos = [vid for vid in videos if int(re.findall(epPattern,        vid.name)[0].split('_e')[-1]) in task_events]   
         except:
-            task_videos = [vid for vid in videos if int(re.findall(epPattern_backup, os.path.basename(vid))[0].split('_event')[-1]) in task_events]   
+            task_videos = [vid for vid in videos if int(re.findall(epPattern_backup, vid.name)[0].split('_event')[-1]) in task_events]   
 
         anipose_args = {'projectpath'     : args['dlc_path'],
                         'aniposepath'     : args['anipose_path'],
@@ -373,7 +394,8 @@ if __name__ == '__main__':
                         'n_task'          : n_tasks,
                         'task_videos'     : task_videos,
                         'date_dir'        : ddir,
-                        'ncams'           : args['ncams']}
+                        'ncams'           : args['ncams'],
+                        'copy_up_to'      : copy_up_to}
     
         for key, val in anipose_args.items():
             print(key, ' : ', val, flush=True)
@@ -382,8 +404,8 @@ if __name__ == '__main__':
             for folder_name in ['pose-2d-unfiltered', 'pose-2d-viterbi', 
                                 'pose-2d-viterbi_and_autoencoder', 'pose-3d', 
                                 'videos-labeled-filtered', 'pose-2d-proj', 
-                                'videos-2d-proj']:
-                os.makedirs(pjoin(anipose_args['date_dir'], folder_name), exist_ok=True)
+                                'videos-2d-proj', 'videos-3d']:
+                os.makedirs(Path(anipose_args['date_dir']) / folder_name, exist_ok=True)
     
         compute_pose_with_anipose(anipose_args)
                                 

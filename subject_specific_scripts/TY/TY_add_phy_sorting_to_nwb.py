@@ -45,7 +45,7 @@ nwb_storage_folder = 'demo_nwb_files' #''
 
 phy_path = nwb_acquisition_file.parent / 'phy_IC_2023_06_12' 
 
-nwb_processed_outfile = nwb_acquisition_file.parent / nwb_storage_folder / nwb_acquisition_file.name.replace('_acquisition.nwb', '_processed_correct.nwb')
+nwb_processed_outfile = nwb_acquisition_file.parent / nwb_storage_folder / nwb_acquisition_file.name.replace('_acquisition.nwb', '_processed_testing.nwb')
 if make_new_processed_file:
     nwb_processed_infile = nwb_acquisition_file 
 else:

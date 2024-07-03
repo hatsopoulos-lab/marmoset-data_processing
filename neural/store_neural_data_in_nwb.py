@@ -37,6 +37,7 @@ def add_screenshots_to_nwb(nwb_path):
         
         try:
             image_files = glob.glob(os.path.join(os.path.dirname(nwb_path), '*jpg'))
+            image_files[0]
         except:
             image_files = glob.glob(os.path.join(os.path.dirname(nwb_path), '*png'))
         screenshot_images = []
@@ -122,9 +123,16 @@ def create_nwb_and_store_raw_neural_data(ns6_path, meta_path, prb_path, swap_ab,
 
     chIDs = raw_extractor.get_channel_ids()
     chNames = raw_extractor._properties['channel_name']
+    missing_chan_idxs = np.setdiff1d(np.arange(1, 97), np.array([int(ch) for ch in chIDs])) - 1
+    
     if swap_ab.lower() == 'yes':
-        reorder = list(range(32, 64)) + list(range(0, 32)) + list(range(64, len(chNames)))
+        
+        bank1_adj = np.sum(missing_chan_idxs < 32)
+        bank2_adj = np.sum((missing_chan_idxs < 64) & (missing_chan_idxs > 32))
+        
+        reorder = list(range(32 - bank1_adj, 64 - bank1_adj - bank2_adj)) + list(range(0, 32 - bank1_adj)) + list(range(64 - bank1_adj - bank2_adj, len(chNames)))
         chNames = np.array([chNames[idx] for idx in reorder])
+        
     raw_extractor.set_property('electrode_label', chNames)
     del raw_extractor._properties['channel_name']
     
@@ -135,13 +143,18 @@ def create_nwb_and_store_raw_neural_data(ns6_path, meta_path, prb_path, swap_ab,
         array_chans = [ch for ch, name in zip(chIDs, chNames) if 'ainp' not in name]
     analog_chans = [ch for ch, name in zip(chIDs, chNames) if 'ainp' in name]
     
+    missing_electrodes = np.setdiff1d(map_df['shank_ids'], chNames)
+    intact_map_idxs = [row for row, item in map_df.iterrows() if item['shank_ids'] not in missing_electrodes]
+    map_df = map_df.iloc[intact_map_idxs, :]    
+    
     raw_extractor.set_property('x', map_df['x'], ids=array_chans, missing_value=None)
     raw_extractor.set_property('y', map_df['y'], ids=array_chans, missing_value=None)
     raw_extractor.set_property('z', map_df['z'], ids=array_chans, missing_value=None)
     
     # set properties of utah array channels
     raw_extractor.set_channel_groups([array_group['name']]*len(array_chans), array_chans)
-    raw_extractor.set_channel_groups([analog_group['name']]*len(analog_chans), analog_chans)
+    if len(analog_chans) > 0:
+        raw_extractor.set_channel_groups([analog_group['name']]*len(analog_chans), analog_chans)
         
     raw_extractor.set_property('filtering', [filter_dict[ns6_path[-1]]]*len(chIDs))
     
@@ -163,6 +176,8 @@ def create_nwb_and_store_raw_neural_data(ns6_path, meta_path, prb_path, swap_ab,
         
         unit_name = sorting_extractor._properties['unit_name']
         channel_index = np.array([int(name.split('ch')[-1].split('#')[0]) - 1 for name in unit_name])
+        for missChan in missing_chan_idxs[::-1]:
+            channel_index[channel_index > missChan] = channel_index[channel_index > missChan] - 1
         # channel_index = sorting_extractor.unit_ids
         sorting_electrode_labels = labels_from_raw[channel_index]
         sorting_extractor.set_property('electrode_label', sorting_electrode_labels, missing_value=None)

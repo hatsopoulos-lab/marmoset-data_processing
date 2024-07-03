@@ -42,6 +42,7 @@ session_pattern_backup = re.compile('_session[0-9]{1,2}')
 event_pattern          = re.compile('_e[0-9]{3,5}_')
 cam_pattern            = re.compile('cam[0-9]{1}.avi')
 cam_pattern_backup     = re.compile('cam[0-9]{1}_filtered.avi')
+cam_pattern_bright     = re.compile('cam[0-9]{1}_bright.avi')
 date_pattern           = re.compile('/[a-zA-Z]{2,4}\d{8}_')
 
 class params:
@@ -58,6 +59,7 @@ class params:
     nsx_filetype = 'ns6'
 
     minimum_free_session_minutes = 5
+    signal_cleaning_iter = [0, 0]
 
 def get_filepaths(ephys_path, kin_path, marms_ephys_code, marms_kin_code, date):
 
@@ -69,7 +71,7 @@ def get_filepaths(ephys_path, kin_path, marms_ephys_code, marms_kin_code, date):
                      and any(exp.lower() in os.path.basename(fold).lower() for exp in experiments)]    
     print(ephys_folders)
     kin_outer_folders = sorted(glob.glob(os.path.join(kin_path, '*')))
-    kin_outer_folders = [fold for fold in kin_outer_folders if any(exp in os.path.basename(fold).lower() for exp in experiments)]
+    kin_outer_folders = [fold for fold in kin_outer_folders if any(exp.lower() in os.path.basename(fold).lower() for exp in experiments)]
     kin_folders = []
     for outFold in kin_outer_folders:
         inner_folders = glob.glob(os.path.join(outFold, marms_kin_code, '*'))
@@ -140,6 +142,8 @@ def clean_remaining_spurious_signals(eventTimes, allExp_signalTimes, allExp_fram
         nsx_counts.append(np.array(tmp_nsx_count))
     
     for expNum, (nsxCount, fCounts) in enumerate(zip(nsx_counts, allExp_frameCounts)):
+        if expNum == 1:
+            stopHere = []
         diff = len(nsxCount) - fCounts.shape[0]
         if diff < 0:
             shifted_frameDiffs = np.array([abs(fCounts.cam1 - np.hstack((np.zeros((shift,))*np.nan, 
@@ -154,30 +158,52 @@ def clean_remaining_spurious_signals(eventTimes, allExp_signalTimes, allExp_fram
         else:
             idx_adjust = 0
             remove_signal_idxs = []
-            for ctIdx, fCt in enumerate(fCounts.cam1):
-                if expNum == free_idx:
-                    mismatch_thresh = 0.2 * fCt
-                else:
-                    mismatch_thresh = 10
-
-                adjIdx = ctIdx + idx_adjust
-                if abs(nsxCount[adjIdx] - fCt) > mismatch_thresh:
-                    if ctIdx+1 == fCounts.shape[0] and nsxCount[adjIdx] > fCt:
-                        continue
-                    try:
-                        shift = np.where(       abs(fCt - nsxCount[max(0, adjIdx-10):adjIdx+10]) == 
-                                         np.min(abs(fCt - nsxCount[max(0, adjIdx-10):adjIdx+10])))[0][0] - (adjIdx - max(0, adjIdx-10)) 
-                        
-                        if shift > 0: 
-                            remove_signal_idxs.extend(range(adjIdx, adjIdx+shift))
-                        elif shift < 0:
-                            remove_signal_idxs.extend(range(adjIdx+shift, adjIdx))
-                        idx_adjust += shift
-                    except:
-                        print('exception raised in spurious signal code for expNum %d and ctIdx %d' % (expNum, ctIdx))
-                        continue
-                elif ctIdx + 1 == len(fCounts.cam1):
-                    remove_signal_idxs.extend(range(adjIdx+1, len(nsxCount)))
+            skip_adjustment = False
+            
+            camCounts = fCounts.cam1
+            if date == '20210311':
+                skip_adjustment = True
+                if expNames[expNum] == 'crickets':
+                    camCounts = fCounts.cam2
+                    if params.signal_cleaning_iter[expNum] == 0:
+                        remove_signal_idxs = [0, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54]
+                        params.signal_cleaning_iter[expNum] += 1
+                if expNames[expNum] == 'free':
+                    if params.signal_cleaning_iter[expNum] == 0:
+                        remove_signal_idxs = [0]
+                        params.signal_cleaning_iter[expNum] += 1
+                    
+            if date =='20210312' and expNames[expNum] == 'crickets':
+                skip_adjustment = True
+                if params.signal_cleaning_iter[expNum] == 0:
+                    remove_signal_idxs = [0, 1]
+                    params.signal_cleaning_iter[expNum] += 1
+            
+            if len(remove_signal_idxs) == 0 and not skip_adjustment:
+                for ctIdx, fCt in enumerate(camCounts):
+                    if expNum == free_idx:
+                        mismatch_thresh = 0.2 * fCt
+                    else:
+                        mismatch_thresh = 10
+    
+                    adjIdx = ctIdx + idx_adjust
+                    if abs(nsxCount[adjIdx] - fCt) > mismatch_thresh:
+                        if ctIdx+1 == fCounts.shape[0] and nsxCount[adjIdx] > fCt:
+                            continue
+                        try:
+                            shift = np.where(       abs(fCt - nsxCount[max(0, adjIdx-10):adjIdx+10]) == 
+                                             np.min(abs(fCt - nsxCount[max(0, adjIdx-10):adjIdx+10])))[0][0] - (adjIdx - max(0, adjIdx-10)) 
+                            
+                            if shift > 0: 
+                                remove_signal_idxs.extend(range(adjIdx, adjIdx+shift))
+                            elif shift < 0:
+                                remove_signal_idxs.extend(range(adjIdx+shift, adjIdx))
+                            idx_adjust += shift
+                        except:
+                            print('exception raised in spurious signal code for expNum %d and ctIdx %d' % (expNum, ctIdx))
+                            continue
+                    elif ctIdx + 1 == len(fCounts.cam1):
+                        remove_signal_idxs.extend(range(adjIdx+1, len(nsxCount)))
             
             keep_signal_idxs = [i for i in range(len(nsxCount)) if i not in remove_signal_idxs]
             keep_signal_idxs = keep_signal_idxs[ : fCounts.shape[0]]
@@ -406,7 +432,11 @@ def get_video_frame_counts(matched_kinFolders, expNames):
             try:
                 cam_key = re.findall(cam_pattern, vPaths[0])[0].split('.avi')[0]
             except:
-                cam_key = re.findall(cam_pattern_backup, vPaths[0])[0].split('_filtered.avi')[0]
+                try:
+                    cam_key = re.findall(cam_pattern_backup, vPaths[0])[0].split('_filtered.avi')[0]
+                except:
+                    cam_key = re.findall(cam_pattern_bright, vPaths[0])[0].split('_bright.avi')[0]
+                    
             
             for vNum, vid in enumerate(vPaths):
                 try:
@@ -452,13 +482,7 @@ def get_analog_frame_counts_and_timestamps(eFold, nwbfiles, touchscreen = False,
         
             try:
                 
-                if 'gain_to_uV' in elec_df.columns:
-                    signals = raw.data[:, analog_idx] * elec_df['gain_to_uV'][analog_idx].values[None, :] * raw.conversion                
-                    expVoltage = 2
-                else:
-                    signals = raw.data[:, analog_idx] * raw.channel_conversion[analog_idx] * raw.conversion                
-                    expVoltage = 2
-                
+                signals = raw.data[:, analog_idx] * elec_df['gain_to_uV'][analog_idx].values[None, :] * raw.conversion                
                 start = raw.starting_time
                 step = 1/raw.rate
                 stop = start + step*signals.shape[0]
@@ -466,7 +490,7 @@ def get_analog_frame_counts_and_timestamps(eFold, nwbfiles, touchscreen = False,
                 
                 # identify beginning and end of each event
                 for expChan in range(signals.shape[1]):
-                    expOpen_samples = np.where(signals[:, expChan] > expVoltage)[0]
+                    expOpen_samples = np.where(signals[:, expChan] > 2)[0]
         
                     if expOpen_samples.shape[0] == 0:
                         allExp_signalTimes.append(np.array([]))
@@ -549,7 +573,7 @@ def wait_for_all_batch_jobs_to_finish_video_conversion(matched_kinFolders):
     
     time_to_wait = 60*0.5
     stopwatch    = 0
-    video_paths = [os.path.join(kFold, 'avi_videos') for kFold in matched_kinFolders]
+    video_paths = [os.path.join(kFold, 'filtered_avi_videos') for kFold in matched_kinFolders]
     while not all([os.path.exists(vPath) for vPath in video_paths]):
         print('At least one experiment does not yet have the avi_videos path. Looping for another %f minutes. Time elapsed = %f minutes' % (time_to_wait / 60, stopwatch/60), flush=True)
         time.sleep(time_to_wait)
@@ -564,7 +588,7 @@ def wait_for_all_batch_jobs_to_finish_video_conversion(matched_kinFolders):
     while not all(videos_done):
         for idx, kFold in enumerate(matched_kinFolders): 
             print(idx, kFold, videos_done[idx], stopwatch)
-            video_path = os.path.join(kFold, 'avi_videos')           
+            video_path = os.path.join(kFold, 'filtered_avi_videos')           
             
             updated_sum [idx] = sum(os.path.getsize('%s/%s' % (video_path, f)) for f in os.listdir('%s/.' % video_path))
             videos_done [idx] = (updated_sum[idx] == previous_sum[idx])
@@ -680,20 +704,20 @@ if __name__ == '__main__':
     else:
         args = {'vid_dir'          : '/project/nicho/data/marmosets/kinematics_videos',
                 'ephys_path'       : '/project/nicho/data/marmosets/electrophys_data_for_processing',
-                'marms'            : 'HMMG',
-                'marms_ephys'      : 'MG',
-                'date'             : '2023_04_16',
-                'exp_name'         : 'moths',
-                'other_exp_name'   : 'free',
+                'marms'            : 'TYJL',
+                'marms_ephys'      : 'TY',
+                'date'             : '2021_03_11',
+                'exp_name'         : 'free',
+                'other_exp_name'   : 'crickets',
                 'touchscreen'      : 'False',
                 'touchscreen_path' : 'BLANK',
                 'neur_proc_path'   : '/project/nicho/projects/marmosets/code_database/data_processing/neural',
-                'meta_path'        : '/project/nicho/data/marmosets/metadata_yml_files/MG_complete_metadata.yml',
-                'prb_path'         : '/project/nicho/data/marmosets/prbfiles/MG_01.prb',
+                'meta_path'        : '/project/nicho/data/marmosets/metadata_yml_files/TY_complete_metadata.yml',
+                'prb_path'         : '/project/nicho/data/marmosets/prbfiles/TY_02.prb',
                 'swap_ab'          : 'yes',
                 'vid_neural_align' : 'all_in_one_neural_recording',
                 'debugging'        : True,
-                'fps'              : [200, 60]}
+                'fps'              : [150, 30]}
     
     if args['marms_ephys'] == 'TY' and int(args['date'][:4]) < 2022:
         params.free_chans    = [0]
@@ -747,7 +771,8 @@ if __name__ == '__main__':
             print(matched_kinFolders)
             if not debugging:
                 wait_for_all_batch_jobs_to_finish_video_conversion(matched_kinFolders)
-        
+            # wait_for_all_batch_jobs_to_finish_video_conversion(matched_kinFolders)
+    
             if touchscreen:
                 ts_trialData = load_touchscreen_data(args['touchscreen_path'], date)
                 

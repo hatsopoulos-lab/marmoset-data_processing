@@ -41,9 +41,9 @@ anipose_base = '/project/nicho/data/marmosets/kinematics_videos/moth/JLTY/'
 
 class dpath:
     base = [anipose_base]
-    dates = ['2023_08_03_old_conversion']  # for now we can only do one date at a time
+    dates = ['2023_08_04']  # for now we can only do one date at a time
     # reach_data_storage = '/project/nicho/data/marmosets/processed_datasets/reach_and_trajectory_information/20230803_reach_and_trajectory_info.pkl'
-    reach_data_storage = '/project/nicho/data/marmosets/processed_datasets/reach_and_trajectory_information/20230803_reach_and_trajectory_info.h5'
+    reach_data_storage = f'/project/nicho/data/marmosets/processed_datasets/reach_and_trajectory_information/{dates[0].replace("_","")}_reach_and_trajectory_info.h5'
 
     # nwb_file = '/project/nicho/data/marmosets/electrophys_data_for_processing/TY20210211_freeAndMoths/TY20210211_freeAndMoths-003_testing_pose.nwb'
     # session = 1
@@ -78,9 +78,15 @@ class params:
         extra_plot_markers = ['l-shoulder'] 
         
     elif marm=='JL':
-        events_list = [2, 3]
-        #events_list = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 37, 38, 39, 40]
-        fps = 200
+        if dpath.dates[0] == '2023_08_03':
+            events_list = [2, 3]
+            #events_list = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 37, 38, 39, 40]
+            fps = 200
+        elif dpath.dates[0] == '2023_08_04':
+            # events_list = [4,5,]
+            events_list = [4,5,11,12,16,19,29,34,36,38,48,]
+            # events_list = [4,5,6,7,8,9,11,12,13,15,16,17,18,19,29,31,33,34,35,36,37,38,43,45,46,48,]
+            fps = 200
         reach_method = 3
         marker_to_evaluate = 'l-wrist'
         extra_plot_markers = ['l-shoulder'] 

@@ -307,14 +307,14 @@ if __name__ == '__main__':
 
     else:
         args = {'dlc_path'     : '/project/nicho/projects/marmosets/dlc_project_files/simple_marmoset_model-Dalton-2023-04-28',
-                'anipose_path' : '/project/nicho/data/marmosets/kinematics_videos/moth/TYJL',
+                'anipose_path' : '/project/nicho/data/marmosets/kinematics_videos/moth/JLTY',
                 'dlc_iter'     : 'None',
                 'train_frac'   : 'None',
                 'snap_idx'     : -1,
                 'parameter_set': 'marmoset',
                 'extra_vars'   : ['False', 'True'],
-                'dates'        : ['2021_02_05'],
-                'ncams'        : 2}
+                'dates'        : ['2023_08_04'],
+                'ncams'        : 5}
 
     print('\n\n Beginning anipose processing at %s\n\n' % time.strftime('%c', time.localtime()), flush=True)
 

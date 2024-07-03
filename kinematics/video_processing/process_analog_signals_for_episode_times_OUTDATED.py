@@ -37,12 +37,10 @@ from importlib import sys
 sys.path.insert(0, '/project/nicho/projects/marmosets/code_database/data_processing/nwb_tools/hatlab_nwb_tools/')
 from hatlab_nwb_functions import timestamps_to_nwb, store_drop_records, get_electricalseries_from_nwb
 
-session_pattern        = re.compile('_s[0-9]{1,2}')
-session_pattern_backup = re.compile('_session[0-9]{1,2}')
-event_pattern          = re.compile('_e[0-9]{3,5}_')
-cam_pattern            = re.compile('cam[0-9]{1}.avi')
-cam_pattern_backup     = re.compile('cam[0-9]{1}_filtered.avi')
-date_pattern           = re.compile('/[a-zA-Z]{2,4}\d{8}_')
+session_pattern = re.compile('_s[0-9]{1,2}')
+event_pattern   = re.compile('_e[0-9]{3,5}_')
+cam_pattern     = re.compile('cam[0-9]{1}.avi')
+date_pattern    = re.compile('/[a-zA-Z]{2,4}\d{8}_')
 
 class params:
     
@@ -56,7 +54,6 @@ class params:
     num_app_cams = 5
     num_free_cams = 4
     nsx_filetype = 'ns6'
-
     minimum_free_session_minutes = 5
 
 def get_filepaths(ephys_path, kin_path, marms_ephys_code, marms_kin_code, date):
@@ -66,7 +63,7 @@ def get_filepaths(ephys_path, kin_path, marms_ephys_code, marms_kin_code, date):
     ephys_folders = sorted(glob.glob(os.path.join(ephys_path, marms_ephys_code + '*')))
     ephys_folders = [fold for fold in ephys_folders 
                      if re.findall(datePattern, os.path.basename(fold))[0] == date
-                     and any(exp.lower() in os.path.basename(fold).lower() for exp in experiments)]    
+                     and any(exp in os.path.basename(fold).lower() for exp in experiments)]    
     print(ephys_folders)
     kin_outer_folders = sorted(glob.glob(os.path.join(kin_path, '*')))
     kin_outer_folders = [fold for fold in kin_outer_folders if any(exp in os.path.basename(fold).lower() for exp in experiments)]
@@ -110,11 +107,13 @@ def remove_spurious_signals_and_sessions(eventTimes, session, chans_per_sess, al
         if len(only_good_sess) == 1:
             sess_to_drop = [sess for sess in np.unique(session) if sess not in only_good_sess]
 
+    
     eventTimes = [times for sess, times in zip(session, eventTimes) if sess not in sess_to_drop]
     breakTimes = [times for sess, times in zip(session, breakTimes) if sess not in sess_to_drop]
     allExp_signalTimes = [times for sess, times in zip(session, allExp_signalTimes) if sess not in sess_to_drop]
     session = [sess for sess in session if sess not in sess_to_drop]
 
+    
     uniqueSessions = np.unique(session)
     numSessions = len(uniqueSessions)
     chans_per_sess = int(len(allExp_signalTimes) / numSessions)
@@ -367,12 +366,7 @@ def get_video_frame_counts(matched_kinFolders, expNames):
         vidPaths = []
         colNames = []
         for cNum in range(num_cams):
-            try:
-                tmp_vidPaths = glob.glob(os.path.join(kFold, 'avi_videos', f'*cam{cNum+1}*.avi'))  
-                tmp_vidPaths[0]
-            except:
-                tmp_vidPaths = glob.glob(os.path.join(kFold, 'filtered_avi_videos', f'*cam{cNum+1}*.avi'))     
-                tmp_vidPaths[0]
+            tmp_vidPaths = glob.glob(os.path.join(kFold, 'avi_videos', f'*cam{cNum+1}*.avi'))           
             sortStr = [] 
             for vPath in tmp_vidPaths:
                 try:
@@ -396,24 +390,16 @@ def get_video_frame_counts(matched_kinFolders, expNames):
         vidCountMatch = np.where(vidCounts == nVids)[0]
         missingEventIdxs = []
         if len(vidCountMatch) != len(vidPaths):
-            events = [int(re.findall(event_pattern, vp)[0].split('_e')[-1][:-1][:3]) for vp in vidPaths[vidCountMatch[0]]]
+            events = [int(re.findall(event_pattern, vp)[0].split('_e')[-1][:-1]) for vp in vidPaths[vidCountMatch[0]]]
             for v in vidPaths:
                 currentEvents = [int((re.findall(event_pattern, vp)[0].split('_e')[-1][:-1])) for vp in v]
-                missingEventIdxs.append([ev-1 for ev in events if ev not in currentEvents])    
+                missingEventIdxs.append([ev-1 for ev in events if ev not in currentEvents])       
         
         frameCounts = pd.DataFrame(np.empty((nVids, len(colNames))), columns=colNames)                    
         for cNum, vPaths in enumerate(vidPaths):
-            try:
-                cam_key = re.findall(cam_pattern, vPaths[0])[0].split('.avi')[0]
-            except:
-                cam_key = re.findall(cam_pattern_backup, vPaths[0])[0].split('_filtered.avi')[0]
-            
+            cam_key = re.findall(cam_pattern, vPaths[0])[0].split('.avi')[0]
             for vNum, vid in enumerate(vPaths):
-                try:
-                    video_session = int(re.findall(session_pattern, os.path.basename(vid))[0].split('_s')[-1])
-                except:
-                    video_session = int(re.findall(session_pattern_backup, os.path.basename(vid))[0].split('_session')[-1])
-                    
+                video_session = int(re.findall(session_pattern, os.path.basename(vid))[0].split('_s')[-1])
                 frameCounts.loc[vNum, 'session'] = video_session
                 cap = cv2.VideoCapture(vid)
                 frameCounts.loc[vNum, cam_key] = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -438,10 +424,6 @@ def get_analog_frame_counts_and_timestamps(eFold, nwbfiles, touchscreen = False,
     session = []
     for fNum, nwbfile_path in enumerate(nwbfiles): #enumerate(analogFiles):
         
-        if re.findall(date_pattern, nwbfile_path)[0].split('JL')[-1][:-1] == '20231125':
-            tmp_fps = 200 if fNum==0 else 150
-            params.eventDetector[0] = 1/tmp_fps * 5 * 30000 
-        
         with NWBHDF5IO(nwbfile_path, 'r') as io:
             nwbfile = io.read()
             
@@ -449,16 +431,10 @@ def get_analog_frame_counts_and_timestamps(eFold, nwbfiles, touchscreen = False,
 
             elec_df = raw.electrodes.to_dataframe()
             analog_idx = [idx for idx, name in elec_df['electrode_label'].items() if 'ainp' in name]
-        
+           
             try:
                 
-                if 'gain_to_uV' in elec_df.columns:
-                    signals = raw.data[:, analog_idx] * elec_df['gain_to_uV'][analog_idx].values[None, :] * raw.conversion                
-                    expVoltage = 2
-                else:
-                    signals = raw.data[:, analog_idx] * raw.channel_conversion[analog_idx] * raw.conversion                
-                    expVoltage = 2
-                
+                signals = raw.data[:, analog_idx] * elec_df['gain_to_uV'][analog_idx].values[None, :] * raw.conversion                
                 start = raw.starting_time
                 step = 1/raw.rate
                 stop = start + step*signals.shape[0]
@@ -466,7 +442,7 @@ def get_analog_frame_counts_and_timestamps(eFold, nwbfiles, touchscreen = False,
                 
                 # identify beginning and end of each event
                 for expChan in range(signals.shape[1]):
-                    expOpen_samples = np.where(signals[:, expChan] > expVoltage)[0]
+                    expOpen_samples = np.where(signals[:, expChan] > 2)[0]
         
                     if expOpen_samples.shape[0] == 0:
                         allExp_signalTimes.append(np.array([]))
@@ -638,7 +614,7 @@ def convert_string_inputs_to_int_float_or_bool(orig_var):
 
 if __name__ == '__main__':
     
-    debugging = True
+    debugging = False
     
     if not debugging:
     
@@ -680,27 +656,27 @@ if __name__ == '__main__':
     else:
         args = {'vid_dir'          : '/project/nicho/data/marmosets/kinematics_videos',
                 'ephys_path'       : '/project/nicho/data/marmosets/electrophys_data_for_processing',
-                'marms'            : 'HMMG',
-                'marms_ephys'      : 'MG',
-                'date'             : '2023_04_16',
-                'exp_name'         : 'moths',
-                'other_exp_name'   : 'free',
+                'marms'            : 'JLTY',
+                'marms_ephys'      : 'JL',
+                'date'             : '2023_11_26',
+                'exp_name'         : 'foraging',
+                'other_exp_name'   : 'foraging_free',
                 'touchscreen'      : 'False',
                 'touchscreen_path' : 'BLANK',
                 'neur_proc_path'   : '/project/nicho/projects/marmosets/code_database/data_processing/neural',
-                'meta_path'        : '/project/nicho/data/marmosets/metadata_yml_files/MG_complete_metadata.yml',
-                'prb_path'         : '/project/nicho/data/marmosets/prbfiles/MG_01.prb',
-                'swap_ab'          : 'yes',
-                'vid_neural_align' : 'all_in_one_neural_recording',
+                'meta_path'        : '/project/nicho/data/marmosets/metadata_yml_files/JL_complete_metadata.yml',
+                'prb_path'         : '/project/nicho/data/marmosets/prbfiles/JL_01.prb',
+                'swap_ab'          : 'no',
+                'vid_neural_align' : 'matched',
                 'debugging'        : True,
-                'fps'              : [200, 60]}
+                'fps'              : [150, 30]}
     
     if args['marms_ephys'] == 'TY' and int(args['date'][:4]) < 2022:
         params.free_chans    = [0]
         params.app_chans     = [1]
         params.num_app_cams  = 2
         params.num_free_cams = 2  
-        
+    
     touchscreen = convert_string_inputs_to_int_float_or_bool(args['touchscreen'])
     
     eventDetectTime = 1/np.array(args['fps']) * 5 # this matches the 5-frame event_separator parameter in the camera acqusition code files.
