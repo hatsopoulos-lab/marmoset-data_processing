@@ -2,7 +2,7 @@
 #SBATCH --job-name=train_dlc_marms
 #SBATCH --output=/project/nicho/projects/marmosets/job_log_files/train_dlc_marms.out
 #SBATCH --error=/project/nicho/projects/marmosets/job_log_files/train_dlc_marms.err
-#SBATCH --time=18:00:00
+#SBATCH --time=36:00:00
 #SBATCH --partition=beagle3
 #SBATCH --gres=gpu:1
 #SBATCH --nodes=1
@@ -17,7 +17,7 @@ dlc_scorer=Dalton
 experiment=apparatus
 
 maxiters=5000000
-init_weights=/project/nicho/projects/marmosets/dlc_project_files/simple_marmoset_model-Dalton-2023-04-28/dlc-models/iteration-12/simple_marmoset_modelApr28-trainset95shuffle1/train/snapshot-1480000
+init_weights=/project/nicho/projects/marmosets/dlc_project_files/simple_5cams_marmoset_model-Dalton-2024-06-27/dlc-models/iteration-0/simple_5cams_marmoset_modelJun27-trainset95shuffle1/train/snapshot-420000
 #init_weights=None
 overwrite_trainset=True
 

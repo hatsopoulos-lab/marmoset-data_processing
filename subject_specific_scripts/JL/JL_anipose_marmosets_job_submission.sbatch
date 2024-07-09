@@ -2,7 +2,7 @@
 #SBATCH --job-name=JL_anipose_0804
 #SBATCH --output=/project/nicho/projects/marmosets/job_log_files/JL_anipose_0804_%a.out
 #SBATCH --error=/project/nicho/projects/marmosets/job_log_files/JL_anipose_0804_%a.err
-#SBATCH --time=36:00:00
+#SBATCH --time=18:00:00
 #SBATCH --partition=beagle3
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=16
@@ -18,7 +18,7 @@ train_frac=None
 snap_idx=-1
 dlc_iter=None
 extra_vars=(False True) # (only_3D label_videos)
-copy_up_to=pose-2d-viterbi
+copy_up_to=None
 
 ncams=5 # maybe change to 2 for unilateral marking
 vid_transpose=(-1 -1 -1 -1 -1)  # number of arguments MUST match ncams 
@@ -28,7 +28,8 @@ param_set=marmoset
 if [[ "$experiment" == *"free"* ]] || [[ "$experiment" == *"enclosure"* ]]; then
     dlc_path=/project/nicho/projects/marmosets/dlc_project_files/FREE_BEHAVIOR_PROJECT_NAME
 else
-    dlc_path=/project/nicho/projects/marmosets/dlc_project_files/simple_marmoset_model-Dalton-2023-04-28 
+    dlc_path=/project/nicho/projects/marmosets/dlc_project_files/simple_5cams_marmoset_model-Dalton-2024-06-27
+    #dlc_path=/project/nicho/projects/marmosets/dlc_project_files/simple_marmoset_model-Dalton-2023-04-28 
 fi
 anipose_path=/project/nicho/data/marmosets/kinematics_videos/$experiment/$marms #/$dates/$videotype
 

@@ -232,13 +232,11 @@ def compute_pose_with_anipose(anipose_args):
         if anipose_args['label_videos']:
             subprocess.call(['anipose', 'label-2d-proj']) 
             subprocess.call(['anipose', 'label-2d-filter']) 
-            subprocess.call(['anipose', 'label-3d']) 
             
         folders_with_new_info = ['pose-2d-proj',
                                  'pose-3d',
                                  'videos-labeled-filtered',
-                                 'videos-2d-proj',
-                                 'videos-3d']    
+                                 'videos-2d-proj',]    
                 
     # move all new files back to primary anipose folder
     for folder_name in folders_with_new_info:
@@ -262,7 +260,8 @@ def compute_pose_with_anipose(anipose_args):
         print('\nAbout to remove "temp_anipose_processing"')
         
         # shutil.rmtree(date_dir / 'temp_anipose_processing', ignore_errors=True)
-        shutil.rmtree(date_dir / 'temp_anipose_processing' / 'avi_videos')
+        for task_dir in (date_dir / 'temp_anipose_processing').glob('*'): 
+            shutil.rmtree(task_dir / 'avi_videos')
         os.removedirs(date_dir / 'temp_anipose_processing')
 
         print("resetting snapshotindex and iteration")

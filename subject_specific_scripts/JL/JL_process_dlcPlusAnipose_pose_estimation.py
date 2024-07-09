@@ -9,7 +9,7 @@ import dill
 import pandas as pd
 import numpy as np
 import os
-import glob
+from pathlib import Path
 import re
 import h5py
 import matplotlib
@@ -28,22 +28,15 @@ from importlib import sys
 sys.path.insert(0, '/project/nicho/projects/marmosets/code_database/data_processing/nwb_tools/hatlab_nwb_tools/')
 from hatlab_nwb_functions import save_dict_to_hdf5
 
-# anipose_base = r'C:\Users\Dalton\Documents\lab_files\dlc_temp\anipose_files'
-
-# class dpath:
-#     base = glob.glob(os.path.join(anipose_base, 'trainingsetindex_2'))
-#     dates = ['2021_02_11']  # for now we can only do one date at a time
-#     reach_data_storage = r'Z:/marmosets/processed_datasets/reach_and_trajectory_information/%s_reach_and_trajectory_info_updated.pkl' % dates[0].replace('_', '')
-
 marm = 'JL'
 
 anipose_base = '/project/nicho/data/marmosets/kinematics_videos/moth/JLTY/'
 
 class dpath:
-    base = [anipose_base]
-    dates = ['2023_08_04']  # for now we can only do one date at a time
+    base = Path(anipose_base)
+    date = '2023_08_04'  # for now we can only do one date at a time
     # reach_data_storage = '/project/nicho/data/marmosets/processed_datasets/reach_and_trajectory_information/20230803_reach_and_trajectory_info.pkl'
-    reach_data_storage = f'/project/nicho/data/marmosets/processed_datasets/reach_and_trajectory_information/{dates[0].replace("_","")}_reach_and_trajectory_info.h5'
+    reach_data_storage = Path('/project/nicho/data/marmosets/processed_datasets/reach_and_trajectory_information') / f'{date.replace("_","")}_reach_and_trajectory_info.h5'
 
     # nwb_file = '/project/nicho/data/marmosets/electrophys_data_for_processing/TY20210211_freeAndMoths/TY20210211_freeAndMoths-003_testing_pose.nwb'
     # session = 1
@@ -78,13 +71,13 @@ class params:
         extra_plot_markers = ['l-shoulder'] 
         
     elif marm=='JL':
-        if dpath.dates[0] == '2023_08_03':
+        if dpath.date == '2023_08_03':
             events_list = [2, 3]
             #events_list = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 37, 38, 39, 40]
             fps = 200
-        elif dpath.dates[0] == '2023_08_04':
+        elif dpath.date == '2023_08_04':
             # events_list = [4,5,]
-            events_list = [4,5,11,12,16,19,29,34,36,38,48,]
+            events_list = [4,5,6,7,8,9,11,12,13,15,16,17,18,19,29,31,33,34,35,36,37,38,43,45,46,48,]
             # events_list = [4,5,6,7,8,9,11,12,13,15,16,17,18,19,29,31,33,34,35,36,37,38,43,45,46,48,]
             fps = 200
         reach_method = 3
@@ -138,13 +131,15 @@ class params:
 def load_dlc_data(data_dirs):
     data_files = []
     for data_dir in data_dirs:
-        data_files.extend(sorted(glob.glob(os.path.join(data_dir, '*.csv'))))
+        data_files.extend(sorted(list(data_dir.glob('*.csv'))))
         
     dlc = []
     dlc_metadata = []    
+    original_csv_data = []
     event_info = pd.DataFrame(np.empty((len(data_files), 3)), columns = ['date', 'event', 'recording_marm'])
     for fNum, f in enumerate(data_files):
         data = pd.read_csv(f)
+        
         dataIdx = sorted(list(range(0, data.shape[1]-13, 6)) + 
                          list(range(1, data.shape[1]-13, 6)) + 
                          list(range(2, data.shape[1]-13, 6))) 
@@ -160,15 +155,18 @@ def load_dlc_data(data_dirs):
         dlc.append(dlc_tmp)
         dlc_metadata.append(dlc_metadata_tmp)
         
-        event_name = os.path.basename(f)
+        event_name = f.stem
+        event_num  = int(event_name.split('_e')[1][:3])
         namePattern = re.compile('^[a-zA-Z]{4}_[0-9]*_[0-9]*_[0-9]*')
         
 
         event_info.iloc[fNum] = [re.findall(namePattern, event_name)[0], 
-                                 int(event_name.split('_e')[1][:3]), 
+                                 event_num, 
                                  False]
+
+        original_csv_data.append((event_num, event_name, data))
             
-    return dlc, dlc_metadata, event_info   
+    return dlc, dlc_metadata, event_info, original_csv_data   
 
 def fix_remaining_marker_jumps(pos_out, pos_fill, pos, marker, meta, eventNum):
     
@@ -1388,75 +1386,84 @@ if __name__ == "__main__":
  
     # reach_data_loaded = load_dict_from_hdf5(dpath.reach_data_storage, top_level_list = True)
  
-    for base in dpath.base:
-        print('\n\n\n' + base + '\n\n\n')
-            
-        data_dirs = []
-        for date in dpath.dates:
-            data_dirs.append(os.path.join(base, date, 'pose-3d'))
+    data_dirs = [dpath.base / dpath.date / 'pose-3d']
     
-        dlc, dlc_metadata, event_info = load_dlc_data(data_dirs)
-        dlc_filtered, markerIdx, plot_markerIdxs = filter_dlc(dlc, dlc_metadata, event_info)
-        dlc = [pos*params.factor_to_cm for pos in dlc]
+    dlc, dlc_metadata, event_info, original_csv_data = load_dlc_data(data_dirs)
+    dlc_filtered, markerIdx, plot_markerIdxs = filter_dlc(dlc, dlc_metadata, event_info)
+    dlc = [pos*params.factor_to_cm for pos in dlc]
 
-        # if params.events_list is not None:
-        #     dlc          = [dlc_element for idx, dlc_element in enumerate(dlc)          if idx+1 in params.events_list]    
-        #     dlc_metadata = [dlc_element for idx, dlc_element in enumerate(dlc_metadata) if idx+1 in params.events_list]    
-        #     event_info = event_info.loc[event_info['event'].isin(params.events_list), :]    
+    # if params.events_list is not None:
+    #     dlc          = [dlc_element for idx, dlc_element in enumerate(dlc)          if idx+1 in params.events_list]    
+    #     dlc_metadata = [dlc_element for idx, dlc_element in enumerate(dlc_metadata) if idx+1 in params.events_list]    
+    #     event_info = event_info.loc[event_info['event'].isin(params.events_list), :]    
 
-        evaluate_labeling_quality(dlc_filtered, dlc, dlc_metadata, event_info, 
-                                  plotSet = None, 
-                                  plotEvents = params.events_list)      
-        # evaluate_labeling_quality(dlc_filtered, dlc, dlc_metadata, event_info, 
-        #                           plotSet = None, 
-        #                           plotEvents = [4, 5, 7, 8, 10, 13, 16, 19, 22, 24, 26, 32, 33, 37, 39, 42, 47, 49, 53, 55, 56, 58, 60, 68, 71, 73, 74, 76])
-        #                         [4, 5, 7, 8, 10, 12, 13, 16, 19, 22, 24, 26, 32, 33, 37, 39, 42, 47, 49, 53, 55, 56, 58, 60, 68, 71, 73, 74, 76]                          
-        #                         [78, 79, 80, 82, 83, 85, 86, 88, 89, 92, 96,100, 102, 110, 111, 112, 113, 118, 121, 124, 125, 126, 127, 128]
-        #                         [131, 134, 138, 139, 140, 142, 145, 146, 148, 151, 154, 155, 156, 157, 161, 163, 165, 167, 172, 173, 175, 179, 180, 181, 184, 186, 189, 191]
+    evaluate_labeling_quality(dlc_filtered, dlc, dlc_metadata, event_info, 
+                              plotSet = None, 
+                              plotEvents = params.events_list)      
+    # evaluate_labeling_quality(dlc_filtered, dlc, dlc_metadata, event_info, 
+    #                           plotSet = None, 
+    #                           plotEvents = [4, 5, 7, 8, 10, 13, 16, 19, 22, 24, 26, 32, 33, 37, 39, 42, 47, 49, 53, 55, 56, 58, 60, 68, 71, 73, 74, 76])
+    #                         [4, 5, 7, 8, 10, 12, 13, 16, 19, 22, 24, 26, 32, 33, 37, 39, 42, 47, 49, 53, 55, 56, 58, 60, 68, 71, 73, 74, 76]                          
+    #                         [78, 79, 80, 82, 83, 85, 86, 88, 89, 92, 96,100, 102, 110, 111, 112, 113, 118, 121, 124, 125, 126, 127, 128]
+    #                         [131, 134, 138, 139, 140, 142, 145, 146, 148, 151, 154, 155, 156, 157, 161, 163, 165, 167, 172, 173, 175, 179, 180, 181, 184, 186, 189, 191]
+
+    # plotEvents = [22, 37, 85, 88, 146, 160, 166, 171]
+    #%%    
+    reach_data = get_3d_reach_data(dlc_filtered, markerIdx, plot_markerIdxs, include_reaches_missing_start_or_stop = True, 
+                                      events = params.events_list, 
+                                      plot = True)  
     
-        # plotEvents = [22, 37, 85, 88, 146, 160, 166, 171]
-        #%%    
-        reach_data = get_3d_reach_data(dlc_filtered, markerIdx, plot_markerIdxs, include_reaches_missing_start_or_stop = True, 
-                                          events = params.events_list, 
-                                          plot = True)  
+    total_samples = 0
+    for reaches in reach_data:
+        for dur in reaches['durations']:
+            total_samples += (dur/params.fps - 0.5) / 0.03
+    # reach_data = get_3d_reach_data(dlc_filtered, markerIdx, include_reaches_missing_start_or_stop = True, 
+    #                                   events = [9], 
+    #                                   plot = True)  
+    # reach_data = get_3d_reach_data(dlc_filtered, markerIdx, include_reaches_missing_start_or_stop = True, 
+    #                                   events = [133, 134, 145, 146, 154, 155, 166, 167, 171, 172], 
+    #                                   plot = True)  
+    # reach_data = get_3d_reach_data(dlc_filtered, markerIdx, include_reaches_missing_start_or_stop = True, 
+    #                                   events = [4  , 5  , 7  , 8  , 10, 13 , 16 , 19 , 22, 26 , 32 , 33 , 39 , 42 , 47 , 
+    #                                             49 , 53 , 55 , 56, 58 , 60, 68 , 71 , 73 , 74, 76 , 78 , 79 , 80 , 83 , 86 , 
+    #                                             89 , 92 , 96 , 100, 102, 110, 111, 112, 113, 116, 118, 121, 124, 125, 126, 
+    #                                             127, 128, 131, 133, 134, 138, 139, 140, 142, 145, 148, 151, 154, 155, 156, 157, 160, 161, 163, 165, 
+    #                                             166, 167, 171, 172, 173, 175, 180, 181, 184, 186, 189, 190, 191], 
+    #                                   plot = False)  
+    # reach_data = get_3d_reach_data(dlc_filtered, markerIdx, include_reaches_missing_start_or_stop = True, 
+    #                                  events = [22, 60, 74, 116, 133, 138, 156, 157, 160, 163, 166, 171, 172, 181, 184, 186, 189, 190, 191], 
+    #                                  plot = True) 
+    
+    reach_data = add_trajectories_to_reach_data(dlc_filtered, reach_data, dlc_metadata, dlc)
+    
+    # add to reach_data = [24, 37, 85, 88, 146]
+    
+    
+    
+    # [4  , 5  , 7  , 8  , 10 , 13 , 16 , 19 , 26 , 32 , 33 , 39 , 42 , 47 , 49 , 53 , 55 , 56 ]
+    # [58 , 68 , 71 , 73 , 76 , 78 , 79 , 80 , 83 , 86 , 89 , 92 , 96 , 100, 102, 110, 111, 112] 
+    # [113, 118, 121, 124, 125, 126, 127, 128, 131, 134, 139, 140, 142, 145, 148, 151, 154, 155]
+    # [161, 165, 167, 172, 173, 175, 180, 184, 186, 189, 191]
+    # 
+    # events with no reach_start = [5, 13, 32, 111, 121, 125, 128, 161, 167, 172, 189] - SOLVED
+    # bad events [24, 37]
+    # events to look at later [89, 110, 113, 134, 142] - has nans, but pass tests and have identified reaches!
+    
+    # reach_data = load_dict_from_hdf5(dpath.reach_data_storage, top_level_list = True)
+    os.makedirs(dpath.base / dpath.date / 'pose-3d-post-processed', exist_ok=True)
+    for reach in reach_data:
+        orig_data, filename = [(data, fname) for event_num, fname, data in original_csv_data if event_num == reach['event']][0]
+        reach_markers = [mname.decode("utf-8") if type(mname) == bytes else mname for mname in reach['marker_names']]
+        for col in orig_data.columns:
+            split_col = col.split('_')
+            if len(split_col) == 2 and split_col[1] in ['x', 'y', 'z'] and split_col[0] in reach_markers:
+                dim_idx    = [idx for idx, ax in enumerate(['x', 'y', 'z']) if ax == split_col[1]][0]
+                marker_idx = [idx for idx, mname in enumerate(reach_markers) if mname == split_col[0]][0] 
+                orig_data.loc[:, col] = reach['position'][marker_idx, dim_idx]
         
-        total_samples = 0
-        for reaches in reach_data:
-            for dur in reaches['durations']:
-                total_samples += (dur/params.fps - 0.5) / 0.03
-        # reach_data = get_3d_reach_data(dlc_filtered, markerIdx, include_reaches_missing_start_or_stop = True, 
-        #                                   events = [9], 
-        #                                   plot = True)  
-        # reach_data = get_3d_reach_data(dlc_filtered, markerIdx, include_reaches_missing_start_or_stop = True, 
-        #                                   events = [133, 134, 145, 146, 154, 155, 166, 167, 171, 172], 
-        #                                   plot = True)  
-        # reach_data = get_3d_reach_data(dlc_filtered, markerIdx, include_reaches_missing_start_or_stop = True, 
-        #                                   events = [4  , 5  , 7  , 8  , 10, 13 , 16 , 19 , 22, 26 , 32 , 33 , 39 , 42 , 47 , 
-        #                                             49 , 53 , 55 , 56, 58 , 60, 68 , 71 , 73 , 74, 76 , 78 , 79 , 80 , 83 , 86 , 
-        #                                             89 , 92 , 96 , 100, 102, 110, 111, 112, 113, 116, 118, 121, 124, 125, 126, 
-        #                                             127, 128, 131, 133, 134, 138, 139, 140, 142, 145, 148, 151, 154, 155, 156, 157, 160, 161, 163, 165, 
-        #                                             166, 167, 171, 172, 173, 175, 180, 181, 184, 186, 189, 190, 191], 
-        #                                   plot = False)  
-        # reach_data = get_3d_reach_data(dlc_filtered, markerIdx, include_reaches_missing_start_or_stop = True, 
-        #                                  events = [22, 60, 74, 116, 133, 138, 156, 157, 160, 163, 166, 171, 172, 181, 184, 186, 189, 190, 191], 
-        #                                  plot = True) 
+        orig_data.to_hdf(dpath.base / dpath.date / 'pose-3d-post-processed' / f'{filename}.h5', 'position')
         
-        reach_data = add_trajectories_to_reach_data(dlc_filtered, reach_data, dlc_metadata, dlc)
-        
-        # add to reach_data = [24, 37, 85, 88, 146]
-        
-        
-        
-        # [4  , 5  , 7  , 8  , 10 , 13 , 16 , 19 , 26 , 32 , 33 , 39 , 42 , 47 , 49 , 53 , 55 , 56 ]
-        # [58 , 68 , 71 , 73 , 76 , 78 , 79 , 80 , 83 , 86 , 89 , 92 , 96 , 100, 102, 110, 111, 112] 
-        # [113, 118, 121, 124, 125, 126, 127, 128, 131, 134, 139, 140, 142, 145, 148, 151, 154, 155]
-        # [161, 165, 167, 172, 173, 175, 180, 184, 186, 189, 191]
-        # 
-        # events with no reach_start = [5, 13, 32, 111, 121, 125, 128, 161, 167, 172, 189] - SOLVED
-        # bad events [24, 37]
-        # events to look at later [89, 110, 113, 134, 142] - has nans, but pass tests and have identified reaches!
-        
-        save_dict_to_hdf5(reach_data, dpath.reach_data_storage, first_level_key='reaching_event_idx')
-        
-        # with open(dpath.reach_data_storage, 'wb') as fp:
-        #     dill.dump(reach_data, fp, recurse=True)
+    save_dict_to_hdf5(reach_data, dpath.reach_data_storage, first_level_key='reaching_event_idx')
+    
+    # with open(dpath.reach_data_storage, 'wb') as fp:
+    #     dill.dump(reach_data, fp, recurse=True)

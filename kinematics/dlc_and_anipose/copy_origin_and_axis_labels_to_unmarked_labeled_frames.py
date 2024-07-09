@@ -61,7 +61,7 @@ class label_copier():
                     event_nums = [int(re.findall(self.event_patterns[1], fold.name)[0].split('_event')[-1]) for fold in cam_folders]
                     
                 if len(event_nums) == 0: 
-                    print('No events found for cam {cam}')
+                    print(f'No events found for cam {cam}')
                     continue
                 
                 if self.ref_event is None:
@@ -87,18 +87,25 @@ class label_copier():
                 lab_data = partial_df.iloc[frame_index, :]
 
                 for f in cam_folders_after_ref_event:
-                    print(f)
+                    # print(f)
                     try:
                         data = pd.read_hdf(f / f'CollectedData_{self.scorer}.h5')
                     except:
                         continue    
                     
                     # TODO Check for existing labels  
+
                     
                     ordered_columns = partial_df.columns 
+                    try: 
+                        data[ordered_columns]
+                        print(data.shape[1])
+                    except:
+                        print(f)
+
                     data[ordered_columns] = np.repeat(np.expand_dims(lab_data.values, axis=0), 
-                                                             data.shape[0], 
-                                                             axis=0)
+                                                              data.shape[0], 
+                                                              axis=0)
                     
                     data.to_csv(f / f'CollectedData_{self.scorer}.csv')
                     data.to_hdf(f / f'CollectedData_{self.scorer}.h5', 'df_with_missing')
@@ -135,13 +142,13 @@ if __name__ == '__main__':
     except:
         if allow_debugging:
             args = {'dlc_path'          : '/project/nicho/projects/marmosets/dlc_project_files/simple_5cams_marmoset_model-Dalton-2024-06-27',
-                    'dates'             : ['2022_10_24'],
-                    'cams'              : [5],
-                    'labels'            : ['x', 'partition_top_left', 'partition_top_right'],
+                    'dates'             : ['2023_08_04'],
+                    'cams'              : [4,],
+                    'labels'            : ['origin','x','y','partition_top_left', 'partition_top_right'],
                     'dlc_scorer'        : 'Dalton',
                     'frame_index'       : 0,
-                    'ref_event'         : None,
-                    'new_events'        : None}
+                    'ref_event'         : 12,
+                    'new_events'        : [12,16,34,36]}
             
                     
     args['date_pattern']  = re.compile('\d{4}_\d{2}_\d{2}')
