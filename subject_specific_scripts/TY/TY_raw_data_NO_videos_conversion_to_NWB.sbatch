@@ -38,7 +38,7 @@ source activate /beagle3/nicho/environments/nwb_and_neuroconv
 
 for date in ${dates[@]}
 do
-    python $video_processing/organize_files_for_nwb_creation.py \
+    python $video_processing/organize_files_for_nwb_creation_in_noVideo_datasets.py \
     -v $vid_dir -ep $ephys_dir -m $marms -me $marms_ephys -d $date -e $exp1 -e2 $exp2 \
     -np $neural_processing -meta $metadata_path \
     -prb $prb_path -ab $swap_ab
