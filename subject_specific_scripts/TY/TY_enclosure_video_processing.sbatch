@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH --job-name=JL1014_free_video_proc_b3
-#SBATCH --output=/project/nicho/projects/marmosets/job_log_files/Sami1014_JL_free_b3_video_proc_%a.out
-#SBATCH --error=/project/nicho/projects/marmosets/job_log_files/Sami1014_JL_free_b3_video_proc_%a.err
+#SBATCH --job-name=TY0125_free_video_proc_b3
+#SBATCH --output=/project/nicho/projects/marmosets/job_log_files/Sami0125_TY_free_b3_video_proc_%a.out
+#SBATCH --error=/project/nicho/projects/marmosets/job_log_files/Sami0125_TY_free_b3_video_proc_%a.err
 #SBATCH --time=36:00:00
 #SBATCH --partition=beagle3
 #SBATCH --gres=gpu:1
@@ -13,7 +13,7 @@
 #SBATCH --mail-user=snjohnso@uchicago.edu
 
 #------------params that may change for each dataset/experiment----------------------#
-date=2024_10_14
+date=2025_01_25
 exp1=baseline
 exp2=baselineFree
 sess=(1)
@@ -24,17 +24,17 @@ touchscreen=False
 scratch_space_username=snjohnso
 
 #----------------------params that rarely change-------------------------------------#
-marms=JLTY
+marms=TYTR
 fps=30
 ncams=4
 cams=(1 2 3 4)
 vid_transpose=(2 2 1 1)  # number of arguments MUST match ncams 
 analog_signals_fps=(150 $fps)
 
-marms_ephys=JLTY
-swap_ab=no
-prb_path=/project/nicho/data/marmosets/prbfiles/TY_02_JL_01.prb
-metadata_path=/project/nicho/data/marmosets/metadata_yml_files/TY_JL_metadata.yml
+marms_ephys=TY
+swap_ab=no 
+prb_path=/project/nicho/data/marmosets/prbfiles/TY_02.prb
+metadata_path=/project/nicho/data/marmosets/metadata_yml_files/TY_complete_metadata.yml
 
 #-----------paths to input and output data, and to processing scripts----------------#
 jpg_dir=/scratch/midway3/$scratch_space_username/kinematics_jpgs

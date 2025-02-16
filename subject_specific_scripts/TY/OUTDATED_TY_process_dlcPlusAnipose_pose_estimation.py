@@ -5,7 +5,6 @@ Created on Wed Nov  3 09:54:29 2021
 @author: Dalton
 """
 
-# import dill
 import pandas as pd
 import numpy as np
 import os
@@ -25,11 +24,10 @@ from scipy.signal import find_peaks, savgol_filter #peak_prominences, peak_width
 from importlib import sys
 
 sys.path.insert(0, '/project/nicho/projects/marmosets/code_database/data_processing/nwb_tools/hatlab_nwb_tools/')
-#from hatlab_nwb_functions import save_dict_to_hdf5
 
-marm = 'JL'
+marm = 'TY'
 
-anipose_base = '/project/nicho/data/marmosets/kinematics_videos/moth/JLTY/'
+anipose_base = '/project/nicho/data/marmosets/kinematics_videos/moth/TYJL/'
 save_data = True
 save_hdf = True
 save_pickle = not save_hdf
@@ -40,9 +38,7 @@ if save_hdf:
 
 class dpath:
     base = Path(anipose_base)
-    date = '2023_08_04'  # for now we can only do one date at a time
-    # reach_data_storage = '/project/nicho/data/marmosets/processed_datasets/reach_and_trajectory_information/20230803_reach_and_trajectory_info.pkl'
-    
+    date = '2021_02_10'  # for now we can only do one date at a time
     if save_hdf:
         reach_data_storage = Path('/project/nicho/data/marmosets/processed_datasets/reach_and_trajectory_information') / f'{date.replace("_","")}_reach_and_trajectory_info.h5'
     elif save_pickle:
@@ -76,10 +72,21 @@ class params:
         timeout = 2
         
     elif marm=='TY':
+        if dpath.date == '2021_02_11':
+            events_list = [4,5,7,8,10,13,16,19,22,24,26,32,33,37,39,42,47,49,53,
+                           55,56,58,60,68,71,73,74,76,78,79,80,83,85,86,88,89,92,
+                           96,100,102,110,111,112,113,118,121,124,125,126,127,128,
+                           131,134,138,139,140,142,145,146,148,151,154,155,156,157,
+                           161,163,165,167,172,173,175,180,181,184,186,189,191]
+        elif dpath.date == '2021_02_10':
+            events_list = [1,2,6,7,10,11,12,17,21,22,23,25,27,29,33,37,39,41,42,45,
+                           49,50,52,57,58,61,68,69,70,72,76,78,79,83,88,91,92,95,101,102,
+                           104,105,106,111,112,115,119,120,121,127,131,133,134,135,136,140,142,144,146,149,
+                           152,155,158,161,162,167,170]
         fps=150
         reach_method=3
-        marker_to_evaluate = 'l-wrist'
-        extra_plot_markers = ['l-shoulder'] 
+        marker_to_evaluate = 'l-wrist' #'hand'#'l-wrist'
+        extra_plot_markers = ['l-shoulder']#['shoulder']#['l-shoulder'] 
         timeout=1
         
     elif marm=='JL':
@@ -93,7 +100,7 @@ class params:
             # events_list = [4,5,6,7,8,9,11,12,13,15,16,17,18,19,29,31,33,34,35,36,37,38,43,45,46,48,]
             fps = 200
         elif dpath.date == '2023_08_05':
-            events_list = [1,2,3,4,5,7,9,10,13,14,15,17,18,19,20,22,23,25,27,29,31,32,33,34,35,37,38,]
+            events_list = [1,2,3,4,5,6,9,10,13,14,15,17,18,19,20,22,23,25,27,29,31,32,33,34,35,37,38,]
             fps = 200
         timeout = 10
         reach_method = 3
@@ -110,13 +117,13 @@ class params:
         
     factor_to_cm = 1e-1
     min_cams_threshold = 2
-    min_chunk_length = fps * 0.05 #0.04 # 50 ms
+    min_chunk_length = fps * 0.05 #0.04 # 40 ms
     max_gap_to_stitch = fps * 0.2 # 200 ms 
-    reproj_threshold = 40
+    reproj_threshold = 20
     
     helmet_percent_tracked_thresh = 0.05
-    if 'wrist' in marker_to_evaluate:
-        yDir_limits = [-150*factor_to_cm, 175*factor_to_cm]
+    if 'wrist' in marker_to_evaluate or 'hand' in marker_to_evaluate:
+        yDir_limits = [-150*factor_to_cm, 250*factor_to_cm]
     elif 'shoulder' in marker_to_evaluate:
         yDir_limits  = [-75*factor_to_cm, 125*factor_to_cm]
     extra_plot_ylims = [[-150*factor_to_cm, 50*factor_to_cm]]
@@ -137,8 +144,8 @@ class params:
     
     speed_thresh = 48
     
-    y_pos_thresh  = 1.5    #  0    for MG    #1.5  for TY/JL #cm
-    y_peak_thresh = 2.75 #  2.25 for MG    #3.85 for TY/JL #cm
+    y_pos_thresh  = 1.5  #  0    for MG    #1.5  for TY/JL #cm
+    y_peak_thresh = 3.85 #  2.25 for MG    #3.85 for TY/JL #cm
     
     peak_dist = int(75/150 * fps)
     peak_prominence=1
@@ -172,7 +179,10 @@ def load_dlc_data(data_dirs):
         dlc_metadata.append(dlc_metadata_tmp)
         
         event_name = f.stem
-        event_num  = int(event_name.split('_e')[1][:3])
+        try:
+            event_num  = int(event_name.split('_e')[1][:3])
+        except: 
+            event_num = int(event_name.split('_event')[1][:3])
         namePattern = re.compile('^[a-zA-Z]{4}_[0-9]*_[0-9]*_[0-9]*')
         
 
@@ -489,7 +499,9 @@ def trim_long_interpolations_at_beginning_and_end(pos, pos_fill, eventNum):
     if eventNum in [36, 38, 45]:
         stop = []
     
-    timeout_frame = np.min([pos.shape[-1] - int(params.timeout*params.fps), np.where(~np.isnan(pos_fill[0]))[0][-1]])
+    not_nan_idxs = np.where(~np.isnan(pos_fill[0]))[0]
+    last_nan = not_nan_idxs[-1] if len(not_nan_idxs) > 0 else 100000000
+    timeout_frame = np.min([pos.shape[-1] - int(params.timeout*params.fps), last_nan])
     percent_original_end = []
     for frame in range(timeout_frame):
         nOrig = np.sum((pos[0, frame:timeout_frame] - pos_fill[0, frame:timeout_frame]) == 0)
@@ -657,27 +669,7 @@ def filter_dlc(dlc, dlc_metadata, event_info):
                             pos_fill[dim, smoothChunk] = savgol_filter(pos_fill[dim, smoothChunk], params.savgol_window, 3)
                     except:
                         pass
-                
-                # FIXME Inserting spot corrections here
-                if dpath.date == '2023_08_04' and eventNum == 33 and marker == 'l-wrist':  
-                    pos_fill[:, 400:465] = pos[mNum, :, 400:465]
-                elif dpath.date == '2023_08_04' and eventNum == 46 and marker == 'l-wrist':  
-                    pos_fill[:, 400:480] = pos[mNum, :, 400:480]
-                elif dpath.date == '2023_08_04' and eventNum == 48 and marker == 'l-wrist':  
-                    pos_fill[:, 540:590] = pos[mNum, :, 540:590]
-                elif dpath.date == '2023_08_05' and eventNum == 2 and marker == 'l-wrist':  
-                    pos_fill[:, 606:850] = pos[mNum, :, 606:850]                        
-                elif dpath.date == '2023_08_05' and eventNum == 7 and marker == 'l-wrist':  
-                    pos_fill[:, 800:857] = pos[mNum, :, 800:857]  
-                elif dpath.date == '2023_08_05' and eventNum == 9 and marker == 'l-wrist':  
-                    pos_fill[:, 7280:7320] = pos[mNum, :, 7280:7320]  
-                    pos_fill[:, 7410:7444] = pos[mNum, :, 7410:7444] 
-                elif dpath.date == '2023_08_05' and eventNum == 19 and marker == 'l-wrist':  
-                    pos_fill[:, 969:1007] = pos[mNum, :, 969:1007] 
-                    pos_fill[:, 1939:1984] = pos[mNum, :, 1939:1984] 
-                elif dpath.date == '2023_08_05' and eventNum == 22 and marker == 'l-wrist':  
-                    pos_fill[:, 890:950] = pos[mNum, :, 890:950]  
-                    
+                            
                 pos_out[mNum] = pos_fill         
                 # if marker == params.marker_to_evaluate:
                 #     fig, axs = plt.subplots(2, 1)
@@ -934,7 +926,7 @@ def get_reach_timing_from_event(hand_pos, eventNum, method = 2, include_reaches_
         print('method 3: reach parsing based on hand speed threshold crossings around y position peaks')
         y_position_threshold = params.y_pos_thresh
         y_peak_threshold = params.y_peak_thresh 
-        speed_threshold = 5 # cm/sec
+        speed_threshold = 10 # cm/sec
         # id peaks in y position
         peaks = find_peaks(hand_pos[1], 
                            height = y_peak_threshold, 
@@ -1000,11 +992,6 @@ def get_reach_timing_from_event(hand_pos, eventNum, method = 2, include_reaches_
             max_err  = np.nanmax (abs(hand_pos[1] - medfiltered_pos))
             mean_err = np.nanmean(abs(hand_pos[1] - medfiltered_pos))
 
-            if dpath.date == '2023_08_04' and eventNum == 31: # FIXME
-                reach_start_candidates = [st for st in reach_start_candidates if st > 1500]
-            if dpath.date == '2023_08_04' and eventNum == 17: # FIXME
-                reach_start_candidates = [st for st in reach_start_candidates if st > 3000]
-                
             # id reach starts
             print(('start', reach_start_candidates))
             reach_starts = [0]*len(reach_start_candidates)
@@ -1405,8 +1392,6 @@ def get_3d_reach_data(dlc_filtered, markerIdx, plot_markerIdxs, include_reaches_
                                                                            return_all = True)
         # report reach timing
         print(reach_timing)
-        if eventNum == 31:
-            tmp = []
         
         if plot:
             reach_timing_fig = plot_reach_timing('Event %d' % eventNum, pos[markerIdx], pos[plot_markerIdxs], 
@@ -1458,10 +1443,9 @@ if __name__ == "__main__":
     #     dlc_metadata = [dlc_element for idx, dlc_element in enumerate(dlc_metadata) if idx+1 in params.events_list]    
     #     event_info = event_info.loc[event_info['event'].isin(params.events_list), :]    
 
-    if save_hdf:    
-        evaluate_labeling_quality(dlc_filtered, dlc, dlc_metadata, event_info, 
-                                  plotSet = None, 
-                                  plotEvents = params.events_list)      
+    evaluate_labeling_quality(dlc_filtered, dlc, dlc_metadata, event_info, 
+                              plotSet = None, 
+                              plotEvents = params.events_list)      
     # evaluate_labeling_quality(dlc_filtered, dlc, dlc_metadata, event_info, 
     #                           plotSet = None, 
     #                           plotEvents = [4, 5, 7, 8, 10, 13, 16, 19, 22, 24, 26, 32, 33, 37, 39, 42, 47, 49, 53, 55, 56, 58, 60, 68, 71, 73, 74, 76])
@@ -1527,8 +1511,7 @@ if __name__ == "__main__":
             
             orig_data.to_hdf(dpath.base / dpath.date / 'pose-3d-post-processed' / f'{filename}.h5', 'position')
         
-        if save_hdf:
-            save_dict_to_hdf5(reach_data, dpath.reach_data_storage, first_level_key='reaching_event_idx')
-        elif save_pickle:
-            with open(dpath.reach_data_storage, 'wb') as fp:
-                dill.dump(reach_data, fp, recurse=True)
+        save_dict_to_hdf5(reach_data, dpath.reach_data_storage, first_level_key='reaching_event_idx')
+    
+    # with open(dpath.reach_data_storage, 'wb') as fp:
+    #     dill.dump(reach_data, fp, recurse=True)

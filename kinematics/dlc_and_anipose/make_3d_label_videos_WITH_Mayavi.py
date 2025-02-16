@@ -7,8 +7,8 @@ Created on Fri Jul  5 10:19:50 2024
 @derived_from: https://github.com/lambdaloop/anipose/blob/master/anipose/label_videos_3d.py 
 """
 
-# from mayavi import mlab
-# mlab.options.offscreen = True
+from mayavi import mlab
+mlab.options.offscreen = True
 
 import numpy as np
 from glob import glob
@@ -19,7 +19,6 @@ import cv2
 import re
 import toml
 import math
-import argparse
 
 # import skvideo
 # skvideo.setFFmpegPath('/beagle3/nicho/environments/mayavi/lib/python3.10/site-packages/ffmpeg/')
@@ -30,10 +29,6 @@ from tqdm import tqdm, trange
 from collections import defaultdict
 from matplotlib.pyplot import get_cmap
 from subprocess import check_output
-
-from importlib import sys
-sys.path.insert(0, '/project/nicho/projects/marmosets/code_database/data_processing/utils')
-from utils import convert_string_inputs_to_int_float_or_bool
 
 
 def project_3d_to_2d(points, cam_dict):
@@ -165,7 +160,7 @@ def label_frame_2d(img, points, scheme, bodyparts, cmap):
 
     return img
 
-def visualize_labels(config, labels_fname, cam_fname, outname, cam_dict, params,):
+def visualize_labels(config, labels_fname, cam_fname, outname, view_side, cam_dict, params,):
 
     try:
         scheme = config['labeling']['scheme']
@@ -246,57 +241,56 @@ def visualize_labels(config, labels_fname, cam_fname, outname, cam_dict, params,
   
     cmap = get_cmap('tab10')
 
-    points = np.copy(all_points[:, int(all_points.shape[-1]/2)])
+    points = np.copy(all_points[:, 2000])
     points[0] = low
     points[1] = high
 
     s = np.arange(points.shape[0])
     good = ~np.isnan(points[:, 0])
     
-    # fig = mlab.figure(bgcolor=(1,1,1), size=(params['height'23399701],params['height']))
-    # fig.scene.anti_aliasing_frames = 2
+    fig = mlab.figure(bgcolor=(1,1,1), size=(params['height'],params['height']))
+    fig.scene.anti_aliasing_frames = 2
 
     low, high = np.percentile(points[good, 0], [10,90])
     scale_factor = (high - low) / 24
 
-    # mlab.clf()
-    # pts = mlab.points3d(points[:, 0], points[:, 1], points[:, 2], s,
-    #                     color=(0.8, 0.8, 0.8),
-    #                     scale_mode='none', scale_factor=scale_factor)
-    # lines = connect_all(points, scheme, bp_dict, cmap)
-    # mlab.orientation_axes()
+    mlab.clf()
+    pts = mlab.points3d(points[:, 0], points[:, 1], points[:, 2], s,
+                        color=(0.8, 0.8, 0.8),
+                        scale_mode='none', scale_factor=scale_factor)
+    lines = connect_all(points, scheme, bp_dict, cmap)
+    mlab.orientation_axes()
 
-    # if view_side == 'left':
-    #     # view = [168, 68, 55, np.array([6.105, 1.664, 2.984])]
-    #     view =[170.68694152055565,
-    #            69.0085482680743,
-    #            517.2005958747862,
-    #            np.array([94.28086042, 47.94095707, 45.32973838])]
+    if view_side == 'left':
+        # view = [168, 68, 55, np.array([6.105, 1.664, 2.984])]
+        view =[170.68694152055565,
+               69.0085482680743,
+               517.2005958747862,
+               np.array([94.28086042, 47.94095707, 45.32973838])]
 
-    #     # view = [168, 68]
-    #     roll = 95
-    # elif view_side == 'right':
-    #     view = [15, 68, 47, np.array([8.716, 0.839, 2.974])]
-    #     roll = -95   
-    # else:
-    #     view = list(mlab.view())
-    #     roll = mlab.roll()
+        # view = [168, 68]
+        roll = 95
+    elif view_side == 'right':
+        view = [15, 68, 47, np.array([8.716, 0.839, 2.974])]
+        roll = -95   
+    else:
+        view = list(mlab.view())
+        roll = mlab.roll()
     
-    # mlab.view(*view)
-    # mlab.roll(roll)   
+    mlab.view(*view)
+    mlab.roll(roll)   
     # f = mlab.gcf()
     # f.scene._lift()
     # mlab.view(*view, focalpoint='auto', distance='auto')
     # mlab.roll(roll)
     
-    # view = list(mlab.view())
+    view = list(mlab.view())
 
-    nframes_cut = data.shape[0] - int(params['fps']*params['end_cut_time'])
-    for framenum in trange(nframes_cut, ncols=70):
+    for framenum in trange(data.shape[0], ncols=70):
 
-        framenum_text = f'Frame {str(framenum).zfill(math.floor(math.log10(nframes_cut)+1))} of {nframes_cut}'        
+        framenum_text = f'Frame {str(framenum).zfill(math.floor(math.log10(data.shape[0])+1))} of {data.shape[0]}'        
 
-        # fig.scene.disable_render = True        
+        fig.scene.disable_render = True        
 
         if framenum in framedict:
             points = all_points[:, framenum]
@@ -307,19 +301,19 @@ def visualize_labels(config, labels_fname, cam_fname, outname, cam_dict, params,
             if cam_dict is not None:
                 proj_points = np.ones((nparts, 2))*np.nan
 
-        # s = np.arange(points.shape[0])
+        s = np.arange(points.shape[0])
         good = ~np.isnan(points[:, 0])
 
-        # new = np.vstack([points[:, 0], points[:, 1], points[:, 2]]).T
-        # pts.mlab_source.points = new
-        # update_all_lines(lines, points, scheme, bp_dict)
+        new = np.vstack([points[:, 0], points[:, 1], points[:, 2]]).T
+        pts.mlab_source.points = new
+        update_all_lines(lines, points, scheme, bp_dict)
 
-        # fig.scene.disable_render = False
+        fig.scene.disable_render = False
 
-        # f = mlab.gcf()
-        # f.scene._lift()
-        # img = mlab.screenshot()
-        # img = cv2.putText(img=np.copy(img), text=framenum_text, org=(img.shape[], 50), fontFace=cv2.FONT_HERSHEY_DUPLEX, fontScale=1, color=(0,0,0))
+        f = mlab.gcf()
+        f.scene._lift()
+        img = mlab.screenshot()
+        img = cv2.putText(img=np.copy(img), text=framenum_text, org=(25, 50), fontFace=cv2.FONT_HERSHEY_DUPLEX, fontScale=1, color=(0,0,0))
         
         if cam_fname is not None:
             _, frame  = reader.read()
@@ -327,27 +321,25 @@ def visualize_labels(config, labels_fname, cam_fname, outname, cam_dict, params,
             if cam_dict is not None:
                 frame = label_frame_2d(frame, proj_points, scheme, bodyparts, cmap)
             
-            # canvas = np.zeros((max(img.shape[0], frame.shape[0]),
-            #                    img.shape[1] + frame.shape[1],
-            #                    3), 
-            #                   dtype = frame.dtype)
-            # canvas[:frame.shape[0], :frame.shape[1]] = frame[..., ::-1]
-            # canvas[:img.shape[0]  , frame.shape[1]:] = img
-            frame = cv2.putText(img=np.copy(frame), text=framenum_text, org=(int(frame.shape[1]*.7), 70), 
-                                fontFace=cv2.FONT_HERSHEY_DUPLEX, fontScale=1, color=(255,255,255))
-
+            canvas = np.zeros((max(img.shape[0], frame.shape[0]),
+                               img.shape[1] + frame.shape[1],
+                               3), 
+                              dtype = frame.dtype)
+            canvas[:frame.shape[0], :frame.shape[1]] = frame[..., ::-1]
+            canvas[:img.shape[0]  , frame.shape[1]:] = img
+            img = canvas
         
-        # mlab.view(*view, reset_roll=False)
+        mlab.view(*view, reset_roll=False)
 
-        writer.writeFrame(frame[..., ::-1])
+        writer.writeFrame(img)
 
-        # if framenum > 30:
-        #     break
+        if framenum > 10:
+            break
 
-    # mlab.close(all=True)
+    mlab.close(all=True)
     writer.close()
 
-def process_session(config, session_path, args, post_processed=False, include_cam_vid=None, overwrite=False, end_cut_time=0):
+def process_session(config, session_path, view_side='left', post_processed=False, include_cam_vid=None, overwrite=False):
     pipeline_videos_raw = config['pipeline']['videos_raw']
 
     if post_processed:
@@ -397,14 +389,9 @@ def process_session(config, session_path, args, post_processed=False, include_ca
         os.makedirs(outdir, exist_ok=True)
 
     for idx, (fname, cam_fname) in enumerate(zip(labels_fnames, cam_vid_fnames)):
-        if not args['debug'] and idx != task_id:
+        if idx != task_id:
             continue
-            
-        event_pattern = re.compile('_e[0-9]{3}') 
-        if args['debug'] and 'events' in args.keys() and args['events'] is not None and \
-            int(re.findall(event_pattern, cam_fname.stem)[0].split('_e')[-1]) not in args['events']:
-            continue
-                
+        
         out_fname = outdir / f'{fname.stem}.mp4'
 
         if not overwrite and out_fname.is_file() and \
@@ -415,57 +402,21 @@ def process_session(config, session_path, args, post_processed=False, include_ca
         some_vid = orig_fnames[fname.stem][0]
         params = get_video_params(some_vid)
         params['factor_to_mm'] = factor_to_mm
-        params['end_cut_time'] = end_cut_time
 
-        visualize_labels(config, fname, cam_fname, out_fname, cam_dict, params,)
+        visualize_labels(config, fname, cam_fname, out_fname, view_side, cam_dict, params,)
 
 if __name__ == '__main__':
     
-    try:
-        ap = argparse.ArgumentParser()
-        ap.add_argument("-a", "--anipose_path", required=True, type=str,
-            help="path to anipose project. E.g. '/project/nicho/data/marmosets/test'")
-        ap.add_argument("-p", "--post_processed", required=True, type=str,
-            help="whether to operate on post-processed data or on the unprocessed 3D data (this option will basically recreate videos-2d-proj with frame numbers)")
-        ap.add_argument("-o", "--overwrite", required=True, type=str,
-            help="whether to overwrite the previously stored videos, if any")
-        ap.add_argument("-c", "--cam", required=True, type=int,
-            help="camera number to make videos")
-        ap.add_argument("-d", "--date", required=True, type=str,
-         	help="date of videos")
-        ap.add_argument("-e", "--end_cut_time", required=False, type=float, default=0,
-            help="time (in seconds) at the end of each video to cut, corresponds to timeout in recording system")
-        args = vars(ap.parse_args())
-        args['debug']=False
-    except:
-        args = dict(date           = '2023_08_04',
-                    anipose_path   = '/project/nicho/data/marmosets/kinematics_videos/moth/JLTY',
-                    cam            = 2,
-                    post_processed = True,
-                    overwrite      = True,
-                    events         = None)
-        args['debug'] = True
-        
     try:
         task_id   = int(os.getenv('SLURM_ARRAY_TASK_ID'))
         n_tasks   = int(os.getenv('SLURM_ARRAY_TASK_COUNT'))
         last_task = int(os.getenv('SLURM_ARRAY_TASK_MAX'))
     except: 
-        task_id = 2
+        task_id = 1
     
-    if isinstance(args['post_processed'], str): 
-        args['post_processed'] = convert_string_inputs_to_int_float_or_bool(args['post_processed'])
-    if isinstance(args['overwrite'], str): 
-        args['overwrite']      = convert_string_inputs_to_int_float_or_bool(args['overwrite'])
-    # if 'end_cut_time' not in args.keys():
-    #     args['end_cut_time'] = 0
-    
-    session_path = Path(args['anipose_path']) / args['date']
+    # date = '2021_02_10'
+    # session_path = Path(f'/project/nicho/data/marmosets/kinematics_videos/moth/TYJL/{date}')
+    date = '2023_08_04'
+    session_path = Path(f'/project/nicho/data/marmosets/kinematics_videos/moth/JLTY/{date}')
     config = toml.load(session_path /'config.toml')
-    process_session(config, 
-                    session_path, 
-                    args,
-                    post_processed=args['post_processed'], 
-                    include_cam_vid=args['cam'], 
-                    overwrite=args['overwrite'],
-                    end_cut_time=args['end_cut_time'])
+    process_session(config, session_path, post_processed=True, view_side='left', include_cam_vid=2, overwrite=False)

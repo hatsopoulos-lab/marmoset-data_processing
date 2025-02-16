@@ -131,7 +131,10 @@ def create_nwb_and_store_raw_neural_data(ns6_path, meta_path, prb_path, swap_ab,
         bank1_adj = np.sum(missing_chan_idxs < 32)
         bank2_adj = np.sum((missing_chan_idxs < 64) & (missing_chan_idxs > 32))
         
-        reorder = list(range(32 - bank1_adj, 64 - bank1_adj - bank2_adj)) + list(range(0, 32 - bank1_adj)) + list(range(64 - bank1_adj - bank2_adj, len(chNames)))
+        reorder = list(range(32 - bank1_adj, 64 - bank1_adj - bank2_adj)) + \
+                  list(range(0, 32 - bank1_adj)) + \
+                  list(range(64 - bank1_adj - bank2_adj, len(chNames)))
+                  
         chNames = np.array([chNames[idx] for idx in reorder])
         
     raw_extractor.set_property('electrode_label', chNames)
@@ -143,6 +146,9 @@ def create_nwb_and_store_raw_neural_data(ns6_path, meta_path, prb_path, swap_ab,
     except:
         array_chans = [ch for ch, name in zip(chIDs, chNames) if 'ainp' not in name]
     analog_chans = [ch for ch, name in zip(chIDs, chNames) if 'ainp' in name]
+    
+    if 'elec' not in map_df['shank_ids'][0]:
+        map_df['shank_ids'] = ['elec' + num for num in map_df['shank_ids']]
     
     missing_electrodes = np.setdiff1d(map_df['shank_ids'], chNames)
     intact_map_idxs = [row for row, item in map_df.iterrows() if item['shank_ids'] not in missing_electrodes]
@@ -177,6 +183,12 @@ def create_nwb_and_store_raw_neural_data(ns6_path, meta_path, prb_path, swap_ab,
         
         unit_name = sorting_extractor._properties['unit_name']
         channel_index = np.array([int(name.split('ch')[-1].split('#')[0]) - 1 for name in unit_name])
+
+        # FIXME Correction to correct channel index for second array beginning on chan128, but should start at index 96.
+        gap = np.min(channel_index[channel_index > 95]) - np.max(channel_index[channel_index < 96]) + 1
+        channel_index[channel_index > 95] = channel_index[channel_index > 95] - gap
+        #########
+        
         for missChan in missing_chan_idxs[::-1]:
             channel_index[channel_index > missChan] = channel_index[channel_index > missChan] - 1
         # channel_index = sorting_extractor.unit_ids
@@ -300,10 +312,10 @@ if __name__ == '__main__':
         args = vars(ap.parse_args())
     
     else:
-        args = {'ns6_path' : '/project/nicho/data/marmosets/electrophys_data_for_processing/MG20230416_1505_mothsAndFree/MG20230416_1505_mothsAndFree-002.ns6',
-                'meta_path': '/project/nicho/data/marmosets/metadata_yml_files/MG_complete_metadata.yml',
-                'prb_path' : '/project/nicho/data/marmosets/prbfiles/MG_01.prb',
-                'swap_ab'  : 'yes'}
+        args = {'ns6_path' : '/project/nicho/data/marmosets/electrophys_data_for_processing/JLTY20240906_1100_testandtestFree/JLTY20240906_1100_testandtestFree001.ns6',
+                'meta_path': '/project/nicho/data/marmosets/metadata_yml_files/JL_complete_metadata.yml',
+                'prb_path' : '/project/nicho/data/marmosets/prbfiles/JL_01.prb',
+                'swap_ab'  : 'no'}
     
     # args = {'ns6_path' : '/project/nicho/data/marmosets/electrophys_data_for_processing/MG20230416_1505_mothsAndFree/MG20230416_1505_mothsAndFree-002.ns6',
     #         'meta_path': '/project/nicho/data/marmosets/metadata_yml_files/MG_complete_metadata.yml',

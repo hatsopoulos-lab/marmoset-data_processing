@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH --job-name=1014_app_video_proc_b3
-#SBATCH --output=/project/nicho/projects/marmosets/job_log_files/Sami1014_JL_app_b3_video_proc_%a.out
-#SBATCH --error=/project/nicho/projects/marmosets/job_log_files/Sami1014_JL_app_b3_video_proc_%a.err
+#SBATCH --job-name=P1111_app_video_proc_b3
+#SBATCH --output=/project/nicho/projects/marmosets/job_log_files/Sami1111_PARALLEL_app_b3_video_proc_%a.out
+#SBATCH --error=/project/nicho/projects/marmosets/job_log_files/Sami1111_PARALLEL_app_b3_video_proc_%a.err
 #SBATCH --time=6:00:00
 #SBATCH --partition=beagle3
 #SBATCH --gres=gpu:1
@@ -13,9 +13,9 @@
 #SBATCH --mail-user=snjohnso@uchicago.edu
 
 #------------params that may change for each dataset/experiment---------------#
-date=2024_10_14
-exp1=baseline
-exp2=baselineFree
+date=2024_11_11
+exp1=test
+exp2=testFree
 sess=(1)
 calib_name=calib
 applyCLAHE=True
@@ -24,11 +24,13 @@ scratch_space_username=snjohnso
 
 
 #----------------------params that rarely change------------------------------#
-marms=JLTY
-marms_ephys=JL
+marms=TYJL
+marms_ephys=TYJL
 swap_ab=no
-prb_path=/project/nicho/data/marmosets/prbfiles/JL_01.prb
-metadata_path=/project/nicho/data/marmosets/metadata_yml_files/JL_metadata.yml
+prb_path1=/project/nicho/data/marmosets/prbfiles/parallel_recordings/TY_02_parallel.prb
+prb_path2=/project/nicho/data/marmosets/prbfiles/parallel_recordings/JL_01_parallel.prb
+metadata_path1=/project/nicho/data/marmosets/metadata_yml_files/parallel_recordings/TY_metadata_parallel.yml
+metadata_path2=/project/nicho/data/marmosets/metadata_yml_files/parallel_recordings/JL_metadata_parallel.yml
 fps=150 #150 #200
 ncams=5 #2 #5
 cams=(1 2 3 4 5)

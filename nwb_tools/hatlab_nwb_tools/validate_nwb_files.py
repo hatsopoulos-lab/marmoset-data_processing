@@ -19,11 +19,12 @@ from pathlib import Path
 sys.path.insert(0, '/project/nicho/projects/marmosets/code_database/data_processing/nwb_tools/hatlab_nwb_tools/')
 from hatlab_nwb_functions import read_prb_hatlab, plot_prb
 
-processed=True
-marmscode = 'HMMG'
+processed=False
+plot_spike_times = False
+marmscode = 'JLTY'
 avi_dir = 'avi_videos' #'filtered_avi_videos'
-nwb_acquisition_file = '/project/nicho/data/marmosets/electrophys_data_for_processing/MG20230416_1505_mothsAndFree/MG20230416_1505_mothsAndFree-002_acquisition.nwb'
-nwb_processed_file = '/project/nicho/data/marmosets/electrophys_data_for_processing/MG20230416_1505_mothsAndFree/MG20230416_1505_mothsAndFree-002_processed.nwb'
+nwb_acquisition_file = '/project/nicho/data/marmosets/electrophys_data_for_processing/TYJL20241022_0930_baseline/TY20241022_0930_baseline001_acquisition.nwb'
+nwb_processed_file = '/project/nicho/projects/dalton/network_encoding_paper/clean_final_analysis/data/TY/TY20210211_freeAndMoths-003_resorted_20230612_DM.nwb'
 
 kinematics_video_path = Path('/project/nicho/data/marmosets/kinematics_videos/')
 
@@ -75,6 +76,11 @@ def validate_acquisition_nwb(nwb):
     
     try:
         date = re.findall(date_pattern, nwb.identifier)[0][:8]
+        date = f'{date[:4]}_{date[4:6]}_{date[6:]}'
+    except:
+        pass
+    try: 
+        date = re.findall(re.compile('[0-9]{8}-'), nwb.identifier)[0][:8] # addition for new filename: dash instead of underscore
         date = f'{date[:4]}_{date[4:6]}_{date[6:]}'
     except:
         date = re.findall(date_pattern_underscore, nwb.identifier)[0]
@@ -211,6 +217,10 @@ def plot_video_event_and_reach_kinematics(nwb_prc):
         # nwb.processing['goal_directed_kinematics'].data_interfaces['moths_s_1_e_004_position']
         event_data      = kin_module.data_interfaces[reach.video_event] 
         
+        # print(f'  event {reach.video_event}: start_idx = {reach.start_idx:>6}, stop_idx = {reach.stop_idx:>7}')
+        # print(f'  event {reach.video_event}: start_t = {reach.start_time:>8}, stop_t = {reach.stop_time:>8}')
+        print(round(reach.start_time, 2))
+        
         wrist_kinematics    = event_data.pose_estimation_series[   wrist_label].data[:]
         shoulder_kinematics = event_data.pose_estimation_series[shoulder_label].data[:]
         timestamps          = event_data.pose_estimation_series[   wrist_label].timestamps[:]
@@ -254,7 +264,8 @@ def validate_processed_file(nwb_prc, nwb_acq):
 
     plot_video_event_and_reach_kinematics(nwb_prc)
 
-    plot_spiketimes_to_check_timing_and_unit_to_signal_alignment(nwb_prc, nwb_acq)    
+    if plot_spike_times:
+        plot_spiketimes_to_check_timing_and_unit_to_signal_alignment(nwb_prc, nwb_acq)    
     
     
 with NWBHDF5IO(nwb_acquisition_file, mode='r') as io_acq:

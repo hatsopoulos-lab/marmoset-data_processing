@@ -27,9 +27,9 @@ from importlib import sys
 sys.path.insert(0, '/project/nicho/projects/marmosets/code_database/data_processing/nwb_tools/hatlab_nwb_tools/')
 #from hatlab_nwb_functions import save_dict_to_hdf5
 
-marm = 'JL'
+marm = 'TY'
+anipose_base = '/project/nicho/data/marmosets/kinematics_videos/moth/TYJL/'
 
-anipose_base = '/project/nicho/data/marmosets/kinematics_videos/moth/JLTY/'
 save_data = True
 save_hdf = True
 save_pickle = not save_hdf
@@ -40,7 +40,7 @@ if save_hdf:
 
 class dpath:
     base = Path(anipose_base)
-    date = '2023_08_04'  # for now we can only do one date at a time
+    date = '2021_02_11'  # for now we can only do one date at a time
     # reach_data_storage = '/project/nicho/data/marmosets/processed_datasets/reach_and_trajectory_information/20230803_reach_and_trajectory_info.pkl'
     
     if save_hdf:
@@ -76,11 +76,25 @@ class params:
         timeout = 2
         
     elif marm=='TY':
+        if dpath.date == '2021_02_11':
+            events_list = [4,5,7,8,10,13,16,19,22,24,26,32,33,37,39,42,47,49,53,
+                           55,56,58,60,68,71,73,74,76,78,79,80,83,85,86,88,89,92,
+                           96,100,102,110,111,112,113,118,121,124,125,126,127,128,
+                           131,134,138,139,140,142,145,146,148,151,154,155,156,157,
+                           161,163,165,167,172,173,175,180,181,184,186,189,191]
+        elif dpath.date == '2021_02_10':
+            events_list = [1,2,6,7,10,11,12,17,21,22,23,25,27,29,33,37,39,41,42,45,
+                           49,50,52,57,58,61,68,69,70,72,76,78,80,83,88,91,92,95,101,102,
+                           104,105,106,111,112,115,119,120,121,127,131,133,134,135,136,140,142,144,146,149,
+                           152,155,158,161,162,167,170]
         fps=150
         reach_method=3
         marker_to_evaluate = 'l-wrist'
         extra_plot_markers = ['l-shoulder'] 
         timeout=1
+        reproj_threshold = 30
+
+        
         
     elif marm=='JL':
         if dpath.date == '2023_08_03':
@@ -99,6 +113,8 @@ class params:
         reach_method = 3
         marker_to_evaluate = 'l-wrist'
         extra_plot_markers = ['l-shoulder'] 
+        reproj_threshold = 40
+
         
     # events_list = [3, 8, 17]
     
@@ -112,7 +128,6 @@ class params:
     min_cams_threshold = 2
     min_chunk_length = fps * 0.05 #0.04 # 50 ms
     max_gap_to_stitch = fps * 0.2 # 200 ms 
-    reproj_threshold = 40
     
     helmet_percent_tracked_thresh = 0.05
     if 'wrist' in marker_to_evaluate:
@@ -172,7 +187,11 @@ def load_dlc_data(data_dirs):
         dlc_metadata.append(dlc_metadata_tmp)
         
         event_name = f.stem
-        event_num  = int(event_name.split('_e')[1][:3])
+        try:
+            event_num  = int(event_name.split('_e')[1][:3])
+        except:
+            event_num  = int(event_name.split('_event')[1][:3])
+            
         namePattern = re.compile('^[a-zA-Z]{4}_[0-9]*_[0-9]*_[0-9]*')
         
 
@@ -489,7 +508,11 @@ def trim_long_interpolations_at_beginning_and_end(pos, pos_fill, eventNum):
     if eventNum in [36, 38, 45]:
         stop = []
     
-    timeout_frame = np.min([pos.shape[-1] - int(params.timeout*params.fps), np.where(~np.isnan(pos_fill[0]))[0][-1]])
+    filtered_not_nan_idxs = np.where(~np.isnan(pos_fill[0]))[0]
+    if len(filtered_not_nan_idxs) > 0: 
+        timeout_frame = np.min([pos.shape[-1] - int(params.timeout*params.fps), filtered_not_nan_idxs[-1]])
+    else:
+        timeout_frame = pos.shape[-1] - int(params.timeout*params.fps)
     percent_original_end = []
     for frame in range(timeout_frame):
         nOrig = np.sum((pos[0, frame:timeout_frame] - pos_fill[0, frame:timeout_frame]) == 0)
@@ -559,9 +582,10 @@ def filter_dlc(dlc, dlc_metadata, event_info):
             # ax.plot(range(meta.shape[0]), np.repeat(params.reproj_threshold, meta.shape[0]), '-r')
             # plt.show()
             
-            filterOut_idx = np.union1d(np.where(meta.loc[:, marker+'_error'] > params.reproj_threshold)[0],
-                                       np.where(meta.loc[:, marker+'_ncams'] < params.min_cams_threshold)[0])
-            pos_first_filter[mNum, :, filterOut_idx] = np.nan
+            if not (marm == 'TY' and marker in ['origin', 'x', 'y']):
+                filterOut_idx = np.union1d(np.where(meta.loc[:, marker+'_error'] > params.reproj_threshold)[0],
+                                           np.where(meta.loc[:, marker+'_ncams'] < params.min_cams_threshold)[0])
+                pos_first_filter[mNum, :, filterOut_idx] = np.nan
             
             if np.sum(~np.isnan(pos_first_filter[mNum])) == 0:
                 continue

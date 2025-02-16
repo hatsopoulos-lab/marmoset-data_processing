@@ -43,34 +43,7 @@ def count_files_in_folders(task_path, folders):
     for task_dir, fold in product(task_paths, folders):
         filecount += len(list((task_dir / fold).glob('*')))
 
-    return filecount  
-
-def insert_labels(date_dir, task_path, in_dir, out_dir, anipose_args):  
-
-    labeled_data_path = Path(anipose_args['projectpath']) / 'labeled-data'     
-    os.makedirs(task_path / out_dir, exist_ok=True)     
-
-    h5_files = list((task_path / in_dir).glob('*.h5'))
-    for f in h5_files:        
-        pose   = pd.read_hdf(f)
-        labels_files = list((labeled_data_path / f.stem).glob('CollectedData*.h5'))
-        if len(labels_files) > 0:
-            labels = pd.read_hdf(labels_files[0])
-
-            dlc_scorer = pose.columns[0][0]
-            for col in labels.columns:
-                pose_col = (dlc_scorer, col[1], col[2])
-                for row_index, label_pos in labels[col].items():
-                    if ~np.isnan(label_pos):
-                        frame = int(row_index[-1].split('img')[-1].split('.png')[0])
-                        pose_dtype = pose.loc[frame, pose_col].dtype
-                        pose.loc[frame, pose_col] = np.array(label_pos).astype(pose_dtype)
-                        if pose_col[-1] == 'y':
-                            like_col = (pose_col[0], pose_col[1], 'likelihood')
-                            pose.loc[frame, like_col] = 1.0
-
-        pose.to_hdf(task_path / out_dir / f.name, 
-                    "df_with_missing", format="table", mode="w")         
+    return filecount           
 
 def compute_pose_with_anipose(anipose_args):  
     
@@ -78,12 +51,12 @@ def compute_pose_with_anipose(anipose_args):
 
     if 'marm' in anipose_args['parameter_set'].lower():
         test_params = {'offset_threshold'       : 20, 
-                       'n_back'                 : 3, 
+                       'n_back'                 : 5, 
                        'scale_smooth'           : 4, 
                        'scale_length'           : 2,
                        'scale_length_weak'      : 0,
-                       'reproj_error_threshold' : 20,
-                       'score_threshold'        : 0.4} 
+                       'reproj_error_threshold' : 8,
+                       'score_threshold'        : 0.3} 
     elif 'bci' in anipose_args['parameter_set'].lower():
         test_params = {'offset_threshold'       : 20, 
                        'n_back'                 : 5, 
@@ -145,6 +118,8 @@ def compute_pose_with_anipose(anipose_args):
             ct+=1
             print((task_0_calib_path, task_0_calib_path.is_file(), ct), flush=True) 
 
+
+        print('passed this point')
     
     # copy config file and calibration results temp_anipose_processing/TASKID folders
     task_path = date_dir / 'temp_anipose_processing' / str(anipose_args['task_id'])
@@ -189,11 +164,6 @@ def compute_pose_with_anipose(anipose_args):
                             ['viterbi', 'pose-2d-viterbi', 'pose-2d-unfiltered'])
 
         subprocess.call(['anipose', 'analyze'])
-        
-        # Anipose doesn't work well with the pytorch version of DLC 3.0. We run pytorch to analyze video data, then restart this function using the base anipose+DLC environment (DLCv2) to run the fitlering steps
-        if anipose_args['pytorch']:
-            return
-
         subprocess.call(['anipose', 'filter'])     
     
         edit_anipose_params(task_ani_cfg_data, task_ani_config, 
@@ -226,23 +196,13 @@ def compute_pose_with_anipose(anipose_args):
         os.chdir(task_path)    
         
         subprocess.call(['anipose', 'filter'])
-        
-        # TODO test moving this to different points in process, adjust pipeline labels as needed
-        ################
-        insert_labels(date_dir, task_path, 'pose-2d-viterbi_and_autoencoder', 'pose-2d-labels-inserted', anipose_args)
-        edit_anipose_params(task_ani_cfg_data, task_ani_config, 
-                            ['filter' , 'pipeline'       , 'pipeline'          ], 
-                            ['type'   , 'pose_2d_filter' , 'pose_2d'           ], 
-                            ['viterbi', 'pose-2d-labels-inserted', 'pose-2d-unfiltered'])
-        ################
-        
         subprocess.call(['anipose', 'triangulate']) 
         subprocess.call(['anipose', 'project-2d']) 
  
         if anipose_args['label_videos']:
             subprocess.call(['anipose', 'label-2d-proj']) 
             subprocess.call(['anipose', 'label-2d-filter']) 
-            subprocess.call(['anipose', 'label-2d']) 
+            subprocess.call(['anipose', 'label-3d'])
         
         folders_with_new_info = ['pose-2d-unfiltered',
                                  'pose-2d-viterbi_and_autoencoder',
@@ -250,7 +210,7 @@ def compute_pose_with_anipose(anipose_args):
                                  'pose-3d',
                                  'videos-labeled-filtered',
                                  'videos-2d-proj',
-                                 'videos-labeled',]
+                                 'videos-3d']
                 
     else:
         
@@ -272,13 +232,11 @@ def compute_pose_with_anipose(anipose_args):
         if anipose_args['label_videos']:
             subprocess.call(['anipose', 'label-2d-proj']) 
             subprocess.call(['anipose', 'label-2d-filter']) 
-            subprocess.call(['anipose', 'label-2d']) 
             
         folders_with_new_info = ['pose-2d-proj',
                                  'pose-3d',
                                  'videos-labeled-filtered',
-                                 'videos-2d-proj',
-                                 'videos-labeled',]    
+                                 'videos-2d-proj',]    
                 
     # move all new files back to primary anipose folder
     for folder_name in folders_with_new_info:
@@ -291,8 +249,7 @@ def compute_pose_with_anipose(anipose_args):
                 shutil.move(f, dst_dir / f.name)
     
     if anipose_args['task_id'] == last_task:
-        if (task_path / 'scorer_info.txt').is_file():
-            shutil.move(task_path / 'scorer_info.txt', date_dir / 'scorer_info.txt')
+        shutil.move(task_path / 'scorer_info.txt', date_dir / 'scorer_info.txt')
             
     if anipose_args['task_id'] == last_task:
         filecount = count_files_in_folders(task_path, folders_with_new_info)
@@ -304,12 +261,7 @@ def compute_pose_with_anipose(anipose_args):
         
         # shutil.rmtree(date_dir / 'temp_anipose_processing', ignore_errors=True)
         for task_dir in (date_dir / 'temp_anipose_processing').glob('*'): 
-            for contents_path in task_dir.glob('*'):
-                if contents_path.is_file():
-                    contents_path.unlink()
-                elif contents_path.is_dir():
-                    shutil.rmtree(contents_path)
-            shutil.rmtree(task_dir)
+            shutil.rmtree(task_dir / 'avi_videos')
         os.removedirs(date_dir / 'temp_anipose_processing')
 
         print("resetting snapshotindex and iteration")
@@ -371,8 +323,6 @@ if __name__ == '__main__':
      	help="number of cameras")
     ap.add_argument("-c", "--copy_up_to", required=False, type=str,
         help="last folder to copy from the base date folder for anipose to 'temp_anipose_processing', \nallowing some steps to be skipped in individual tasks")
-    ap.add_argument("-pt", "--pytorch", required=True, type=str,
-        help="True if pytorch is used for video inference, False if just running anipose filter/labeling steps, or running video inference with old tensorflow models")
     args = vars(ap.parse_args())
 
     print('\n\n Beginning anipose processing at %s\n\n' % time.strftime('%c', time.localtime()), flush=True)
@@ -382,14 +332,9 @@ if __name__ == '__main__':
     print(type(args['extra_vars']), args['extra_vars'])
     
     task_id   = int(os.getenv('SLURM_ARRAY_TASK_ID'))
-    n_tasks   = int(os.getenv('SLURM_ARRAY_TASK_COUNT'))
-    last_task = int(os.getenv('SLURM_ARRAY_TASK_MAX'))
+    n_tasks   = 5 #int(os.getenv('SLURM_ARRAY_TASK_COUNT'))
+    last_task = 4 #int(os.getenv('SLURM_ARRAY_TASK_MAX'))
 
-    if 'pytorch' not in args.keys():
-        pytorch = False
-    else:
-        pytorch    = convert_string_inputs_to_int_float_or_bool(args['pytorch'])
-        
     iteration  = convert_string_inputs_to_int_float_or_bool(args['dlc_iter'])
     train_frac = convert_string_inputs_to_int_float_or_bool(args['train_frac'])
     extra_vars = convert_string_inputs_to_int_float_or_bool(args['extra_vars'])
@@ -449,17 +394,16 @@ if __name__ == '__main__':
                         'task_videos'     : task_videos,
                         'date_dir'        : ddir,
                         'ncams'           : args['ncams'],
-                        'copy_up_to'      : copy_up_to,
-                        'pytorch'         : pytorch}
+                        'copy_up_to'      : copy_up_to}
     
         for key, val in anipose_args.items():
             print(key, ' : ', val, flush=True)
         
         if task_id == 0:
-            for folder_name in ['pose-2d-unfiltered', 'pose-2d-labels-inserted', 'pose-2d-viterbi', 
+            for folder_name in ['pose-2d-unfiltered', 'pose-2d-viterbi', 
                                 'pose-2d-viterbi_and_autoencoder', 'pose-3d', 
                                 'videos-labeled-filtered', 'pose-2d-proj', 
-                                'videos-2d-proj','videos-labeled',]:
+                                'videos-2d-proj', 'videos-3d']:
                 os.makedirs(Path(anipose_args['date_dir']) / folder_name, exist_ok=True)
     
         compute_pose_with_anipose(anipose_args)

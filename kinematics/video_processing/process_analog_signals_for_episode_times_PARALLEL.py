@@ -31,7 +31,7 @@ from pathlib import Path
 # from ndx_pose import PoseEstimationSeries, PoseEstimation
 # import datetime
 import argparse
-from itertools import product
+from itertools import product, cycle
 
 from importlib import sys
 sys.path.insert(0, '/project/nicho/projects/marmosets/code_database/data_processing/nwb_tools/hatlab_nwb_tools/')
@@ -84,7 +84,7 @@ def get_filepaths(ephys_path, kin_path, marms_ephys_code, marms_kin_code, date):
         
     return ephys_folders, kin_folders    
 
-def remove_spurious_signals_and_sessions(eventTimes, session, chans_per_sess, allExp_signalTimes, breakTimes):       
+def remove_spurious_signals_and_sessions(eventTimes, session, chans_per_sess, allExp_signalTimes, breakTimes):  
 
     signals_to_drop = [idx for idx, times in enumerate(eventTimes) 
                         if np.shape(times)[-1] == 0 
@@ -122,7 +122,7 @@ def remove_spurious_signals_and_sessions(eventTimes, session, chans_per_sess, al
     return eventTimes, breakTimes, allExp_signalTimes, session, uniqueSessions, numSessions, chans_per_sess
 
 def clean_remaining_spurious_signals(eventTimes, allExp_signalTimes, allExp_frameCounts, numSessions, chans_per_sess, removed_eventTimes, free_idx):
-
+    
     nsx_counts = []
     for expNum, fCounts in enumerate(allExp_frameCounts):
         tmp_nsx_count = []
@@ -138,6 +138,7 @@ def clean_remaining_spurious_signals(eventTimes, allExp_signalTimes, allExp_fram
                 event_camTimes = camTimes[np.logical_and(camTimes >= start_time, camTimes <= end_time)]
                 tmp_nsx_count.append(event_camTimes.shape[0])
         nsx_counts.append(np.array(tmp_nsx_count))
+        
     
     for expNum, (nsxCount, fCounts) in enumerate(zip(nsx_counts, allExp_frameCounts)):
         diff = len(nsxCount) - fCounts.shape[0]
@@ -148,9 +149,7 @@ def clean_remaining_spurious_signals(eventTimes, allExp_signalTimes, allExp_fram
                                            for shift in range(abs(diff)+1)])
             shift = np.argmin(shifted_frameDiffs)
             removed_eventTimes.append(np.empty((2, 0)))
-            eventTimes[expNum] = np.hstack((np.zeros((2, shift))*np.nan, 
-                                          eventTimes[expNum], 
-                                          np.zeros((2, len(fCounts.cam1) - len(nsxCount) - shift))*np.nan)) 
+            
         else:
             idx_adjust = 0
             remove_signal_idxs = []
@@ -436,7 +435,7 @@ def get_analog_frame_counts_and_timestamps(eFold, nwbfiles, touchscreen = False,
     eventTimes = []
     breakTimes = []
     session = []
-    for fNum, nwbfile_path in enumerate(nwbfiles): #enumerate(analogFiles):
+    for fNum, nwbfile_path in enumerate([nwbfiles[0]]): #enumerate(analogFiles):
         
         if re.findall(date_pattern, nwbfile_path)[0].split('JL')[-1][:-1] == '20231125':
             tmp_fps = 200 if fNum==0 else 150
@@ -448,7 +447,7 @@ def get_analog_frame_counts_and_timestamps(eFold, nwbfiles, touchscreen = False,
             raw = get_electricalseries_from_nwb(nwbfile)
 
             elec_df = raw.electrodes.to_dataframe()
-            analog_idx = [idx for idx, name in elec_df['electrode_label'].items() if 'ainp' in name]
+            analog_idx = [idx for idx, name in elec_df['electrode_label'].items() if 'ainp' in name][:-1] # last ainp is for sleep
         
             try:
                 
@@ -457,7 +456,7 @@ def get_analog_frame_counts_and_timestamps(eFold, nwbfiles, touchscreen = False,
                     expVoltage = 2
                 else:
                     signals = raw.data[:, analog_idx] * raw.channel_conversion[analog_idx] * raw.conversion                
-                    expVoltage = 2
+                    expVoltage = 1 # unit impuse as ~1 for ainp1
                     
                 start = raw.starting_time
                 step = 1/raw.rate
@@ -484,7 +483,8 @@ def get_analog_frame_counts_and_timestamps(eFold, nwbfiles, touchscreen = False,
                                 event_startSamples.append(signalSamplesTmp[trigSamples[0]])
                                 event_endSamples.append(signalSamplesTmp[trigSamples[1]])
                         else:
-                            largeDiff = np.where(np.diff(expOpen_samples) > params.eventDetector[expChan])[0]
+                            # largeDiff = np.where(np.diff(expOpen_samples) > params.eventDetector[expChan])[0]
+                            largeDiff = np.where(np.diff(expOpen_samples) > params.eventDetector)[0]
                             if len(largeDiff) > 0:  
                                 event_startSamples = expOpen_samples[largeDiff + 1];
                                 event_startSamples = np.insert(event_startSamples, 0, expOpen_samples[0])
@@ -502,26 +502,34 @@ def get_analog_frame_counts_and_timestamps(eFold, nwbfiles, touchscreen = False,
                         eventTimes.append(timestamps[eventBoundariesTmp])
                         
                     try:
-                        sessPattern = re.compile('[0-9]{3}_acquisition.nwb') 
-                        sessNum = int(re.findall(sessPattern, nwbfile_path)[-1].split('_')[0])
-                        session.append(sessNum)
+                        try:
+                            sessPattern = re.compile('[0-9]{3}_acquisition.nwb') 
+                            sessNum = int(re.findall(sessPattern, nwbfile_path)[-1].split('_')[0])
+                            session.append(sessNum)
+                        except:
+                            sessNum=nwbfile_path[:nwb_path.rfind("_acquisition.nwb")][-1] #sometimes written as "...baseline001_acquisition.nwb"
+                            session.append(sessNum)
                     except:
                         print('ePhys sessionNum not present in filename. Saving fNum+1 as sessionNum')
                         session.append(fNum+1)
             except:
                 try:
-                    sessPattern = re.compile('[0-9]{3}.ns') 
-                    sessNum = int(re.findall(sessPattern, nwbfile_path)[-1][:-3])
-                    session.append(sessNum)
+                    try:
+                        sessPattern = re.compile('[0-9]{3}_acquisition.nwb') 
+                        sessNum = int(re.findall(sessPattern, nwbfile_path)[-1].split('_')[0])
+                        session.append(sessNum)
+                    except:
+                        sessNum=nwbfile_path[:nwb_path.rfind("_acquisition.nwb")][-1] #sometimes written as "...baseline001_acquisition.nwb"
+                        session.append(sessNum)
                 except:
                     print('ePhys sessionNum not present in filename. Saving fNum+1 as sessionNum')
                     session.append(fNum+1)
                 eventTimes.append(np.array([]))
                 breakTimes.append(np.array([]))
-                allExp_signalTimes.append(np.array([]))        
+                allExp_signalTimes.append(np.array([]))
                     
     numSessions = len(np.unique(session))
-    chans_per_sess = int(len(allExp_signalTimes) / numSessions)    
+    chans_per_sess = int(len(allExp_signalTimes) / numSessions)
 
     return allExp_signalTimes, eventTimes, breakTimes, session, numSessions, chans_per_sess
 
@@ -536,8 +544,8 @@ def reorder_signals_in_lists(allExp_frameCounts, allExp_vidPaths, expNames, maxE
     free_idx = int(np.where(np.logical_or(numEvents == 1, numEvents == np.min(numEvents)))[0][0])
     if free_idx != params.free_chans[0]:
         fIdx = params.free_chans[0]
-        allExp_frameCounts[fIdx], allExp_frameCounts[free_idx] = allExp_frameCounts[free_idx], allExp_frameCounts[fIdx] 
-        allExp_vidPaths[fIdx], allExp_vidPaths[free_idx] = allExp_vidPaths[free_idx], allExp_vidPaths[fIdx] 
+        allExp_frameCounts[fIdx], allExp_frameCounts[free_idx] = allExp_frameCounts[free_idx], allExp_frameCounts[fIdx]
+        allExp_vidPaths[fIdx], allExp_vidPaths[free_idx] = allExp_vidPaths[free_idx], allExp_vidPaths[fIdx]
         expNames[fIdx], expNames[free_idx] = expNames[free_idx], expNames[fIdx]
         maxEvent_camNum[fIdx], maxEvent_camNum[free_idx] = maxEvent_camNum[free_idx], maxEvent_camNum[fIdx]
 
@@ -608,9 +616,12 @@ def clean_and_align_signals(allExp_frameCounts,
     
     saveData = prepare_final_data_and_metadata(expNames, allExp_frameCounts, allExp_signalTimes, allExp_vidPaths, 
                                                 eventTimes, removed_eventTimes, numSessions, uniqueSessions, chans_per_sess, matched_kinFolders) 
+    print('finished save data')
+    
     # saveData_mat = convert_saveData_to_matlab_compatible(saveData, expNames, allExp_frameCounts, removed_eventTimes, matched_kinFolders)            
     for nwbfile_path in nwbfiles:
         timestamps_to_nwb(nwbfile_path, kin_folders, saveData)
+        print('finished for file ', nwbfile_path)
     
 def convert_string_inputs_to_int_float_or_bool(orig_var):
     if type(orig_var) == str:
@@ -638,7 +649,7 @@ def convert_string_inputs_to_int_float_or_bool(orig_var):
 
 if __name__ == '__main__':
     
-    debugging = True
+    debugging = False
     
     if not debugging:
     
@@ -652,7 +663,7 @@ if __name__ == '__main__':
         ap.add_argument("-m", "--marms", required=True, type=str,
          	help="marmoset 4-digit code, e.g. 'JLTY'")
         ap.add_argument("-me", "--marms_ephys", required=True, type=str,
-         	help="marmoset 2-digit code for ephys data, e.g. 'TY'")
+         	help="marmoset 4-digit code for ephys data, e.g. 'TYJL'")
         ap.add_argument("-d", "--date", required=True, type=str,
          	help="date of recording in format YYYY_MM_DD")
         ap.add_argument("-e", "--exp_name", required=True, type=str,
@@ -665,10 +676,14 @@ if __name__ == '__main__':
          	help="path to directory holding kinematic data")
         ap.add_argument("-np", "--neur_proc_path", required=True, type=str,
          	help="path to directory holding neural processing code")
-        ap.add_argument("-meta", "--meta_path", required=True, type=str,
-            help="path to metadata yml file to be added to NWB file, e.g. /project/nicho/projects/marmosets/code_database/data_processing/nwb_tools/marms_complete_metadata.yml")
-        ap.add_argument("-prb", "--prb_path" , required=True, type=str,
-            help="path to .prb file that provides probe/channel info to NWB file, e.g. /project/nicho/data/marmosets/prbfiles/MG_array.prb")
+        ap.add_argument("-meta1", "--meta_path1", required=True, type=str,
+            help="path to metadata yml file to be added to NWB file FOR SUBJECT 1, e.g. /project/nicho/projects/marmosets/code_database/data_processing/nwb_tools/marms_complete_metadata.yml")
+        ap.add_argument("-meta2", "--meta_path2", required=True, type=str,
+            help="path to metadata yml file to be added to NWB file FOR SUBJECT 2, e.g. /project/nicho/projects/marmosets/code_database/data_processing/nwb_tools/marms_complete_metadata.yml")
+        ap.add_argument("-prb1", "--prb_path1" , required=True, type=str,
+            help="path to .prb file that provides probe/channel info to NWB file FOR SUBJECT 1, e.g. /project/nicho/data/marmosets/prbfiles/MG_array.prb")
+        ap.add_argument("-prb2", "--prb_path2" , required=True, type=str,
+            help="path to .prb file that provides probe/channel info to NWB file FOR SUBJECT 2, e.g. /project/nicho/data/marmosets/prbfiles/MG_array.prb")
         ap.add_argument("-ab", "--swap_ab" , required=True, type=str,
             help="Can be 'yes' or 'no'. Indicates whether or not channel names need to be swapped for A/B bank swapping conde by exilis. For new data, this should be taken care of in cmp file. For TY data, 'yes' should be indicated.")
         ap.add_argument("-al", "--vid_neural_align" , required=True, type=str,
@@ -680,26 +695,22 @@ if __name__ == '__main__':
     else:
         args = {'vid_dir'          : '/project/nicho/data/marmosets/kinematics_videos',
                 'ephys_path'       : '/project/nicho/data/marmosets/electrophys_data_for_processing',
-                'marms'            : 'TYTY',
-                'marms_ephys'      : 'TY',
-                'date'             : '2025_01_10',
-                'exp_name'         : 'test',
-                'other_exp_name'   : 'testFree',
+                'marms'            : 'TYJL',
+                'marms_ephys'      : 'TYJL',
+                'date'             : '2024_10_22',
+                'exp_name'         : 'baseline',
+                'other_exp_name'   : 'baselineFree',
                 'touchscreen'      : 'False',
                 'touchscreen_path' : 'BLANK',
                 'neur_proc_path'   : '/project/nicho/projects/marmosets/code_database/data_processing/neural',
-                'meta_path'        : '/project/nicho/data/marmosets/metadata_yml_files/TY_complete_metadata.yml',
-                'prb_path'         : '/project/nicho/data/marmosets/prbfiles/TY_02.prb',
+                'meta_path1'       : '/project/nicho/data/marmosets/metadata_yml_files/parallel_recordings/TY_metadata_parallel.yml',
+                'meta_path2'       : '/project/nicho/data/marmosets/metadata_yml_files/parallel_recordings/JL_metadata_parallel.yml',
+                'prb_path1'        : '/project/nicho/data/marmosets/prbfiles/parallel_recordings/TY_02_parallel.prb',
+                'prb_path2'        : '/project/nicho/data/marmosets/prbfiles/parallel_recordings/JL_01_parallel.prb',
                 'swap_ab'          : 'yes',
-                'vid_neural_align' : 'all_in_one_neural_recording',
-                'debugging'        : True,
-                'fps'              : [150, 30]}
+                'vid_neural_align' : 'matched',
+                'fps'              : 30}
     
-    if args['marms_ephys'] == 'TY' and int(args['date'][:4]) < 2022:
-        params.free_chans    = [0]
-        params.app_chans     = [1]
-        params.num_app_cams  = 2
-        params.num_free_cams = 2  
         
     touchscreen = convert_string_inputs_to_int_float_or_bool(args['touchscreen'])
     
@@ -727,16 +738,39 @@ if __name__ == '__main__':
         for eFold in ephys_folders:
             
             analogfiles = sorted(glob.glob(os.path.join(eFold, '*.%s' % params.nsx_filetype)))
-            nwbfiles = [an_path.replace('.ns6', '_acquisition.nwb') for an_path in analogfiles]
+            # generate two NWB files, one for each subject
+            marms = [args['marms_ephys'][0:2], args['marms_ephys'][2:4]]
+            nwbfiles = []
+            for marm in marms:
+                for an_path in analogfiles:
+                    idx_to_replace = an_path.rfind(args['marms_ephys'])
+                    nwb_path = an_path[:idx_to_replace] + an_path[idx_to_replace:].replace(args['marms_ephys'], marm).replace('.ns6', '_acquisition.nwb')
+                    nwbfiles.append(nwb_path)
             
-            for nwbfile_path, nsx_path in zip(nwbfiles, analogfiles):
+            marm1_unprocessed=True
+            for nwbfile_path, nsx_path in zip(nwbfiles, cycle(analogfiles)):
                 print('Creating nwb file at %s' % nwbfile_path)
-                subprocess.call(['python',
-                                  os.path.join(args['neur_proc_path'], 'store_neural_data_in_nwb.py'),
-                                  '-f', nsx_path,
-                                  '-m', args['meta_path'],
-                                  '-p', args['prb_path'],
-                                  '-ab', args['swap_ab']])
+                if marm1_unprocessed:
+                    subprocess.call(['python',
+                                      os.path.join(args['neur_proc_path'], 'store_neural_data_in_nwb_PARALLEL.py'),
+                                      '-nwb', nwbfile_path,
+                                      '-f', nsx_path,
+                                      '-m', args['meta_path1'],
+                                      '-p', args['prb_path1'],
+                                      '-ab', args['swap_ab'],
+                                      '-mn', '0'])
+                    marm1_unprocessed=False
+                    print('Finished nwb curation for subject 1')
+                else:
+                    subprocess.call(['python',
+                                      os.path.join(args['neur_proc_path'], 'store_neural_data_in_nwb_PARALLEL.py'),
+                                      '-nwb', nwbfile_path,
+                                      '-f', nsx_path,
+                                      '-m', args['meta_path2'],
+                                      '-p', args['prb_path2'],
+                                      '-ab', args['swap_ab'],
+                                      '-mn', '1'])
+                    print('Finished nwb curation for subject 2')
 
             date = re.findall(datePattern, os.path.basename(eFold))[0]
             print(f'working on {date}')

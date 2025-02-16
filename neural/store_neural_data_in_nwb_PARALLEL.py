@@ -59,8 +59,7 @@ def add_screenshots_to_nwb(nwb_path):
     
     return
 
-def create_nwb_and_store_raw_neural_data(ns6_path, meta_path, prb_path, swap_ab, filter_dict):
-    nwb_path = ns6_path.replace('.ns6', '_acquisition.nwb')
+def create_nwb_and_store_raw_neural_data(nwb_path, ns6_path, meta_path, prb_path, swap_ab, filter_dict, marm_num):
     nev_path = ns6_path.replace('.ns6', '.nev')   
     
     stub_test= False
@@ -70,6 +69,8 @@ def create_nwb_and_store_raw_neural_data(ns6_path, meta_path, prb_path, swap_ab,
         return
     
     nev_exists = os.path.isfile(nev_path)
+    # nev_exists=False
+    
     if nev_exists:
         source_data = dict(BlackrockRecordingInterfaceRaw = dict(file_path=ns6_path),
                            BlackrockSortingInterface      = dict(file_path=nev_path, sampling_frequency=30000.0))
@@ -119,7 +120,7 @@ def create_nwb_and_store_raw_neural_data(ns6_path, meta_path, prb_path, swap_ab,
     analog_group = [group for group in metadata['Ecephys']['ElectrodeGroup'] if 'ainp' in group['name'].lower()][0]
     
     # modify metadata for raw_extractor
-    raw_extractor = converter.data_interface_objects['BlackrockRecordingInterfaceRaw'].recording_extractor 
+    raw_extractor = converter.data_interface_objects['BlackrockRecordingInterfaceRaw'].recording_extractor
 
     chIDs = raw_extractor.get_channel_ids()
     chNames = raw_extractor._properties['channel_name']
@@ -136,12 +137,16 @@ def create_nwb_and_store_raw_neural_data(ns6_path, meta_path, prb_path, swap_ab,
     raw_extractor.set_property('electrode_label', chNames)
     del raw_extractor._properties['channel_name']
     
-    try:
-        array_chans = [ch for ch, name in zip(chIDs, chNames) if 'elec' in name]
-        test = array_chans[0]
-    except:
-        array_chans = [ch for ch, name in zip(chIDs, chNames) if 'ainp' not in name]
+    # previous
+    # array_chans = [ch for ch, name in zip(chIDs, chNames) if 'elec' in name]
+    
+    print(marm_num)
+    if marm_num == '0':
+        array_chans = [ch for ch, name in zip(chIDs, chNames) if '-1' in name]
+    elif marm_num == '1':
+        array_chans = [ch for ch, name in zip(chIDs, chNames) if '-2' in name]
     analog_chans = [ch for ch, name in zip(chIDs, chNames) if 'ainp' in name]
+    # subset_raw_extractor = raw_extractor.channel_slice(np.array(array_chans + analog_chans)) # can we replace?
     
     if 'elec' not in map_df['shank_ids'][0]:
         map_df['shank_ids'] = ['elec' + num for num in map_df['shank_ids']]
@@ -150,10 +155,6 @@ def create_nwb_and_store_raw_neural_data(ns6_path, meta_path, prb_path, swap_ab,
     intact_map_idxs = [row for row, item in map_df.iterrows() if item['shank_ids'] not in missing_electrodes]
     map_df = map_df.iloc[intact_map_idxs, :]    
     
-    # TODO: remove temporary fix after 01_10_2025
-    temp = True
-    if temp:
-        array_chans = array_chans[0:96]
     raw_extractor.set_property('x', map_df['x'], ids=array_chans, missing_value=None)
     raw_extractor.set_property('y', map_df['y'], ids=array_chans, missing_value=None)
     raw_extractor.set_property('z', map_df['z'], ids=array_chans, missing_value=None)
@@ -181,19 +182,32 @@ def create_nwb_and_store_raw_neural_data(ns6_path, meta_path, prb_path, swap_ab,
     if nev_exists:
         sorting_extractor = converter.data_interface_objects['BlackrockSortingInterface'].sorting_extractor
         
-        unit_name = sorting_extractor._properties['unit_name']
+        unit_name = sorting_extractor._properties['unit_name'] 
         channel_index = np.array([int(name.split('ch')[-1].split('#')[0]) - 1 for name in unit_name])
         
-        # # FIXME Correction to correct channel index for second array beginning on chan128, but should start at index 96.
+        # FIXME Correction to correct channel index for second array beginning on chan128, but should start at index 96.
         # gap = np.min(channel_index[channel_index > 95]) - np.max(channel_index[channel_index < 96]) + 1
         # channel_index[channel_index > 95] = channel_index[channel_index > 95] - gap
-        # #########
+        if marm_num=='0':
+            channel_index = channel_index[channel_index < 96] # currently no threshold crossings on array 1
+        elif marm_num=='1':
+            gap = 128-96 # label - index
+            channel_index = channel_index[channel_index > 96] - gap
+        #########
         
         for missChan in missing_chan_idxs[::-1]:
             channel_index[channel_index > missChan] = channel_index[channel_index > missChan] - 1
         # channel_index = sorting_extractor.unit_ids
         sorting_electrode_labels = labels_from_raw[channel_index]
-        sorting_extractor.set_property('electrode_label', sorting_electrode_labels, missing_value=None)
+        
+        # uncomment below code if there are only threshold crossings on array 2
+        # if marm_num == '0':
+        #     sorting_extractor.set_property('electrode_label', sorting_electrode_labels, ids=channel_index, missing_value=None) # used to generate TY data,
+        # elif marm_num =='1':
+        #     sorting_extractor.set_property('electrode_label', sorting_electrode_labels, missing_value=None)
+        sorting_extractor.set_property('electrode_label', sorting_electrode_labels, ids=channel_index, missing_value=None) # used to generate TY data,
+            
+            
     # match spike_trains from extractor to the nev file
     # ordered_spikes_list = []
     # for elec_id in range(1,6):
@@ -267,9 +281,6 @@ def create_nwb_and_store_raw_neural_data(ns6_path, meta_path, prb_path, swap_ab,
                                                              write_as='processing',
                                                              units_name='units_from_nevfile',
                                                              )
-        # write_options = dict(BlackrockRecordingInterfaceRaw=dict(), BlackrockSortingInterface=dict())
-        # write_options['BlackrockSortingInterface']['write_as'] = 'processing'
-        # write_options['BlackrockSortingInterface']['units_name'] = 'units_from_nevfile'
         if np.unique(sorting_electrode_labels).shape[0] < sorting_electrode_labels.shape[0]:
             conversion_options['BlackrockSortingInterface']['units_description'] = 'sorted online during experimental session, autogenerated by neuroconv from .nev file'
         else:
@@ -296,11 +307,14 @@ def create_nwb_and_store_raw_neural_data(ns6_path, meta_path, prb_path, swap_ab,
     return
 
 if __name__ == '__main__':
-    # construct the argument parse and parse the arguments
-    debugging = False 
     
-    if not debugging:
+    debugging = False
+    
+    if debugging == False:
+        # construct the argument parse and parse the arguments
         ap = argparse.ArgumentParser()
+        ap.add_argument("-nwb", "--nwb_path" , required=True, type=str,
+            help="path to new NWB file, e.g. /project/nicho/data/marmosets/electrophys_data_for_processing/TY20221024_testbattery/TY20221024_testbattery_001_acquisition.nwb")
         ap.add_argument("-f", "--ns6_path" , required=True, type=str,
             help="path to ns6 file that will be stored in new NWB file, e.g. /project/nicho/data/marmosets/electrophys_data_for_processing/TY20221024_testbattery/TY20221024_testbattery_001.ns6")
         ap.add_argument("-m", "--meta_path", required=True, type=str,
@@ -309,13 +323,26 @@ if __name__ == '__main__':
             help="path to .prb file that provides probe/channel info to NWB file, e.g. /project/nicho/data/marmosets/prbfiles/MG_array.prb")
         ap.add_argument("-ab", "--swap_ab" , required=True, type=str,
             help="Can be 'yes' or 'no'. Indicates whether or not channel names need to be swapped for A/B bank swapping conde by exilis. For new data, this should be taken care of in cmp file. For TY data, will be necessary.")
+        ap.add_argument("-mn", "--marm_num" , required=True, type=str,
+           help="can be 1 or 2, indicates which marmoset subject we are storing data for (which set of 96 electrodes)")
         args = vars(ap.parse_args())
-    else:
-        args = {'ns6_path' : '/project/nicho/data/marmosets/electrophys_data_for_processing/TYTY20250110_1500_test/TYTY20250110_1500_test.ns6',
-                'meta_path': '/project/nicho/data/marmosets/metadata_yml_files/TY_complete_metadata.yml',
-                'prb_path' : '/project/nicho/data/marmosets/prbfiles/TY_02.prb',
-                'swap_ab'  : 'yes'}
+        
+        print("Marm_num:", args['marm_num'], type(args['marm_num']))
     
+    if debugging:
+        # args = {'ns6_path' : '/project/nicho/data/marmosets/electrophys_data_for_processing/TYJL20241018_1730_baseline/TYJL20241018_1730_baseline001.ns6',
+        #         'meta_path': '/project/nicho/data/marmosets/metadata_yml_files/parallel_recordings/TY_metadata_parallel.yml',
+        #         'prb_path' : '/project/nicho/data/marmosets/prbfiles/parallel_recordings/TY_02_parallel.prb',
+        #         'swap_ab'  : 'no',
+        #         'marm_num' : 0} #0 or 1
+        
+        args = {'nwb_path' : '/project/nicho/data/marmosets/electrophys_data_for_processing/TYJL20241022_0930_baseline/TY20241022_0930_baseline001_acquisition.nwb',
+                'ns6_path' : '/project/nicho/data/marmosets/electrophys_data_for_processing/TYJL20241022_0930_baseline/TYJL20241022_0930_baseline001.ns6',
+                'meta_path': '/project/nicho/data/marmosets/metadata_yml_files/parallel_recordings/TY_metadata_parallel.yml',
+                'prb_path' : '/project/nicho/data/marmosets/prbfiles/parallel_recordings/TY_02_parallel.prb',
+                'swap_ab'  : 'no',
+                'marm_num' : '0'} #0 or 1
+        
     # args = {'ns6_path' : '/project/nicho/data/marmosets/electrophys_data_for_processing/MG20230416_1505_mothsAndFree/MG20230416_1505_mothsAndFree-002.ns6',
     #         'meta_path': '/project/nicho/data/marmosets/metadata_yml_files/MG_complete_metadata.yml',
     #         'prb_path' : '/project/nicho/data/marmosets/prbfiles/MG_01.prb',
@@ -323,4 +350,4 @@ if __name__ == '__main__':
     
     filter_dict = {'6': 'None'}
     
-    create_nwb_and_store_raw_neural_data(args['ns6_path'], args['meta_path'], args['prb_path'], args['swap_ab'], filter_dict)
+    create_nwb_and_store_raw_neural_data(args['nwb_path'], args['ns6_path'], args['meta_path'], args['prb_path'], args['swap_ab'], filter_dict, args['marm_num'])

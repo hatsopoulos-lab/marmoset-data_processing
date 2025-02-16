@@ -29,7 +29,7 @@ def revert_and_copy_pose_filenames(pose_dir, vid_dir, scorer):
         df = pd.read_hdf(f)
         df.columns = df.columns.set_levels([scorer], level=0)
         df.to_hdf(new_file, key="df_with_missing", mode="w")
-        
+
 def extract_outlier_frames(video_path, dlc_config_path, extraction_dict):
     cam_pattern = re.compile('_cam[0-9]{1}')
     
@@ -53,12 +53,20 @@ def extract_outlier_frames(video_path, dlc_config_path, extraction_dict):
         deeplabcut.auxiliaryfunctions.write_config(dlc_config_path, dlc_cfg)
         
         if extraction_dict['mode'] == 'outliers':
-            deeplabcut.extract_outlier_frames(dlc_config_path, 
-                                              cam_videos, 
-                                              outlieralgorithm='jump', 
-                                              comparisonbodyparts=extraction_dict['bodyparts'],
-                                              extractionalgorithm=extraction_dict['extract_algo'],
-                                              automatic=True,)
+            for cam in cameras:
+                single_cam_videos   = [vid for vid in cam_videos if int(re.findall(cam_pattern, os.path.basename(vid))[0].split('_cam')[-1]) == cam]                       
+                if isinstance(extraction_dict['bodyparts'], dict):
+                    bodyparts = extraction_dict['bodyparts'][f'cam{cam}']
+                else:
+                    bodyparts = extraction_dict['bodyparts']
+                deeplabcut.extract_outlier_frames(dlc_config_path, 
+                                                  single_cam_videos, 
+                                                  outlieralgorithm='jump', 
+                                                  comparisonbodyparts=bodyparts,
+                                                  extractionalgorithm=extraction_dict['extract_algo'],
+                                                  automatic=True,)
+                
+                
         elif extraction_dict['mode'] == 'original':
             videos_to_add = [v for v in cam_videos if v not in dlc_cfg["video_sets"]]
             print(videos_to_add)
@@ -75,6 +83,8 @@ def extract_outlier_frames(video_path, dlc_config_path, extraction_dict):
                                       userfeedback=False,)
             
     
+
+
             
 if __name__ == '__main__':
     # construct the argument parse and parse the arguments
@@ -125,42 +135,48 @@ if __name__ == '__main__':
 
     ### JL_2023_08_04
 
-    args = {'pose_dir': '/project/nicho/data/marmosets/kinematics_videos/moth/JLTY/2023_08_04/pose-2d-viterbi_and_autoencoder',
-            'vid_dir' : '/project/nicho/data/marmosets/kinematics_videos/moth/JLTY/2023_08_04/avi_videos',
-            'dlc_config_path': '/project/nicho/projects/marmosets/dlc_project_files/simple_5cams_marmoset_model-Dalton-2024-06-27/config.yaml'}
+    # args = {'pose_dir': '/project/nicho/data/marmosets/kinematics_videos/moth/JLTY/2023_08_04/pose-2d-viterbi_and_autoencoder',
+    #         'vid_dir' : '/project/nicho/data/marmosets/kinematics_videos/moth/JLTY/2023_08_04/avi_videos',
+    #         'dlc_config_path': '/project/nicho/projects/marmosets/dlc_project_files/simple_5cams_marmoset_model-Dalton-2024-06-27/config.yaml'}
     
-    extraction_dict = {'events'          :[     5,    12,    16,    19,    29,    34,    36,    48,],
-                        'start_fractions':[  0.00,  0.53,  0.10,  0.40,  0.23,  0.23,  0.30,  0.06,],
-                        'stop_fractions' :[  0.45,  0.63,  0.43,  0.61,  0.28,  0.33,  0.45,  0.39,],
-                        'numframes'      :[    10,    10,    10,    10,    10,    10,    10,    10,],
-                        'cameras'        :[[1,2,],[3,4,],[1,4,],[2,3,],[1,2,],[3,4,],[1,4,],[2,3,],],
-                        'bodyparts'      :['l-wrist'],
-                        'dlc_iter'       :1,
-                        'extract_algo'   :['kmeans', 'uniform'][1],
-                        'mode'           :['original', 'outliers'][0],}
-    # extraction_dict = {'events'         :[    4,    5,    6,    6,    7,    8,    9,   11,   12,   13,   15,   16,   17,   18,   19,   29,   31,   33,   34,   35,   36,   37,   38,   43,   45,   46,   48,],
-    #                     'start_fractions':[ 0.27,    0, 0.02, 0.61, 0.08, 0.22, 0.04, 0.32, 0.53, 0.05, 0.13, 0.10, 0.73, 0.12, 0.03, 0.11, 0.29, 0.04, 0.13, 0.11, 0.30, 0.12, 0.19, 0.05, 0.13, 0.09, 0.06,],
-    #                     'stop_fractions' :[ 0.36, 0.45, 0.16, 0.69, 0.20, 0.44, 0.17, 0.50, 0.63, 0.43, 0.27, 0.43, 0.78, 0.23, 0.61, 0.28, 0.65, 0.19, 0.33, 0.28, 0.45, 0.35, 0.31, 0.24, 0.27, 0.32, 0.39,],
-    #                     'numframes'      :[   10,   10,   10,   10,  10,    10,   10,   10,   10,   10,  10,    10,   10,   10,   10,   10,  10,    10,   10,   10,   10,   10,  10,    10,   10,   10,   10,],
-    #                     'cameras'        :[[2, 5],[4,5],[2,5],[4,5]],
-    #                     'bodyparts'      :['l-wrist'],
-    #                     'dlc_iter'       :11}  
+    # # extraction_dict = {'events'          :[     5,    12,    16,    19,    29,    34,    36,    48,],
+    # #                     'start_fractions':[  0.00,  0.53,  0.10,  0.40,  0.23,  0.23,  0.30,  0.06,],
+    # #                     'stop_fractions' :[  0.45,  0.63,  0.43,  0.61,  0.28,  0.33,  0.45,  0.39,],
+    # #                     'numframes'      :[    10,    10,    10,    10,    10,    10,    10,    10,],
+    # #                     'cameras'        :[[1,2,],[3,4,],[1,4,],[2,3,],[1,2,],[3,4,],[1,4,],[2,3,],],
+    # #                     'bodyparts'      :['l-wrist'],
+    # #                     'dlc_iter'       :1,
+    # #                     'extract_algo'   :['kmeans', 'uniform'][1],
+    # #                     'mode'           :['original', 'outliers'][0],}
+    # extraction_dict = {'events'          :[    7,     9,    12,    13,    18,    29,    33,    35,    36,    46,    46,    48,    48,],
+    #                     'start_fractions':[0.324, 0.170, 0.603, 0.426, 0.133, 0.220, 0.075, 0.318, 0.347, 0.103, 0.241, 0.102, 0.266,],
+    #                     'stop_fractions' :[0.342, 0.286, 0.643, 0.450, 0.229, 0.379, 0.087, 0.360, 0.422, 0.117, 0.262, 0.115, 0.334,],
+    #                     'numframes'      :[    3,     3,     3,     3,     5,     3,     5,     3,     5,     5,    7,     10,     5,],
+    #                     'cameras'        :[  [2],   [4],   [2],   [4], [2,4],   [2], [2,4],   [4], [2,4], [2,4], [2,4], [2,4], [2,4],],
+    #                     'bodyparts'      : dict(cam1=['l-wrist', 'l-shoulder'], 
+    #                                             cam2=['l-wrist', 'l-shoulder'], 
+    #                                             cam3=['l-wrist', 'l-shoulder'],
+    #                                             cam4=['l-wrist', 'l-shoulder'],
+    #                                             cam5=['r-wrist', 'l-wrist'],),
+    #                     'dlc_iter'       :5,
+    #                     'extract_algo'   :['kmeans', 'uniform'][1],
+    #                     'mode'           :['original', 'outliers'][0],}  
 
     ### JL_2023_08_05
     
-    # args = {'pose_dir': '/project/nicho/data/marmosets/kinematics_videos/moth/JLTY/2023_08_05/pose-2d-viterbi_and_autoencoder',
-    #         'vid_dir' : '/project/nicho/data/marmosets/kinematics_videos/moth/JLTY/2023_08_05/avi_videos',
-    #         'dlc_config_path': '/project/nicho/projects/marmosets/dlc_project_files/simple_marmoset_model-Dalton-2023-04-28/config.yaml'}
+    args = {'pose_dir': '/project/nicho/data/marmosets/kinematics_videos/moth/JLTY/2023_08_05/pose-2d-viterbi_and_autoencoder',
+            'vid_dir' : '/project/nicho/data/marmosets/kinematics_videos/moth/JLTY/2023_08_05/avi_videos',
+            'dlc_config_path': '/project/nicho/projects/marmosets/dlc_project_files/simple_5cams_marmoset_model-Dalton-2024-06-27/config.yaml'}
     
-    # extraction_dict = {'events'          :[   10,   18,    27,],
-    #                     'start_fractions':[ 0.62, 0.75,  0.09,],
-    #                     'stop_fractions' :[ 0.68, 0.82,  0.26,],
-    #                     'numframes'      :[    5,    5,     5,],
-    #                     'cameras'        :[  [5],  [5],   [5],],
-    #                     'bodyparts'      :['l-wrist'],
-    #                     'dlc_iter'       :11,
-    #                     'extract_algo'   :['kmeans', 'uniform'][1],
-    #                     'mode'           :['original', 'outliers'][0],}
+    extraction_dict = {'events'          :[   10,    13,    13,    18,    18,   18,   23,   23,    25,    25,    25,    33,    33,],
+                        'start_fractions':[ 0.65, 0.023, 0.321, 0.269, 0.277, 0.75, 0.20, 0.31, 0.564, 0.576, 0.596, 0.588, 0.610,],
+                        'stop_fractions' :[ 0.68, 0.025, 0.325, 0.272, 0.292, 0.81, 0.23, 0.33, 0.570, 0.578, 0.602, 0.602, 0.615,],
+                        'numframes'      :[    5,     3,     3,     3,     3,    5,    5,    5,     2,     3,     3,     3,     3,],
+                        'cameras'        :[[2,4], [2,4], [2,4], [2,4], [2,4],[2,4],[2,4],[2,4], [2,4], [2,4], [2,4], [2,4], [2,4],],
+                        'bodyparts'      :['l-wrist'],
+                        'dlc_iter'       :5,
+                        'extract_algo'   :['kmeans', 'uniform'][0],
+                        'mode'           :['original', 'outliers'][0],}
 
     pose_dir = args['pose_dir']
     if pose_dir[-1] == '/':

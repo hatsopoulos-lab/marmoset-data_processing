@@ -67,7 +67,7 @@ def read_prb_hatlab(file):
             chans = np.array(group["channels"], dtype="int64")
         except:
             chans = np.array(group["channels"], dtype=str)
-            
+
         try:
             positions = np.array([group["geometry"][c] for c in chans], dtype="float64")
         except:
@@ -76,20 +76,20 @@ def read_prb_hatlab(file):
         # try:
         #     chan_labels = np.array([group["chanels"][c] for c in chans], dtype="float64")
         # except:
-        #     chan_labels = np.array([group["chan_label"][idx] for idx, c in enumerate(chans)], dtype="float64")        
-        
+        #     chan_labels = np.array([group["chan_label"][idx] for idx, c in enumerate(chans)], dtype="float64")
+
         num_contacts = positions.shape[0]
         plane_axes = np.zeros((num_contacts, 2, ndim))
         plane_axes[:, 0, 0] = 1
         plane_axes[:, 1, 1] = 1
-        
+
         probe.set_contacts(
             positions=positions, shapes="circle", shape_params={"radius": prb['radius']}, shank_ids=chans, plane_axes = plane_axes
         )
         # probe.create_auto_shape(probe_type="tip")
 
         probegroup.add_probe(probe)
-        
+
         imp.append(np.array(group['impedance'][0], dtype=str))
 
     return probegroup, imp
@@ -110,7 +110,7 @@ def plot_prb(probegroup):
 
 def create_nwb_copy_without_acquisition(nwb_infile, nwb_outfile):
     with NWBHDF5IO(nwb_infile, 'r') as io:
-        nwb = io.read()    
+        nwb = io.read()
         nwb.generate_new_id()
         nwb.acquisition.clear()
         # video_timestamp_keys = [key for key in nwb.processing.keys() if 'video_event_timestamps' in key]
@@ -123,13 +123,13 @@ def create_nwb_copy_without_acquisition(nwb_infile, nwb_outfile):
                 nwb.processing[mod_key].data_interfaces.pop(key)
         except:
             print('"%s" does not exist in the processing module' %mod_key)
-        
+
         with NWBHDF5IO(nwb_outfile, mode='w') as export_io:
-            export_io.export(src_io=io, nwbfile=nwb)  
-            
+            export_io.export(src_io=io, nwbfile=nwb)
+
 def create_nwb_copy_with_external_links_to_acquisition(nwb_infile, nwb_outfile):
     raw_io = NWBHDF5IO(nwb_infile, 'r')
-    nwb = raw_io.read()    
+    nwb = raw_io.read()
     nwb_proc = nwb.copy()
         # video_timestamp_keys = [key for key in nwb.processing.keys() if 'video_event_timestamps' in key]
         # for key in video_timestamp_keys:
@@ -141,25 +141,25 @@ def create_nwb_copy_with_external_links_to_acquisition(nwb_infile, nwb_outfile):
         #         nwb.processing[mod_key].data_interfaces.pop(key)
         # except:
         #     print('"%s" does not exist in the processing module' %mod_key)
-        
+
     nwb_proc.add_scratch(np.array([]),
                         name="placeholder",
                         description="placeholdet to shallow copy acquisition file")
-    
+
     with NWBHDF5IO(nwb_outfile, mode="w", manager=raw_io.manager) as io:
         io.write(nwb_proc)
-    
+
     raw_io.close()
 
 def save_dict_to_hdf5(data, filename, first_level_key = None):
-    
+
     if first_level_key is None:
         first_key = '/'
     elif type(data) == list:
         first_key = f'/{first_level_key}'
     else:
         first_key = f'/{first_level_key}/'
-    
+
     df_keys_list, df_data_list = [], []
     with h5py.File(filename, 'a') as h5file:
         if type(data) == list:
@@ -170,7 +170,7 @@ def save_dict_to_hdf5(data, filename, first_level_key = None):
         elif type(data) == pd.DataFrame:
             df_keys_list.append('df')
             df_data_list.append(data)
-    
+
     if df_keys_list is not None:
         for key, df in zip(df_keys_list, df_data_list):
             df.to_hdf(filename, key, mode='a')
@@ -187,7 +187,7 @@ def recursively_save_dict_contents_to_group(h5file, path, dic, df_keys_list = No
                 h5file.create_dataset(path + key, dtype=h5py.string_dtype(encoding='utf-8'), data=item)
             else:
                 h5file[path + key] = np.array(item)
-            
+
         elif isinstance(item, dict):
             df_keys_list, df_data_list = recursively_save_dict_contents_to_group(h5file, path + key + '/', item, df_keys_list, df_data_list)
         elif isinstance(item, pd.DataFrame):
@@ -195,9 +195,9 @@ def recursively_save_dict_contents_to_group(h5file, path, dic, df_keys_list = No
             df_data_list.extend([item])
         else:
             raise ValueError('Cannot save %s type'%type(item))
-     
-    return df_keys_list, df_data_list       
-     
+
+    return df_keys_list, df_data_list
+
 def recursively_load_dict_contents_from_group(h5file, path, df_key_list, convert_4d_array_to_list = False):
     """
     ....
@@ -234,7 +234,7 @@ def load_dict_from_hdf5(filename, top_level_list=False, convert_4d_array_to_list
             df_key_list = []
             tmp_dict, df_key_list = recursively_load_dict_contents_from_group(h5file, '/', df_key_list, convert_4d_array_to_list)
             loaded_data = tmp_dict
-    
+
     if isinstance(loaded_data, dict):
         for df_key in df_key_list:
             key_tree = [part for part in df_key.split('/') if part != '']
@@ -243,11 +243,11 @@ def load_dict_from_hdf5(filename, top_level_list=False, convert_4d_array_to_list
             # for branch in key_tree[:-1]:
             #     if branch in keys
             #     loaded_data.setdefault(branch, {})
-            # loaded_data[key_tree[-1]] = pd.read_hdf(h5file, df_key) 
-    
+            # loaded_data[key_tree[-1]] = pd.read_hdf(h5file, df_key)
+
     # elif isinstance(loaded_data, list):
     #     tmp = [] # write code to grab list index, then dict path
-    
+
     return loaded_data
 
 def get_by_path(root, items):
@@ -259,10 +259,10 @@ def set_by_path(root, items, value):
     get_by_path(root, items[:-1])[items[-1]] = value
 
 def store_drop_records(timestamps, dropframes_proc_mod, drop_record_folder, exp_name, sNum, epNum):
-    
+
     camPattern = re.compile(r'cam\d{1}')
     drop_records = sorted(glob.glob(os.path.join(drop_record_folder, f'*session{sNum}*event_{epNum}*droppedFrames.txt')))
-    
+
     description = 'Boolean vector of good frames (True) and dropped/replaced frames (False) for given session/episode/camera.'
     if len(drop_records) > 0:
         for rec in drop_records:
@@ -273,7 +273,7 @@ def store_drop_records(timestamps, dropframes_proc_mod, drop_record_folder, exp_
             if len(dropped_frames) == 0:
                 continue
             data = np.full((len(timestamps),), True)
-            data[dropped_frames] = False 
+            data[dropped_frames] = False
             if record_name not in dropframes_proc_mod.data_interfaces.keys():
                 cam_drop_record = TimeSeries(name=record_name,
                                              data=data,
@@ -283,7 +283,7 @@ def store_drop_records(timestamps, dropframes_proc_mod, drop_record_folder, exp_
                                              continuity = 'continuous'
                                              )
                 dropframes_proc_mod.add(cam_drop_record)
-    
+
     return
 
 def remove_duplicate_spikes_from_good_single_units(units, mua_to_fix=[], plot=False):
@@ -300,15 +300,15 @@ def remove_duplicate_spikes_from_good_single_units(units, mua_to_fix=[], plot=Fa
             non_duplicate_idxs = np.setdiff1d(np.arange(spike_times.shape[0]), tiny_isi)
             spike_times = spike_times[non_duplicate_idxs]
             corrected_isi = elephant.statistics.isi(spike_times)
-            
+
             print('unitID = %d, nSpikes_removed = %d' % (unitID, len(tiny_isi)))
-        
+
             if len(tiny_isi) > 0:
-                tmp = units.loc[units.index==unitID, 'spike_times'] 
+                tmp = units.loc[units.index==unitID, 'spike_times']
                 tmp.iloc[0] = spike_times
                 # unit.iloc[0] = np.array([0, 1, 2])
                 units.loc[units.index==unitID, 'spike_times'] = tmp
-    
+
                 if plot:
                     fig, (ax0, ax1) = plt.subplots(2, 1)
                     ax0.hist(corrected_isi, bins = np.arange(0, 0.05, 0.0005))
@@ -317,17 +317,17 @@ def remove_duplicate_spikes_from_good_single_units(units, mua_to_fix=[], plot=Fa
                     ax1.set_title('Original ISI')
                     ax1.set_xlabel('Seconds')
                     plt.show()
-    
+
     return units
 
 def get_sorted_units_and_apparatus_kinematics_with_metadata(nwb_prc, reaches_key, mua_to_fix=[], plot=False):
     units          = nwb_prc.units.to_dataframe()
     units          = remove_duplicate_spikes_from_good_single_units(units, mua_to_fix=mua_to_fix, plot=plot)
     reaches        = nwb_prc.intervals[reaches_key].to_dataframe()
-    
+
     kin_module_key = reaches.iloc[0].kinematics_module
     kin_module = nwb_prc.processing[kin_module_key]
-    
+
     return units, reaches, kin_module
 
 def get_raw_timestamps(nwb_acq):
@@ -336,77 +336,79 @@ def get_raw_timestamps(nwb_acq):
     step = 1/nwb_acq.acquisition['ElectricalSeriesRaw'].rate
     stop = start + step*nwb_acq.acquisition['ElectricalSeriesRaw'].data.shape[0]
     raw_timestamps = np.arange(start, stop, step)
-    
+
     return raw_timestamps
 
 def timestamps_to_nwb(nwbfile_path, kin_folders, saveData):
     ###### TO NWB ######
-    # open the NWB file in r+ mode    
+    # open the NWB file in r+ mode
 
     opened = False
     file_error = True
     while not opened:
         try:
-            with NWBHDF5IO(nwbfile_path, 'r+') as io:
+            with NWBHDF5IO(nwbfile_path, 'r+') as io: 
                 nwbfile = io.read()
-                
+
                 file_error = False
-                
+
                 try:
                     nwbfile.keywords = saveData['experiments']
                 except:
                     pass
-                
+
                 # create a TimeSeries and add it to the processing module 'episode_timestamps_EXPNAME'
-                sessPattern = re.compile('[0-9]{3}_acquisition') 
+                sessPattern = re.compile('[0-9]{3}_acquisition')
                 sessNum = int(re.findall(sessPattern, nwbfile_path)[-1][:3])
                 for frame_times, event_info, exp_name, kfold in zip(saveData['frameTimes_byEvent'], saveData['event_info'], saveData['experiments'], kin_folders):
 
                     timestamps_module_name = 'video_event_timestamps_%s' % exp_name
-                    timestamps_module_desc = '''set of timeseries holding timestamps for each behavior/video event for experiment = %s. 
+                    timestamps_module_desc = '''set of timeseries holding timestamps for each behavior/video event for experiment = %s.
                     Videos are located at %s.
                     This first few elements of the path may need to be changed to the new storage location for the "data" directory.''' % (exp_name, kfold)
-    
+
                     if timestamps_module_name in nwbfile.processing.keys():
                         timestamps_proc_mod = nwbfile.processing[timestamps_module_name]
                     else:
                         timestamps_proc_mod = nwbfile.create_processing_module(name=timestamps_module_name,
                                                                                description=timestamps_module_desc)
-                    
+
                     dropframes_module_name = 'dropped_frames_%s' % exp_name
                     dropframes_module_desc = ('Record of dropped frames. The dropped frames have ' +
-                                              'been replaced by copies of the previous good frame. ' + 
+                                              'been replaced by copies of the previous good frame. ' +
                                               'Pose estimation may not be effected if most of the cameras ' +
                                               'captured that frame or if the drop is brief. Use the boolean ' +
                                               'mask vectors stored here as needed.')
+
                     if dropframes_module_name in nwbfile.processing.keys():
                         dropframes_proc_mod = nwbfile.processing[dropframes_module_name]
                     else:
                         dropframes_proc_mod = nwbfile.create_processing_module(name=dropframes_module_name,
                                                                                description=dropframes_module_desc)
-                    
+
                     video_events_intervals_name = 'video_events_%s' % exp_name
                     if video_events_intervals_name in nwbfile.intervals.keys():
                         epi_mod_already_exists = True
                         video_events = nwbfile.intervals[video_events_intervals_name]
-                        video_events_df = video_events.to_dataframe()                    
+                        video_events_df = video_events.to_dataframe()
                     else:
                         epi_mod_already_exists = False
                         video_events = TimeIntervals(name = video_events_intervals_name,
                                                      description = 'metadata for behavior/video events associated with kinematics')
                         video_events.add_column(name="video_session", description="video session number of recorded video files")
                         video_events.add_column(name="analog_signals_cut_at_end", description="The number of analog signals (if any) that occurred after the end of video recording session. If they existed, they were cut during processing.")
-                    
+
 
                     drop_record_folder = os.path.join([fold for fold in kin_folders if '/%s/' % exp_name in fold][0],
                                                       'drop_records')
+
                     for eventIdx, timestamps in enumerate(frame_times):
                         if event_info.ephys_session[eventIdx] == sessNum:
-                            series_name = '%s_s_%d_e_%s_timestamps' % (event_info.exp_name[eventIdx], 
-                                                                       int(event_info.video_session[eventIdx]), 
-                                                                       str(int(event_info.episode_num[eventIdx])).zfill(3)) 
-                                                
-                            if series_name not in nwbfile.processing[timestamps_module_name].data_interfaces.keys(): 
+                            series_name = '%s_s_%d_e_%s_timestamps' % (event_info.exp_name[eventIdx],
+                                                                       int(event_info.video_session[eventIdx]),
+                                                                       str(int(event_info.episode_num[eventIdx])).zfill(3))
+
+                            if series_name not in nwbfile.processing[timestamps_module_name].data_interfaces.keys():
                                 data = np.full((len(timestamps), ), np.nan)
                                 episode_timestamps = TimeSeries(name=series_name,
                                                                 data=data,
@@ -415,41 +417,42 @@ def timestamps_to_nwb(nwbfile_path, kin_folders, saveData):
                                                                 description = 'empty time series holding analog signal timestamps for video frames/DLC pose estimation that will be associated with PoseEstimationSeries data',
                                                                 continuity = 'continuous'
                                                                 )
-                                
                                 timestamps_proc_mod.add(episode_timestamps)
-                            
+
                                 if not epi_mod_already_exists or not any(video_events_df.start_time == event_info.start_time[eventIdx]):
-                                    video_events.add_row(start_time                = event_info.start_time[eventIdx], 
-                                                         stop_time                 = event_info.end_time[eventIdx], 
-                                                         video_session             = event_info.video_session[eventIdx], 
+                                    video_events.add_row(start_time                = event_info.start_time[eventIdx],
+                                                         stop_time                 = event_info.end_time[eventIdx],
+                                                         video_session             = event_info.video_session[eventIdx],
                                                          analog_signals_cut_at_end = event_info.analog_signals_cut_at_end_of_session[eventIdx])
-                                
-                                store_drop_records(timestamps, 
+
+                                store_drop_records(timestamps,
                                                    dropframes_proc_mod,
                                                    drop_record_folder,
                                                    exp_name,
                                                    int(event_info.video_session[eventIdx]),
                                                    str(int(event_info.episode_num[eventIdx])).zfill(3))
-                                
-                    if video_events_intervals_name not in nwbfile.intervals.keys():
-                        nwbfile.add_time_intervals(video_events) 
 
-                io.write(nwbfile)        
-            
+                    if video_events_intervals_name not in nwbfile.intervals.keys():
+                        nwbfile.add_time_intervals(video_events)
+
+                print('trying to write')
+                io.write(nwbfile)
+
             print('%s opened, edited, and written back to file. It is now closed.' % nwbfile_path)
             opened=True
-        except:
+        except Exception as e:
             if file_error:
                 print('%s is already open elsewhere. Waiting 10 seconds before trying again' % nwbfile_path)
                 time.sleep(10)
             else:
                 print('error occurred after file was loaded. Quitting')
+                print("error:", e)
                 break
 
 def get_electricalseries_from_nwb(nwb):
-    
+
     es_keys = [key for key in nwb.acquisition.keys() if 'ElectricalSeries' in key]
-    
+
     if len(es_keys) == 1:
         raw = nwb.acquisition[es_keys[0]]
     else:
@@ -460,40 +463,40 @@ def get_electricalseries_from_nwb(nwb):
         total_samples = 0
         for raw_tmp in raw_list:
             start = raw_tmp.starting_time
-            stop = start + step*raw_tmp.data.shape[0]  
+            stop = start + step*raw_tmp.data.shape[0]
             total_samples += raw_tmp.data.shape[0]
             print(f'start_time = {start:<18}, stop_time = {stop:<18}, samples = {raw_tmp.data.shape[0]}')
-        
+
         new_raw = np.empty((total_samples, raw_list[0].data.shape[1]),  dtype='<i2')
         chunk_size = 5000000
         current_idx = 0
         for raw_tmp in raw_list:
             tmp_samples = raw_tmp.data.shape[0]
             segCount = 0
-            for segment_idx, new_raw_idx in zip(range(          0,               tmp_samples, chunk_size), 
+            for segment_idx, new_raw_idx in zip(range(          0,               tmp_samples, chunk_size),
                                                 range(current_idx, current_idx + tmp_samples, chunk_size)):
                 print(f'segCount = {segCount}')
                 data_chunk = raw_tmp.data[segment_idx : segment_idx + chunk_size]
-                
+
                 new_raw[new_raw_idx : new_raw_idx + data_chunk.shape[0]] = data_chunk
                 segCount += 1
-            
+
             current_idx += tmp_samples
-    
+
         electrodes         = nwb.electrodes.to_dataframe()
         electrodes_table_region = nwb.create_electrode_table_region(
             region=list(range(electrodes.shape[0])),  # reference row indices 0 to N-1
             description="all electrodes",
         )
-        starting_time      = raw_list[0].starting_time                
+        starting_time      = raw_list[0].starting_time
         rate               = raw_list[0].rate
         conversion         = raw_list[0].conversion
         channel_conversion = raw_list[0].channel_conversion
         description        = raw_list[0].description
         offset             = raw_list[0].offset
         comments           = raw_list[0].comments
-        resolution         = raw_list[0].resolution 
-            
+        resolution         = raw_list[0].resolution
+
         raw = ElectricalSeries(
             name="ElectricalSeries",
             data=new_raw,
@@ -506,6 +509,6 @@ def get_electricalseries_from_nwb(nwb):
             offset=offset,
             comments=comments,
             resolution=resolution
-        ) 
-        
+        )
+
     return raw

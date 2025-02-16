@@ -45,7 +45,15 @@ params_dict = {'JL_01': {'array_type': 'utah',
                          'xy_inter_electrode_dist': 500,
                          'z_inter_electrode_dist': 125,
                          'mapfile': 'UNKNOWN',
-                         'prbfile': '/project/nicho/data/marmosets/prbfiles/HM_02.prb'}}
+                         'prbfile': '/project/nicho/data/marmosets/prbfiles/HM_02.prb'},
+               
+               'TY_02_JL_01': {'array_type': ['utah', 'utah'],
+                               'hemisphere': ['right', 'right'], 
+                               'xy_inter_electrode_dist': [400, 400],
+                               'mapfile': '/project/nicho/data/marmosets/array_map_files/Parallel_Recording/Parallel_TY1swap_JL2.cmp',
+                               'prbfile': '/project/nicho/data/marmosets/prbfiles/TY_02_JL_01.prb',
+                               'impedances': ['/project/nicho/data/marmosets/array_map_files/Parallel_Recording/parallel_impedences.txt']}
+               } # parallel recording with TY_02 from exilis 1 and JL_01 from exilis 2
 
 def define_rotation(array_info):
     rotmat = R.from_euler('z', 90, degrees=True)

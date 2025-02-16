@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH --job-name=JL1014_free_video_proc_b3
-#SBATCH --output=/project/nicho/projects/marmosets/job_log_files/Sami1014_JL_free_b3_video_proc_%a.out
-#SBATCH --error=/project/nicho/projects/marmosets/job_log_files/Sami1014_JL_free_b3_video_proc_%a.err
+#SBATCH --job-name=P1111_free_video_proc_b3
+#SBATCH --output=/project/nicho/projects/marmosets/job_log_files/Sami1111_PARALLEL_free_b3_video_proc_%a.out
+#SBATCH --error=/project/nicho/projects/marmosets/job_log_files/Sami1111_PARALLEL_free_b3_video_proc_%a.err
 #SBATCH --time=36:00:00
 #SBATCH --partition=beagle3
 #SBATCH --gres=gpu:1
@@ -13,9 +13,9 @@
 #SBATCH --mail-user=snjohnso@uchicago.edu
 
 #------------params that may change for each dataset/experiment----------------------#
-date=2024_10_14
-exp1=baseline
-exp2=baselineFree
+date=2024_11_11
+exp1=test
+exp2=testFree
 sess=(1)
 video_neural_session_alignment=matched #(matched, all_in_one_neural_recording)
 calib_name=calib
@@ -24,17 +24,19 @@ touchscreen=False
 scratch_space_username=snjohnso
 
 #----------------------params that rarely change-------------------------------------#
-marms=JLTY
+marms=TYJL
 fps=30
 ncams=4
 cams=(1 2 3 4)
 vid_transpose=(2 2 1 1)  # number of arguments MUST match ncams 
 analog_signals_fps=(150 $fps)
 
-marms_ephys=JLTY
+marms_ephys=TYJL
 swap_ab=no
-prb_path=/project/nicho/data/marmosets/prbfiles/TY_02_JL_01.prb
-metadata_path=/project/nicho/data/marmosets/metadata_yml_files/TY_JL_metadata.yml
+prb_path1=/project/nicho/data/marmosets/prbfiles/parallel_recordings/TY_02_parallel.prb
+prb_path2=/project/nicho/data/marmosets/prbfiles/parallel_recordings/JL_01_parallel.prb
+metadata_path1=/project/nicho/data/marmosets/metadata_yml_files/parallel_recordings/TY_metadata_parallel.yml
+metadata_path2=/project/nicho/data/marmosets/metadata_yml_files/parallel_recordings/JL_metadata_parallel.yml
 
 #-----------paths to input and output data, and to processing scripts----------------#
 jpg_dir=/scratch/midway3/$scratch_space_username/kinematics_jpgs
@@ -58,10 +60,11 @@ python $video_processing/jpg2avi.py -j $jpg_dir -v $vid_dir -m $marms -d $date \
 
 source activate /beagle3/nicho/environments/nwb_and_neuroconv
 
-python $video_processing/process_analog_signals_for_episode_times.py \
+python $video_processing/process_analog_signals_for_episode_times_PARALLEL.py \
 -v $vid_dir -ep $ephys_dir -m $marms -me $marms_ephys -d $date -e $exp1 -e2 $exp2 \
--t $touchscreen -tp $touchscreen_path -np $neural_processing -meta $metadata_path \
--prb $prb_path -ab $swap_ab -al $video_neural_session_alignment -f ${analog_signals_fps[@]}
+-t $touchscreen -tp $touchscreen_path -np $neural_processing -meta1 $metadata_path1 \
+-meta2 $metadata_path2 -prb1 $prb_path1 -prb2 $prb_path2 -ab $swap_ab \
+-al $video_neural_session_alignment -f ${analog_signals_fps[@]}
 
-python $neural_processing/neural_dropout_first_pass.py -k $vid_dir -ep $ephys_dir -m $marms \
+python $neural_processing/neural_dropout_first_pass_PARALLEL.py -k $vid_dir -ep $ephys_dir -m $marms \
 -me $marms_ephys -d $date -e $exp1 -e2 $exp2

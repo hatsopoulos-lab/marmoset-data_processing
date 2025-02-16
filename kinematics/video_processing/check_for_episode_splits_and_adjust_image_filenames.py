@@ -436,13 +436,13 @@ if __name__ == '__main__':
             task_id = 0
     else:
         session_nums = [1]
-        args = {'date':'2023_09_21',
+        args = {'date':'2025_01_25',
                 'vid_dir':'/project/nicho/data/marmosets/kinematics_videos',
-                'exp_name': 'cricket',
-                'marms': 'JLTY',
-                'fps':200,
+                'exp_name': 'baseline',
+                'marms': 'TYTR',
+                'fps':150,
                 'ncams':5,
-                'jpg_dir':'/scratch/midway3/daltonm/kinematics_jpgs'}
+                'jpg_dir':'/scratch/midway3/snjohnso/kinematics_jpgs'}
         task_id = 0
         
     data_path = os.path.join(args['vid_dir'], args['exp_name'], args['marms'], args['date'])

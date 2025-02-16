@@ -520,16 +520,17 @@ if __name__ == '__main__':
          	help="name of calibration folder (e.g. 'calib', 'pre_calib', 'None' ")
         args = vars(ap.parse_args())
     else:
-        args = {'jpg_dir'        : '/scratch/midway3/daltonm/kinematics_jpgs',
+        args = {'jpg_dir'        : '/scratch/midway3/snjohnso/kinematics_jpgs',
                 'vid_dir'        : '/project/nicho/data/marmosets/kinematics_videos',
-                'marms'          : 'JLTY',
-                'date'          : '2023_09_14',
-                'exp_name'       : 'cricket_free',
+                'marms'          : 'TYTR',
+                'date'           : '2025_01_25',
+                'exp_name'       : 'baselineFree',
                 'session_nums'   : [1],
                 'fps'            : 30,
                 'cams'           : [ 1,  2,  3,  4],
-                'video_transpose': [ 2,  2,  1,  1],
-                'calib_name'     : 'calib'}
+                'video_transpose': [-1, -1, -1, -1],
+                'calib_name'     : 'calib',
+                'apply_clahe'    : 'True'}
     try:
         task_id   = int(os.getenv('SLURM_ARRAY_TASK_ID'))
         n_tasks   = int(os.getenv('SLURM_ARRAY_TASK_COUNT'))
