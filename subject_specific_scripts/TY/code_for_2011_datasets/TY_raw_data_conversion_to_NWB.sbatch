@@ -54,7 +54,7 @@ source activate /beagle3/nicho/environments/nwb_and_neuroconv
 
 for date in ${dates[@]}
 do
-    python /project/nicho/projects/marmosets/code_database/data_processing/subject_specific_scripts/TY/TY_process_analog_signals_for_episode_times.py \
+    python /project/nicho/projects/marmosets/code_database/data_processing/subject_specific_scripts/TY/code_for_2011_datasets/TY_process_analog_signals_for_episode_times.py \
     -v $vid_dir -ep $ephys_dir -m $marms -me $marms_ephys -d $date -e $exp1 -e2 $exp2 \
     -t $touchscreen -tp $touchscreen_path -np $neural_processing -meta $metadata_path \
     -prb $prb_path -ab $swap_ab -al $video_neural_session_alignment -f ${analog_signals_fps[@]}
