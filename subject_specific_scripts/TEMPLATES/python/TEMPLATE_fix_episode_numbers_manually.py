@@ -129,20 +129,24 @@ def change_event_numbers_to_next_good_event(cam_list, event_idx_range_list, corr
  
 def collect_frameNums_startTimes_lastFrames(jpg_dir, cam_list, fps): 
     lastEvents = []
+    events_with_frames_list = []
     for cam_num in cam_list:
         cam_jpg_dir = jpg_dir / f'jpg_cam{cam_num}'
-        last_frame = sorted(list(cam_jpg_dir.glob('*.jpg')))[-1].stem
-        lastEvents.append(int(re.findall(event_pattern, last_frame)[0].split('event_')[-1]))
+        all_frames = list(cam_jpg_dir.glob('*.jpg'))
+        events_with_frames = np.unique([int(re.findall(event_pattern, fr.stem)[0].split('event_')[-1][:-1]) for fr in all_frames])
+        lastEvents.append(max(events_with_frames))
+        events_with_frames_list.append(events_with_frames)
 
-    lastEvent = max(lastEvents)
-    event_frame_nums  = np.zeros((lastEvent, len(cam_list)))
-    event_last_frame  = np.full((lastEvent, len(cam_list)), np.nan)
-    event_start_times = np.full((lastEvent, len(cam_list)), '-------', dtype="S7")
+    maxLastEvent = max(lastEvents)
+    event_frame_nums  = np.zeros((maxLastEvent, len(cam_list)))
+    event_last_frame  = np.full((maxLastEvent, len(cam_list)), np.nan)
+    event_start_times = np.full((maxLastEvent, len(cam_list)), '-------', dtype="S7")
     event_length_sec  = np.zeros_like(event_frame_nums)
-    for cIdx, cam_num in enumerate(cam_list):
-        for eIdx, event_num in enumerate(range(1, lastEvent+1)):
+    for cIdx, (cam_num, events_list) in enumerate(zip(cam_list, events_with_frames_list)):
+        for event_num in events_list:
+            eIdx = event_num - 1
             cam_jpg_dir = jpg_dir / f'jpg_cam{cam_num}'
-            event_glob = f'*event_{str(event_num).zfill(3)}*'
+            event_glob = f'*event_{str(event_num).zfill(3)}_*'
             print(cam_jpg_dir / event_glob)
             
             frames = sorted(list(cam_jpg_dir.glob(event_glob)))            
@@ -161,7 +165,7 @@ def collect_frameNums_startTimes_lastFrames(jpg_dir, cam_list, fps):
                 last_timestamp  = int(re.findall(timestamp_pattern, frames[-1].stem)[0].split('currentTime_')[-1])
                 event_length_sec[eIdx, cIdx] = np.round((last_timestamp - first_timestamp) * 1e-9, 3)
     
-    return event_frame_nums, event_start_times, event_last_frame, event_length_sec, lastEvent
+    return event_frame_nums, event_start_times, event_last_frame, event_length_sec, maxLastEvent
 
 def load_or_run_event_fragments(cam_list, event_idx_range_list, correct_event_idx_list, fps, jpg_dir, all_cams_list, key):
     
@@ -245,7 +249,7 @@ if __name__ == '__main__':
         
         If the data is already stored in the h5 file, the function will load it and skip this step.
         '''
-        key = 'fragments'
+        key = 'fr'
         event_dict, inter_data = load_or_run_event_fragments(cam_list               = [            3,             4,            5], # FIXME
                                                              event_idx_range_list   = [range(8, 178), range(8, 156), range(8, 41)], # FIXME
                                                              correct_event_idx_list = [           7,              7,            7], # FIXME
@@ -273,7 +277,7 @@ if __name__ == '__main__':
         
         If the data is already stored in the h5 file, the function will load it and skip this step.
         '''
-        key += '_eventNum'
+        key += '_ev'
         event_dict, inter_data = load_or_run_change_event_nums(cam_list                     = [             3,                4,             5], # FIXME
                                                                event_idx_range_list         = [range(178, 188), range(156, 166), range(41, 64)], # FIXME
                                                                correct_event_idx_range_list = [range(  8,  18), range(  8,  18), range( 8, 31)], # FIXME
@@ -285,7 +289,7 @@ if __name__ == '__main__':
             Same logic described for previous fragments correction. 
             The correct_event_idx_list element = 1 less than the stop value of the previous correct_event_idx_range_list.
         '''
-        key += '_fragments'
+        key += '_fr'
         lastEvent = event_collection_dict['lastEvent']
         event_dict, inter_data = load_or_run_event_fragments(cam_list               = [              3,               4], # FIXME
                                                              event_idx_range_list   = [range(188, 228), range(166, 229)], # FIXME
@@ -298,7 +302,7 @@ if __name__ == '__main__':
         '''
             Same logic described for previous eventNum correction.
         '''
-        key += '_eventNum'
+        key += '_ev'
         event_dict, inter_data = load_or_run_change_event_nums(cam_list                     = [             3,                4], # FIXME
                                                                event_idx_range_list         = [range(228, 241), range(229, 242)], # FIXME
                                                                correct_event_idx_range_list = [range( 18,  31), range( 18,  31)], # FIXME

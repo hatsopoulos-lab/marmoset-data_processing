@@ -1,0 +1,50 @@
+project = "full_marmoset_model"
+model_folder = "/project/nicho/projects/marmosets/dlc_project_files/full_marmoset_model-Dalton-2024-10-27"
+nesting = 1
+video_extension = "avi"
+
+[pipeline]
+videos_raw = "avi_videos"
+pose_2d_filter = "pose-2d-viterbi"
+pose_2d = "pose-2d-unfiltered"
+
+[calibration]
+board_type = "checkerboard"
+board_size = [ 9, 6,]
+board_marker_bits = 4
+board_marker_dict_number = 50
+board_marker_length = 10
+board_square_side_length = 10
+animal_calibration = false
+fisheye = true
+
+[filter]
+enabled = true
+type = "viterbi"
+autoencoder_path = "autoencoder.pickle"
+medfilt = 13
+offset_threshold = 20
+score_threshold = 0.05
+n_back = 5
+spline = true
+
+[labeling]
+scheme = [ [ "r-head-front", "r-head-corner", "r-head-under-tab",], ["l-head-under-tab", "l-head-corner", "l-head-front",], [ "l-shoulder", "l-elbow", "l-wrist", "l-d5-mcp", "l-d2-mcp", "l-wrist",], ["l-d5-mcp", "l-d5-dip", "l-d2-dip", "l-d2-mcp",], [ "r-shoulder", "r-elbow", "r-wrist", "r-d5-mcp", "r-d2-mcp", "r-wrist",], ["r-d5-mcp", "r-d5-dip", "r-d2-dip", "r-d2-mcp",], [ "r-shoulder", "l-shoulder",],[ "y", "origin", "x",], ["origin", "partition_top_left", "partition_top_right", "x",],]
+
+[triangulation]
+triangulate = true
+cam_regex = "cam([0-9])"
+cam_align = "cam1"
+ransac = true
+optim = true
+constraints = [] #[ [ "r-head-front", "r-head-corner",], [ "r-head-front", "r-head-under-tab",], [ "r-head-corner", "r-head-under-tab",], [ "l-head-front", "l-head-corner",], [ "l-head-front", "l-head-under-tab",], [ "l-head-corner", "l-head-under-tab",], [ "r-head-front", "l-head-front",], [ "r-head-front", "l-head-corner",], [ "r-head-front", "l-head-under-tab",], [ "r-head-corner", "l-head-front",], [ "r-head-corner", "l-head-corner",], [ "r-head-corner", "l-head-under-tab",],[ "r-head-under-tab", "l-head-front",], [ "r-head-under-tab", "l-head-corner",], [ "r-head-under-tab", "l-head-under-tab",],[ "origin", "x",], [ "origin", "y",], [ "x", "y",],["origin", "partition_top_left",], ["origin", "partition_top_right",],["partition_top_left", "x",],["partition_top_right", "x",],["partition_top_left", "partition_top_right",],]
+constraints_weak = [ [ "r-shoulder", "r-elbow",], [ "r-elbow", "r-wrist",], [ "l-shoulder", "l-elbow",], [ "l-elbow", "l-wrist",], ["l-shoulder", "r-shoulder",],]
+ignore_labels_by_cam = [["cam1", "partition_top_left", "origin"], ["cam2", "partition_top_right", "x"], ["cam3", "partition_top_left", "origin"], ["cam4", "partition_top_right", "x"],]
+scale_smooth = 6
+scale_length = 2
+scale_length_weak = 0
+reproj_error_threshold = 20
+score_threshold = 0.4
+n_deriv_smooth = 2
+axes = [ [ "x", "origin", "x",], [ "y", "origin", "y",],]
+reference_point = "origin"

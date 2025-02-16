@@ -10,20 +10,20 @@ Created on Wed Apr 26 10:34:53 2023
 import cv2
 import dill
 import glob
-from os.path import join as pjoin
 import toml
 import numpy as np
 import matplotlib.pyplot as plt
+from pathlib import Path
 
-project_path = '/project/nicho/data/marmosets/kinematics_videos/moth/JLTY/2023_08_03'
+project_path = Path('/project/nicho/data/marmosets/kinematics_videos/moth/JLTY/2023_08_05')
 
 def load_detections_and_videos(project_path):
-    with open(pjoin(project_path, 'calibration', 'detections.pickle'), 'rb') as f:
+    with open(project_path / 'calibration' / 'detections.pickle', 'rb') as f:
         detections = dill.load(f) 
 
-    vidpaths = sorted(glob.glob(pjoin(project_path, 'calibration', '*.avi')))
+    vidpaths = sorted(glob.glob(str(project_path / 'calibration' / '*.avi')))
 
-    anipose_config = toml.load(pjoin(project_path, 'config.toml')) 
+    anipose_config = toml.load(project_path / 'config.toml') 
     board_size = tuple(anipose_config['calibration']['board_size'])
 
     return detections, vidpaths, board_size
@@ -75,7 +75,7 @@ def fix_detected_corners_arrangement(image, board_size, corners, filled, correct
 
 def manually_correct_calibration_detections(image_list, vid_detect, board_size):
     corrected_video_detections = []
-    for image, info in zip(image_list, vid_detect):
+    for imgNum, (image, info) in enumerate(zip(image_list, vid_detect)):
         
         corrected_info = info.copy()
 
@@ -89,7 +89,7 @@ def manually_correct_calibration_detections(image_list, vid_detect, board_size):
         plt.imshow(image_grid)
         plt.show()
         plt.pause(.01)
-        correct_arr = input('Is the grid correct now? Type [Enter/r/v/h/d] for [Good/Reverse/VertFlip/HorzFlip/Delete]')
+        correct_arr = input(f'{imgNum} of {len(vid_detect)}: Is the grid correct now? Type [Enter/r/v/h/d] for [Good/Reverse/VertFlip/HorzFlip/Delete]')
         
         while not (len(correct_arr) == 0 or correct_arr.lower() in ['v', 'h', 'r', 'd']):
             correct_arr = input('The option you have entered is not supported. Type [Enter/r/v/h/d] for [Good/Reverse/VertFlip/HorzFlip/Delete]')    
@@ -111,14 +111,23 @@ if __name__ == '__main__':
     
     detections, vidpaths, board_size = load_detections_and_videos(project_path)
     
-    corrected_detections = [[] for i in range(len(detections))]
+    try: 
+        with open(project_path / 'calibration' / 'partially_corrected_detections.pickle', 'rb') as f:
+            corrected_detections = dill.load(f)
+    except:
+        corrected_detections = [[] for i in range(len(detections))]
+    
     for camIdx, (vidpath, vid_detect) in enumerate(zip(vidpaths, detections)):
-
-        print(vidpath)
-            
+        if len(corrected_detections[camIdx]) != 0:
+            print(f'skipping ------- \n{vidpath}')
+            continue
+        else:
+            print(f'working on ---------\n{vidpath}')
         image_list = extract_images_from_video(vidpath, vid_detect)
         corrected_detections[camIdx] = manually_correct_calibration_detections(image_list, vid_detect, board_size)
+        with open(project_path / 'calibration' / 'partially_corrected_detections.pickle', 'wb') as f:
+            dill.dump(corrected_detections, f, recurse=True)
         
-    with open(pjoin(project_path, 'calibration', 'detections.pickle'), 'wb') as f:
+    with open(project_path / 'calibration' / 'detections.pickle', 'wb') as f:
         dill.dump(corrected_detections, f, recurse=True)
     

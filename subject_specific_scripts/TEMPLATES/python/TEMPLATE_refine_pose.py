@@ -5,45 +5,48 @@ Created on Wed Nov  3 09:54:29 2021
 @author: Dalton
 """
 
-import dill
+# import dill
 import pandas as pd
 import numpy as np
 import os
-import glob
+from pathlib import Path
 import re
-import h5py
+import dill
+# import h5py
 import matplotlib
 import matplotlib.pyplot as plt
-import seaborn as sns
-from statsmodels.stats.weightstats import DescrStatsW
-from sklearn.decomposition import PCA
+# from statsmodels.stats.weightstats import DescrStatsW
+# from sklearn.decomposition import PCA
 from scipy.signal import medfilt
-from scipy.ndimage import median_filter, gaussian_filter
-from scipy.signal import find_peaks, peak_prominences, peak_widths
-from scipy.stats import mode
-from scipy.interpolate import interp1d
-from scipy.signal import savgol_filter
+from scipy.ndimage import gaussian_filter # median_filter
+from scipy.signal import find_peaks, savgol_filter #peak_prominences, peak_widths
+# from scipy.stats import mode
+# from scipy.interpolate import interp1d
 from importlib import sys
 
 sys.path.insert(0, '/project/nicho/projects/marmosets/code_database/data_processing/nwb_tools/hatlab_nwb_tools/')
-from hatlab_nwb_functions import save_dict_to_hdf5
-
-# anipose_base = r'C:\Users\Dalton\Documents\lab_files\dlc_temp\anipose_files'
-
-# class dpath:
-#     base = glob.glob(os.path.join(anipose_base, 'trainingsetindex_2'))
-#     dates = ['2021_02_11']  # for now we can only do one date at a time
-#     reach_data_storage = r'Z:/marmosets/processed_datasets/reach_and_trajectory_information/%s_reach_and_trajectory_info_updated.pkl' % dates[0].replace('_', '')
+#from hatlab_nwb_functions import save_dict_to_hdf5
 
 marm = 'JL'
 
 anipose_base = '/project/nicho/data/marmosets/kinematics_videos/moth/JLTY/'
+save_data = True
+save_hdf = True
+save_pickle = not save_hdf
+
+if save_hdf:
+    from hatlab_nwb_functions import save_dict_to_hdf5
+    import seaborn as sns
 
 class dpath:
-    base = [anipose_base]
-    dates = ['2023_08_03_old_conversion']  # for now we can only do one date at a time
+    base = Path(anipose_base)
+    date = '2023_08_04'  # for now we can only do one date at a time
     # reach_data_storage = '/project/nicho/data/marmosets/processed_datasets/reach_and_trajectory_information/20230803_reach_and_trajectory_info.pkl'
-    reach_data_storage = '/project/nicho/data/marmosets/processed_datasets/reach_and_trajectory_information/20230803_reach_and_trajectory_info.h5'
+    
+    if save_hdf:
+        reach_data_storage = Path('/project/nicho/data/marmosets/processed_datasets/reach_and_trajectory_information') / f'{date.replace("_","")}_reach_and_trajectory_info.h5'
+    elif save_pickle:
+        reach_data_storage = Path('/project/nicho/data/marmosets/processed_datasets/reach_and_trajectory_information') / f'{date.replace("_","")}_reach_and_trajectory_info.pickle'
 
     # nwb_file = '/project/nicho/data/marmosets/electrophys_data_for_processing/TY20210211_freeAndMoths/TY20210211_freeAndMoths-003_testing_pose.nwb'
     # session = 1
@@ -68,16 +71,34 @@ class params:
         move_bounds['start_frame'] = move_bounds['start_time']*fps
         move_bounds['stop_frame' ] = move_bounds['stop_time']*fps
         reach_method=6
+        marker_to_evaluate = 'r-wrist'
+        extra_plot_markers = ['r-shoulder'] 
+        timeout = 2
         
     elif marm=='TY':
         fps=150
         reach_method=3
+        marker_to_evaluate = 'l-wrist'
+        extra_plot_markers = ['l-shoulder'] 
+        timeout=1
         
     elif marm=='JL':
-        events_list = [2, 3]
-        #events_list = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 37, 38, 39, 40]
-        fps = 200
+        if dpath.date == '2023_08_03':
+            events_list = [2, 3]
+            #events_list = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 37, 38, 39, 40]
+            fps = 200
+        elif dpath.date == '2023_08_04':
+            # events_list = [4,5,]
+            events_list = [4,5,6,7,8,9,11,12,13,15,16,17,18,19,29,31,33,34,35,36,37,38,43,45,46,48,]
+            # events_list = [4,5,6,7,8,9,11,12,13,15,16,17,18,19,29,31,33,34,35,36,37,38,43,45,46,48,]
+            fps = 200
+        elif dpath.date == '2023_08_05':
+            events_list = [1,2,3,4,5,7,9,10,13,14,15,17,18,19,20,22,23,25,27,29,31,32,33,34,35,37,38,]
+            fps = 200
+        timeout = 10
         reach_method = 3
+        marker_to_evaluate = 'l-wrist'
+        extra_plot_markers = ['l-shoulder'] 
         
     # events_list = [3, 8, 17]
     
@@ -89,17 +110,15 @@ class params:
         
     factor_to_cm = 1e-1
     min_cams_threshold = 2
-    min_chunk_length = fps * 0.05 #0.04 # 40 ms
+    min_chunk_length = fps * 0.05 #0.04 # 50 ms
     max_gap_to_stitch = fps * 0.2 # 200 ms 
-    reproj_threshold = 35#20
+    reproj_threshold = 40
     
     helmet_percent_tracked_thresh = 0.05
-    marker_to_evaluate = 'r-wrist'
-    if marker_to_evaluate == 'r-wrist':
-        yDir_limits = [-100*factor_to_cm, 125*factor_to_cm]
-    elif marker_to_evaluate == 'shoulder':
+    if 'wrist' in marker_to_evaluate:
+        yDir_limits = [-150*factor_to_cm, 175*factor_to_cm]
+    elif 'shoulder' in marker_to_evaluate:
         yDir_limits  = [-75*factor_to_cm, 125*factor_to_cm]
-    extra_plot_markers = ['r-shoulder'] 
     extra_plot_ylims = [[-150*factor_to_cm, 50*factor_to_cm]]
     errPlot_ylim = [0, 40]
     
@@ -118,8 +137,8 @@ class params:
     
     speed_thresh = 48
     
-    y_pos_thresh =  0    #1.5 #cm
-    y_peak_thresh = 2.25 #3.85 # cm
+    y_pos_thresh  = 1.5    #  0    for MG    #1.5  for TY/JL #cm
+    y_peak_thresh = 2.75 #  2.25 for MG    #3.85 for TY/JL #cm
     
     peak_dist = int(75/150 * fps)
     peak_prominence=1
@@ -128,13 +147,15 @@ class params:
 def load_dlc_data(data_dirs):
     data_files = []
     for data_dir in data_dirs:
-        data_files.extend(sorted(glob.glob(os.path.join(data_dir, '*.csv'))))
+        data_files.extend(sorted(list(data_dir.glob('*.csv'))))
         
     dlc = []
     dlc_metadata = []    
+    original_csv_data = []
     event_info = pd.DataFrame(np.empty((len(data_files), 3)), columns = ['date', 'event', 'recording_marm'])
     for fNum, f in enumerate(data_files):
         data = pd.read_csv(f)
+        
         dataIdx = sorted(list(range(0, data.shape[1]-13, 6)) + 
                          list(range(1, data.shape[1]-13, 6)) + 
                          list(range(2, data.shape[1]-13, 6))) 
@@ -150,15 +171,18 @@ def load_dlc_data(data_dirs):
         dlc.append(dlc_tmp)
         dlc_metadata.append(dlc_metadata_tmp)
         
-        event_name = os.path.basename(f)
+        event_name = f.stem
+        event_num  = int(event_name.split('_e')[1][:3])
         namePattern = re.compile('^[a-zA-Z]{4}_[0-9]*_[0-9]*_[0-9]*')
         
 
         event_info.iloc[fNum] = [re.findall(namePattern, event_name)[0], 
-                                 int(event_name.split('_e')[1][:3]), 
+                                 event_num, 
                                  False]
+
+        original_csv_data.append((event_num, event_name, data))
             
-    return dlc, dlc_metadata, event_info   
+    return dlc, dlc_metadata, event_info, original_csv_data   
 
 def fix_remaining_marker_jumps(pos_out, pos_fill, pos, marker, meta, eventNum):
     
@@ -462,18 +486,24 @@ def trim_long_interpolations_at_beginning_and_end(pos, pos_fill, eventNum):
     #     plt.plot(1200, diff_percent[1200], 'ro')
     #     plt.show()
     
-    percent_interp_end = []
-    for frame in range(pos.shape[-1]):
-        nInterp = np.sum((pos[0, frame:] - pos_fill[0, frame:]) == 0)
-        percent_interp_end.append( nInterp / pos[0, frame:].shape[-1])
+    if eventNum in [36, 38, 45]:
+        stop = []
     
-    percent_interp_end = savgol_filter(percent_interp_end, 101, 3)    
+    timeout_frame = np.min([pos.shape[-1] - int(params.timeout*params.fps), np.where(~np.isnan(pos_fill[0]))[0][-1]])
+    percent_original_end = []
+    for frame in range(timeout_frame):
+        nOrig = np.sum((pos[0, frame:timeout_frame] - pos_fill[0, frame:timeout_frame]) == 0)
+        percent_original_end.append( nOrig / pos[0, frame:timeout_frame].shape[-1])
+    
+    percent_original_end = savgol_filter(percent_original_end, min(101, len(percent_original_end)), 3)    
     # diff_percent = savgol_filter(np.diff(percent_interp_end*100), 51, 3)
 
     try:
-        cutIdx = np.where(percent_interp_end < 0.25 * np.max(percent_interp_end[100:-100]))[0][0]
+        cutIdx = np.where((percent_original_end < 0.25 * np.max(percent_original_end[100:-100])) &
+                          (percent_original_end < 0.25                                        ))[0]
 
-        pos_fill[:, cutIdx:] = np.nan
+        if len(cutIdx) > 0:
+            pos_fill[:, cutIdx[0]:] = np.nan
 
         # fig = plt.subplots()
         # # plt.plot(percent_interp_begin)
@@ -627,19 +657,40 @@ def filter_dlc(dlc, dlc_metadata, event_info):
                             pos_fill[dim, smoothChunk] = savgol_filter(pos_fill[dim, smoothChunk], params.savgol_window, 3)
                     except:
                         pass
-                            
+                
+                # FIXME Inserting spot corrections here
+                if dpath.date == '2023_08_04' and eventNum == 33 and marker == 'l-wrist':  
+                    pos_fill[:, 400:465] = pos[mNum, :, 400:465]
+                elif dpath.date == '2023_08_04' and eventNum == 46 and marker == 'l-wrist':  
+                    pos_fill[:, 400:480] = pos[mNum, :, 400:480]
+                elif dpath.date == '2023_08_04' and eventNum == 48 and marker == 'l-wrist':  
+                    pos_fill[:, 540:590] = pos[mNum, :, 540:590]
+                elif dpath.date == '2023_08_05' and eventNum == 2 and marker == 'l-wrist':  
+                    pos_fill[:, 606:850] = pos[mNum, :, 606:850]                        
+                elif dpath.date == '2023_08_05' and eventNum == 7 and marker == 'l-wrist':  
+                    pos_fill[:, 800:857] = pos[mNum, :, 800:857]  
+                elif dpath.date == '2023_08_05' and eventNum == 9 and marker == 'l-wrist':  
+                    pos_fill[:, 7280:7320] = pos[mNum, :, 7280:7320]  
+                    pos_fill[:, 7410:7444] = pos[mNum, :, 7410:7444] 
+                elif dpath.date == '2023_08_05' and eventNum == 19 and marker == 'l-wrist':  
+                    pos_fill[:, 969:1007] = pos[mNum, :, 969:1007] 
+                    pos_fill[:, 1939:1984] = pos[mNum, :, 1939:1984] 
+                elif dpath.date == '2023_08_05' and eventNum == 22 and marker == 'l-wrist':  
+                    pos_fill[:, 890:950] = pos[mNum, :, 890:950]  
+                    
                 pos_out[mNum] = pos_fill         
                 # if marker == params.marker_to_evaluate:
                 #     fig, axs = plt.subplots(2, 1)
                 #     # axs[0].plot(np.arange(1, pos_out.shape[-1] + 1), pos_out[mNum, 1], linewidth=3)
-                #     axs[0].plot(np.arange(1, pos.shape[-1] + 1), pos[mNum, 1], linewidth=2)
-                #     axs[0].plot(np.arange(1, pos.shape[-1] + 1), pos_fill[1], linewidth=2)
+                #     axs[0].plot(np.arange(1, pos.shape[-1] + 1), pos[mNum, 1], linewidth=1)
+                #     axs[0].plot(np.arange(1, pos.shape[-1] + 1), pos_fill[1], linewidth=1)
                 #     axs[0].plot(np.arange(1, pos.shape[-1] + 1), np.repeat(0, pos.shape[-1]), '-r')
                 #     axs[0].set_title('Event %d - %s' % (eventNum, marker))
-                #     axs[0].set_ylim(params.yDir_limits)
+                #     axs[0].set_ylim([-15, 15])
                     
                 #     axs[1].plot(meta.loc[:, marker+'_error'])
                 #     axs[1].plot(range(meta.shape[0]), np.repeat(params.reproj_threshold, meta.shape[0]), '-r')
+                #     axs[1].set_ylim([0, 50])
                     
                 #     plt.show()
         
@@ -703,7 +754,7 @@ def evaluate_labeling_quality(dlc_filtered, dlc, dlc_metadata, event_info, plotS
     elif plotEvents is not None and plotSet is None:
         # for eventNum, (pos_filt, pos, meta, recMarm) in enumerate(zip(dlc_filtered, dlc, dlc_metadata, event_info.recording_marm)):
         # for eventNum, pos_filt, pos, meta, recMarm in zip(tmp_events_list, dlc_filtered, tmp_dlc, tmp_dlc_metadata, tmp_event_info.recording_marm):
-        for eventNum, pos_filt, pos, meta, recMarm in zip(events_list, dlc_filtered, dlc, dlc_metadata, event_info.recording_marm):
+        for eventNum, pos_filter, pos, meta, recMarm in zip(events_list, dlc_filtered, dlc, dlc_metadata, event_info.recording_marm):
             print(eventNum, recMarm)
             # if recMarm: 
             marker_names = meta.columns[slice(0, len(meta.columns), 3)]
@@ -719,6 +770,8 @@ def evaluate_labeling_quality(dlc_filtered, dlc, dlc_metadata, event_info, plotS
             all_markers      = [marker] + plot_markers
             markers_df = pd.DataFrame()
             for mIdx, mark in zip(all_markers_idxs, all_markers):
+                pos_filt = pos_filter.copy()
+                pos_filt[mIdx, :, np.isnan(pos_filt[mIdx, 0])] = -2000
                 tmp_df = pd.DataFrame(data=zip(np.hstack((pos[mIdx, 1], pos_filt[mIdx, 1])), 
                                                ['Original' for i in range(pos.shape[-1])] + ['Filtered' for i in range(pos_filt.shape[-1])],
                                                np.hstack((np.arange(0, pos.shape[-1])/params.fps, np.arange(0, pos_filt.shape[-1])/params.fps)),
@@ -727,6 +780,17 @@ def evaluate_labeling_quality(dlc_filtered, dlc, dlc_metadata, event_info, plotS
                 markers_df = pd.concat((markers_df, tmp_df), axis = 0, ignore_index=True)
             
             rel = sns.relplot(data=markers_df, x='Time (s)', y='Y-Position (cm)', hue='Filtering', row='Marker', kind='line', height=3, aspect=4)                                                                  
+            rel.axes[0][0].set_ylim(params.yDir_limits)
+            rel.axes[1][0].set_ylim(params.yDir_limits)
+            
+            fig_size = rel.fig.get_size_inches()
+            ax_size  = (fig_size[0], fig_size[1]/2)
+
+            fig, ax = plt.subplots(figsize=ax_size)            
+            ax.plot(np.arange(0, pos_filt.shape[-1])/params.fps, meta.loc[:, marker+'_error'])
+            ax.plot(np.arange(0, pos_filt.shape[-1])/params.fps, np.repeat(params.reproj_threshold, pos_filt.shape[-1]))
+            ax.set_ylim(0, 75)
+
             rel.fig.subplots_adjust(top=0.875) # adjust the Figure in rp
             rel.fig.suptitle(f'Event {eventNum}')
             plt.show()
@@ -936,6 +1000,11 @@ def get_reach_timing_from_event(hand_pos, eventNum, method = 2, include_reaches_
             max_err  = np.nanmax (abs(hand_pos[1] - medfiltered_pos))
             mean_err = np.nanmean(abs(hand_pos[1] - medfiltered_pos))
 
+            if dpath.date == '2023_08_04' and eventNum == 31: # FIXME
+                reach_start_candidates = [st for st in reach_start_candidates if st > 1500]
+            if dpath.date == '2023_08_04' and eventNum == 17: # FIXME
+                reach_start_candidates = [st for st in reach_start_candidates if st > 3000]
+                
             # id reach starts
             print(('start', reach_start_candidates))
             reach_starts = [0]*len(reach_start_candidates)
@@ -1189,10 +1258,11 @@ def get_reach_timing_from_event(hand_pos, eventNum, method = 2, include_reaches_
             return reach_timing
         elif method == 2:
             return reach_timing, yz_vel, yz_thresh_crossing
-        elif method in [3, 5, 6]:
+        elif method in [3, 5, 6, 7]:
             return reach_timing, hand_speed, thresholds
         elif method == 4:
             return 
+        
         
 def plot_reach_timing(event_name, hand_pos, plot_markers_pos, reach_timing, hand_speed, thresholds):
     # create figure to show data relevant to reach parsing (start, stop, peaks)
@@ -1335,6 +1405,8 @@ def get_3d_reach_data(dlc_filtered, markerIdx, plot_markerIdxs, include_reaches_
                                                                            return_all = True)
         # report reach timing
         print(reach_timing)
+        if eventNum == 31:
+            tmp = []
         
         if plot:
             reach_timing_fig = plot_reach_timing('Event %d' % eventNum, pos[markerIdx], pos[plot_markerIdxs], 
@@ -1375,75 +1447,88 @@ if __name__ == "__main__":
  
     # reach_data_loaded = load_dict_from_hdf5(dpath.reach_data_storage, top_level_list = True)
  
-    for base in dpath.base:
-        print('\n\n\n' + base + '\n\n\n')
-            
-        data_dirs = []
-        for date in dpath.dates:
-            data_dirs.append(os.path.join(base, date, 'pose-3d'))
+    data_dirs = [dpath.base / dpath.date / 'pose-3d']
     
-        dlc, dlc_metadata, event_info = load_dlc_data(data_dirs)
-        dlc_filtered, markerIdx, plot_markerIdxs = filter_dlc(dlc, dlc_metadata, event_info)
-        dlc = [pos*params.factor_to_cm for pos in dlc]
+    dlc, dlc_metadata, event_info, original_csv_data = load_dlc_data(data_dirs)
+    dlc_filtered, markerIdx, plot_markerIdxs = filter_dlc(dlc, dlc_metadata, event_info)
+    dlc = [pos*params.factor_to_cm for pos in dlc]
 
-        # if params.events_list is not None:
-        #     dlc          = [dlc_element for idx, dlc_element in enumerate(dlc)          if idx+1 in params.events_list]    
-        #     dlc_metadata = [dlc_element for idx, dlc_element in enumerate(dlc_metadata) if idx+1 in params.events_list]    
-        #     event_info = event_info.loc[event_info['event'].isin(params.events_list), :]    
+    # if params.events_list is not None:
+    #     dlc          = [dlc_element for idx, dlc_element in enumerate(dlc)          if idx+1 in params.events_list]    
+    #     dlc_metadata = [dlc_element for idx, dlc_element in enumerate(dlc_metadata) if idx+1 in params.events_list]    
+    #     event_info = event_info.loc[event_info['event'].isin(params.events_list), :]    
 
+    if save_hdf:    
         evaluate_labeling_quality(dlc_filtered, dlc, dlc_metadata, event_info, 
                                   plotSet = None, 
                                   plotEvents = params.events_list)      
-        # evaluate_labeling_quality(dlc_filtered, dlc, dlc_metadata, event_info, 
-        #                           plotSet = None, 
-        #                           plotEvents = [4, 5, 7, 8, 10, 13, 16, 19, 22, 24, 26, 32, 33, 37, 39, 42, 47, 49, 53, 55, 56, 58, 60, 68, 71, 73, 74, 76])
-        #                         [4, 5, 7, 8, 10, 12, 13, 16, 19, 22, 24, 26, 32, 33, 37, 39, 42, 47, 49, 53, 55, 56, 58, 60, 68, 71, 73, 74, 76]                          
-        #                         [78, 79, 80, 82, 83, 85, 86, 88, 89, 92, 96,100, 102, 110, 111, 112, 113, 118, 121, 124, 125, 126, 127, 128]
-        #                         [131, 134, 138, 139, 140, 142, 145, 146, 148, 151, 154, 155, 156, 157, 161, 163, 165, 167, 172, 173, 175, 179, 180, 181, 184, 186, 189, 191]
+    # evaluate_labeling_quality(dlc_filtered, dlc, dlc_metadata, event_info, 
+    #                           plotSet = None, 
+    #                           plotEvents = [4, 5, 7, 8, 10, 13, 16, 19, 22, 24, 26, 32, 33, 37, 39, 42, 47, 49, 53, 55, 56, 58, 60, 68, 71, 73, 74, 76])
+    #                         [4, 5, 7, 8, 10, 12, 13, 16, 19, 22, 24, 26, 32, 33, 37, 39, 42, 47, 49, 53, 55, 56, 58, 60, 68, 71, 73, 74, 76]                          
+    #                         [78, 79, 80, 82, 83, 85, 86, 88, 89, 92, 96,100, 102, 110, 111, 112, 113, 118, 121, 124, 125, 126, 127, 128]
+    #                         [131, 134, 138, 139, 140, 142, 145, 146, 148, 151, 154, 155, 156, 157, 161, 163, 165, 167, 172, 173, 175, 179, 180, 181, 184, 186, 189, 191]
+
+    # plotEvents = [22, 37, 85, 88, 146, 160, 166, 171]
+    #%%    
+    reach_data = get_3d_reach_data(dlc_filtered, markerIdx, plot_markerIdxs, include_reaches_missing_start_or_stop = True, 
+                                      events = params.events_list, 
+                                      plot = True)  
     
-        # plotEvents = [22, 37, 85, 88, 146, 160, 166, 171]
-        #%%    
-        reach_data = get_3d_reach_data(dlc_filtered, markerIdx, plot_markerIdxs, include_reaches_missing_start_or_stop = True, 
-                                          events = params.events_list, 
-                                          plot = True)  
+    total_samples = 0
+    for reaches in reach_data:
+        for dur in reaches['durations']:
+            total_samples += (dur/params.fps - 0.5) / 0.03
+    # reach_data = get_3d_reach_data(dlc_filtered, markerIdx, include_reaches_missing_start_or_stop = True, 
+    #                                   events = [9], 
+    #                                   plot = True)  
+    # reach_data = get_3d_reach_data(dlc_filtered, markerIdx, include_reaches_missing_start_or_stop = True, 
+    #                                   events = [133, 134, 145, 146, 154, 155, 166, 167, 171, 172], 
+    #                                   plot = True)  
+    # reach_data = get_3d_reach_data(dlc_filtered, markerIdx, include_reaches_missing_start_or_stop = True, 
+    #                                   events = [4  , 5  , 7  , 8  , 10, 13 , 16 , 19 , 22, 26 , 32 , 33 , 39 , 42 , 47 , 
+    #                                             49 , 53 , 55 , 56, 58 , 60, 68 , 71 , 73 , 74, 76 , 78 , 79 , 80 , 83 , 86 , 
+    #                                             89 , 92 , 96 , 100, 102, 110, 111, 112, 113, 116, 118, 121, 124, 125, 126, 
+    #                                             127, 128, 131, 133, 134, 138, 139, 140, 142, 145, 148, 151, 154, 155, 156, 157, 160, 161, 163, 165, 
+    #                                             166, 167, 171, 172, 173, 175, 180, 181, 184, 186, 189, 190, 191], 
+    #                                   plot = False)  
+    # reach_data = get_3d_reach_data(dlc_filtered, markerIdx, include_reaches_missing_start_or_stop = True, 
+    #                                  events = [22, 60, 74, 116, 133, 138, 156, 157, 160, 163, 166, 171, 172, 181, 184, 186, 189, 190, 191], 
+    #                                  plot = True) 
+    
+    reach_data = add_trajectories_to_reach_data(dlc_filtered, reach_data, dlc_metadata, dlc)
+    
+    # add to reach_data = [24, 37, 85, 88, 146]
+    
+    
+    
+    # [4  , 5  , 7  , 8  , 10 , 13 , 16 , 19 , 26 , 32 , 33 , 39 , 42 , 47 , 49 , 53 , 55 , 56 ]
+    # [58 , 68 , 71 , 73 , 76 , 78 , 79 , 80 , 83 , 86 , 89 , 92 , 96 , 100, 102, 110, 111, 112] 
+    # [113, 118, 121, 124, 125, 126, 127, 128, 131, 134, 139, 140, 142, 145, 148, 151, 154, 155]
+    # [161, 165, 167, 172, 173, 175, 180, 184, 186, 189, 191]
+    # 
+    # events with no reach_start = [5, 13, 32, 111, 121, 125, 128, 161, 167, 172, 189] - SOLVED
+    # bad events [24, 37]
+    # events to look at later [89, 110, 113, 134, 142] - has nans, but pass tests and have identified reaches!
+    
+    # reach_data = load_dict_from_hdf5(dpath.reach_data_storage, top_level_list = True)
+    if save_data:
+        os.makedirs(dpath.base / dpath.date / 'pose-3d-post-processed', exist_ok=True)
+        for reach in reach_data:
+            orig_data, filename = [(data, fname) for event_num, fname, data in original_csv_data if event_num == reach['event']][0]
+            reach_markers = [mname.decode("utf-8") if type(mname) == bytes else mname for mname in reach['marker_names']]
+            for col in orig_data.columns:
+                split_col = col.split('_')
+                split_col = ['_'.join(split_col[:-1]), split_col[-1]]
+                if len(split_col) == 2 and split_col[1] in ['x', 'y', 'z'] and split_col[0] in reach_markers:
+                    dim_idx    = [idx for idx, ax in enumerate(['x', 'y', 'z']) if ax == split_col[1]][0]
+                    marker_idx = [idx for idx, mname in enumerate(reach_markers) if mname == split_col[0]][0] 
+                    orig_data.loc[:, col] = reach['position'][marker_idx, dim_idx]
+            
+            orig_data.to_hdf(dpath.base / dpath.date / 'pose-3d-post-processed' / f'{filename}.h5', 'position')
         
-        total_samples = 0
-        for reaches in reach_data:
-            for dur in reaches['durations']:
-                total_samples += (dur/params.fps - 0.5) / 0.03
-        # reach_data = get_3d_reach_data(dlc_filtered, markerIdx, include_reaches_missing_start_or_stop = True, 
-        #                                   events = [9], 
-        #                                   plot = True)  
-        # reach_data = get_3d_reach_data(dlc_filtered, markerIdx, include_reaches_missing_start_or_stop = True, 
-        #                                   events = [133, 134, 145, 146, 154, 155, 166, 167, 171, 172], 
-        #                                   plot = True)  
-        # reach_data = get_3d_reach_data(dlc_filtered, markerIdx, include_reaches_missing_start_or_stop = True, 
-        #                                   events = [4  , 5  , 7  , 8  , 10, 13 , 16 , 19 , 22, 26 , 32 , 33 , 39 , 42 , 47 , 
-        #                                             49 , 53 , 55 , 56, 58 , 60, 68 , 71 , 73 , 74, 76 , 78 , 79 , 80 , 83 , 86 , 
-        #                                             89 , 92 , 96 , 100, 102, 110, 111, 112, 113, 116, 118, 121, 124, 125, 126, 
-        #                                             127, 128, 131, 133, 134, 138, 139, 140, 142, 145, 148, 151, 154, 155, 156, 157, 160, 161, 163, 165, 
-        #                                             166, 167, 171, 172, 173, 175, 180, 181, 184, 186, 189, 190, 191], 
-        #                                   plot = False)  
-        # reach_data = get_3d_reach_data(dlc_filtered, markerIdx, include_reaches_missing_start_or_stop = True, 
-        #                                  events = [22, 60, 74, 116, 133, 138, 156, 157, 160, 163, 166, 171, 172, 181, 184, 186, 189, 190, 191], 
-        #                                  plot = True) 
-        
-        reach_data = add_trajectories_to_reach_data(dlc_filtered, reach_data, dlc_metadata, dlc)
-        
-        # add to reach_data = [24, 37, 85, 88, 146]
-        
-        
-        
-        # [4  , 5  , 7  , 8  , 10 , 13 , 16 , 19 , 26 , 32 , 33 , 39 , 42 , 47 , 49 , 53 , 55 , 56 ]
-        # [58 , 68 , 71 , 73 , 76 , 78 , 79 , 80 , 83 , 86 , 89 , 92 , 96 , 100, 102, 110, 111, 112] 
-        # [113, 118, 121, 124, 125, 126, 127, 128, 131, 134, 139, 140, 142, 145, 148, 151, 154, 155]
-        # [161, 165, 167, 172, 173, 175, 180, 184, 186, 189, 191]
-        # 
-        # events with no reach_start = [5, 13, 32, 111, 121, 125, 128, 161, 167, 172, 189] - SOLVED
-        # bad events [24, 37]
-        # events to look at later [89, 110, 113, 134, 142] - has nans, but pass tests and have identified reaches!
-        
-        save_dict_to_hdf5(reach_data, dpath.reach_data_storage, first_level_key='reaching_event_idx')
-        
-        # with open(dpath.reach_data_storage, 'wb') as fp:
-        #     dill.dump(reach_data, fp, recurse=True)
+        if save_hdf:
+            save_dict_to_hdf5(reach_data, dpath.reach_data_storage, first_level_key='reaching_event_idx')
+        elif save_pickle:
+            with open(dpath.reach_data_storage, 'wb') as fp:
+                dill.dump(reach_data, fp, recurse=True)

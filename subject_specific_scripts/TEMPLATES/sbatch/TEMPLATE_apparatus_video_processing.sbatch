@@ -43,7 +43,7 @@ neural_processing=/project/nicho/projects/marmosets/code_database/data_processin
 touchscreen_path=BLANK
 
 #------------Load the appropriate applications---------------------------------------#
-module load python/anaconda-2022.05 
+module load python/anaconda-2023.09 
 source activate /project/nicho/environments/dlc
 
 #---------------------Execute the programs-------------------------------------------#

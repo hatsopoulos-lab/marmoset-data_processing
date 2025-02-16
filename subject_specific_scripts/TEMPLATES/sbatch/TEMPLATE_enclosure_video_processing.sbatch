@@ -45,7 +45,7 @@ neural_processing=/project/nicho/projects/marmosets/code_database/data_processin
 touchscreen_path=BLANK
 
 #------------Load the appropriate applications---------------------------------------#
-module load python/anaconda-2022.05 
+module load python/anaconda-2023.09 
 source activate /project/nicho/environments/dlc
 
 #---------------------Execute the programs-------------------------------------------#
@@ -56,9 +56,11 @@ python $video_processing/jpg2avi.py -j $jpg_dir -v $vid_dir -m $marms -d $date \
 -e $exp2 -s ${sess[@]} -f $fps -cm ${cams[@]} -t ${vid_transpose[@]} -c $calib_name -cl $applyCLAHE
 
 source activate /beagle3/nicho/environments/nwb_and_neuroconv
+
 python $video_processing/process_analog_signals_for_episode_times.py \
 -v $vid_dir -ep $ephys_dir -m $marms -me $marms_ephys -d $date -e $exp1 -e2 $exp2 \
 -t $touchscreen -tp $touchscreen_path -np $neural_processing -meta $metadata_path \
 -prb $prb_path -ab $swap_ab -al $video_neural_session_alignment -f ${analog_signals_fps[@]}
 
-python $neural_processing/neural_dropout_first_pass.py -k $vid_dir -ep $ephys_dir -m $marms -me $marms_ephys -d $date -e $exp1 -e2 $exp2
+python $neural_processing/neural_dropout_first_pass.py -k $vid_dir -ep $ephys_dir -m $marms \
+-me $marms_ephys -d $date -e $exp1 -e2 $exp2
