@@ -314,12 +314,12 @@ if __name__ == '__main__':
 
     else:
         args = {'kin_dir' : '/project/nicho/data/marmosets/kinematics_videos',
-                'ephys_path' : '/project/nicho/data/marmosets/electrophys_data_for_processing/NO_NWB',
-                'date' : '2021_02_07',
-                'marms': 'TYJL',
+                'ephys_path' : '/project/nicho/data/marmosets/electrophys_data_for_processing',
+                'date' : '2025_01_25',
+                'marms': 'TYTR',
                 'marms_ephys': 'TY',
-                'exp_name':'temp',
-                'other_exp_name': 'inHammock'}
+                'exp_name':'baseline',
+                'other_exp_name': 'baselineFree'}
 
     binwin = 0.1
     dropout_method = 'spikes'    

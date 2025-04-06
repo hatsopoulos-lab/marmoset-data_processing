@@ -46,7 +46,7 @@ date_pattern           = re.compile('/[a-zA-Z]{2,4}\d{8}_')
 
 class params:
     
-    expDetector = 1
+    expDetector = 1 
     camSignal_voltRange = [2900, 3000]
     break_detector = .06 * 30000 
     analogChans = [129, 130, 131]
@@ -148,6 +148,9 @@ def clean_remaining_spurious_signals(eventTimes, allExp_signalTimes, allExp_fram
                                            for shift in range(abs(diff)+1)])
             shift = np.argmin(shifted_frameDiffs)
             removed_eventTimes.append(np.empty((2, 0)))
+            # ADDED: eventTimes[expNum] occasionally ends up being an empty list, which is not hstack compatible. make it 2d
+            if not eventTimes[expNum].size > 0:
+                eventTimes[expNum] = np.zeros((2, 0))
             eventTimes[expNum] = np.hstack((np.zeros((2, shift))*np.nan, 
                                           eventTimes[expNum], 
                                           np.zeros((2, len(fCounts.cam1) - len(nsxCount) - shift))*np.nan)) 
@@ -457,7 +460,7 @@ def get_analog_frame_counts_and_timestamps(eFold, nwbfiles, touchscreen = False,
                     expVoltage = 2
                 else:
                     signals = raw.data[:, analog_idx] * raw.channel_conversion[analog_idx] * raw.conversion                
-                    expVoltage = 2
+                    expVoltage = [1, 2, 2] # NOTE: edited because on signal for ain1 is just 1
                     
                 start = raw.starting_time
                 step = 1/raw.rate
@@ -465,8 +468,8 @@ def get_analog_frame_counts_and_timestamps(eFold, nwbfiles, touchscreen = False,
                 timestamps = np.arange(start, stop, step)
                 
                 # identify beginning and end of each event
-                for expChan in range(signals.shape[1]):
-                    expOpen_samples = np.where(signals[:, expChan] > expVoltage)[0]
+                for expChan in range(signals.shape[1]-1): # NOTE: edited to -1 because aIn3 is sleep and is irrelevant here. if you care about sleep, change this
+                    expOpen_samples = np.where(signals[:, expChan] > expVoltage[expChan])[0]
         
                     if expOpen_samples.shape[0] == 0:
                         allExp_signalTimes.append(np.array([]))
@@ -638,7 +641,7 @@ def convert_string_inputs_to_int_float_or_bool(orig_var):
 
 if __name__ == '__main__':
     
-    debugging = True
+    debugging = False
     
     if not debugging:
     
@@ -680,17 +683,17 @@ if __name__ == '__main__':
     else:
         args = {'vid_dir'          : '/project/nicho/data/marmosets/kinematics_videos',
                 'ephys_path'       : '/project/nicho/data/marmosets/electrophys_data_for_processing',
-                'marms'            : 'TYTY',
+                'marms'            : 'TYTR',
                 'marms_ephys'      : 'TY',
-                'date'             : '2025_01_10',
-                'exp_name'         : 'test',
-                'other_exp_name'   : 'testFree',
+                'date'             : '2025_02_06',
+                'exp_name'         : 'static',
+                'other_exp_name'   : 'staticFree',
                 'touchscreen'      : 'False',
                 'touchscreen_path' : 'BLANK',
                 'neur_proc_path'   : '/project/nicho/projects/marmosets/code_database/data_processing/neural',
                 'meta_path'        : '/project/nicho/data/marmosets/metadata_yml_files/TY_complete_metadata.yml',
                 'prb_path'         : '/project/nicho/data/marmosets/prbfiles/TY_02.prb',
-                'swap_ab'          : 'yes',
+                'swap_ab'          : 'no',
                 'vid_neural_align' : 'all_in_one_neural_recording',
                 'debugging'        : True,
                 'fps'              : [150, 30]}
@@ -773,7 +776,7 @@ if __name__ == '__main__':
                             approx_start_times.append(tmp_time.strftime('%H%M-%S'))
                             
                     5. Finally, use the approx_start_time variable to search for the beginning of each event 
-                       and use this info to adjust the fix_episode_numbers script accordingly. 
+                       and use this info to adjust the fix_episode_numbs script accordingly. 
             '''
                             
             allExp_signalTimes, eventTimes, breakTimes, session, numSessions, chans_per_sess = get_analog_frame_counts_and_timestamps(eFold, nwbfiles)

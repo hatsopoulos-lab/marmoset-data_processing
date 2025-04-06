@@ -523,14 +523,14 @@ if __name__ == '__main__':
         args = {'jpg_dir'        : '/scratch/midway3/snjohnso/kinematics_jpgs',
                 'vid_dir'        : '/project/nicho/data/marmosets/kinematics_videos',
                 'marms'          : 'TYTR',
-                'date'           : '2025_01_25',
-                'exp_name'       : 'baselineFree',
+                'date'           : '2025_02_05',
+                'exp_name'       : 'static',
                 'session_nums'   : [1],
                 'fps'            : 30,
-                'cams'           : [ 1,  2,  3,  4],
-                'video_transpose': [-1, -1, -1, -1],
+                'cams'           : [3,  4, 5],
+                'video_transpose': [-1, -1, -1],
                 'calib_name'     : 'calib',
-                'apply_clahe'    : 'True'}
+                'apply_clahe'    : 'False'}
     try:
         task_id   = int(os.getenv('SLURM_ARRAY_TASK_ID'))
         n_tasks   = int(os.getenv('SLURM_ARRAY_TASK_COUNT'))

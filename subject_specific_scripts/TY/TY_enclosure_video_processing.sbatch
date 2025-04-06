@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH --job-name=TY0125_free_video_proc_b3
-#SBATCH --output=/project/nicho/projects/marmosets/job_log_files/Sami0125_TY_free_b3_video_proc_%a.out
-#SBATCH --error=/project/nicho/projects/marmosets/job_log_files/Sami0125_TY_free_b3_video_proc_%a.err
+#SBATCH --job-name=TY0205_free_video_proc_b3
+#SBATCH --output=/project/nicho/projects/marmosets/job_log_files/Sami0205_TY_free_b3_video_proc_%a.out
+#SBATCH --error=/project/nicho/projects/marmosets/job_log_files/Sami0205_TY_free_b3_video_proc_%a.err
 #SBATCH --time=36:00:00
 #SBATCH --partition=beagle3
 #SBATCH --gres=gpu:1
@@ -13,13 +13,13 @@
 #SBATCH --mail-user=snjohnso@uchicago.edu
 
 #------------params that may change for each dataset/experiment----------------------#
-date=2025_01_25
-exp1=baseline
-exp2=baselineFree
+date=2025_02_05
+exp1=static
+exp2=staticFree
 sess=(1)
-video_neural_session_alignment=matched #(matched, all_in_one_neural_recording)
+video_neural_session_alignment=all_in_one_neural_recording #(matched, all_in_one_neural_recording)
 calib_name=calib
-applyCLAHE=True
+applyCLAHE=False # usually true 
 touchscreen=False
 scratch_space_username=snjohnso
 
@@ -34,10 +34,11 @@ analog_signals_fps=(150 $fps)
 marms_ephys=TY
 swap_ab=no 
 prb_path=/project/nicho/data/marmosets/prbfiles/TY_02.prb
-metadata_path=/project/nicho/data/marmosets/metadata_yml_files/TY_complete_metadata.yml
+metadata_path=/project/nicho/data/marmosets/metadata_yml_files/TY_complete_metadata_Sami.yml
 
 #-----------paths to input and output data, and to processing scripts----------------#
-jpg_dir=/scratch/midway3/$scratch_space_username/kinematics_jpgs
+#jpg_dir=/scratch/midway3/$scratch_space_username/kinematics_jpgs #switched for 2025_02_05 only
+jpg_dir=/cds3/nicho/data/marmosets/kinematics_backups
 vid_dir=/project/nicho/data/marmosets/kinematics_videos
 ephys_dir=/project/nicho/data/marmosets/electrophys_data_for_processing
 video_processing=/project/nicho/projects/marmosets/code_database/data_processing/kinematics/video_processing

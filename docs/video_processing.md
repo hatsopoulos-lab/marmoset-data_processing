@@ -7,10 +7,8 @@ How to process marmoset video data on midway3 computing cluster. See last sectio
 [TEMPLATE_apparatus_video_processing.sbatch](/subject_specific_scripts/TEMPLATES/sbatch/TEMPLATE_apparatus_video_processing.sbatch)<br>
 [TEMPLATE_enclosure_video_processing.sbatch](/subject_specific_scripts/TEMPLATES/sbatch/TEMPLATE_enclosure_video_processing.sbatch)<br>
 [TEMPLATE_sleep_video_processing.sbatch](/subject_specific_scripts/TEMPLATES/sbatch/TEMPLATE_sleep_video_processing.sbatch)<br>
-[check_for_episode_splits_and_adjust_image_filenames_preAVI.py](/kinematics/video_processing/check_for_episode_splits_and_adjust_image_filenames_preAVI.py)<br>
+[check_for_episode_splits_and_adjust_image_filenames.py](/kinematics/video_processing/check_for_episode_splits_and_adjust_image_filenames.py)<br>
 [jpg2avi.py](/kinematics/video_processing/jpg2avi.py)<br>
-[apply_clahe_filter_to_videos.py](/kinematics/video_processing/apply_clahe_filter_to_videos.py)<br>
-[recompress_filtered_avi.py](/kinematics/video_processing/recompress_filtered_avi.py)<br>
 [process_analog_signals_for_episode_times.py](/kinematics/video_processing/process_analog_signals_for_episode_times.py)<br> 
 [neural_dropout_first_pass.py](/neural/neural_dropout_first_pass.py)
 
@@ -29,7 +27,7 @@ How to process marmoset video data on midway3 computing cluster. See last sectio
 
 ### Prepare and run sbatch jobs
 1.	If this is the first time processing data for this marmoset, 
-[prepare metadata and prb files create  subject-specific job scripts.](/docs/prepare_for_new_subject.md)
+[prepare metadata and prb files, and create subject-specific job scripts.](/docs/prepare_for_new_subject.md)
 
 2.	Open files below in your text editor of choice:
 
@@ -56,11 +54,11 @@ How to process marmoset video data on midway3 computing cluster. See last sectio
         vi /path/to/job_log_files/JOB_LABEL_jobNum.err
         
 ### Check data after jobs end
-1.	Look through the video folders in `/DATA_DIR/kinematics_videos/EXP_NAME/MARM/YYYY_MM_DD`. 
-Start with `unfiltered_videos`, then `bright_uncompressed_avi_videos`, then `avi_videos`, 
-which contains the final output. The file count should be equal to N_cameras * N_video_events.
-Check that all videos have reasonable data sizes (shouldn't be 0 or 1 kB).
-2.	Check that the acquisition.nwb file was created correctly by exploring it with nwbwidget:
+1.	Look through the video files in `/DATA_DIR/kinematics_videos/EXP_NAME/MARM/YYYY_MM_DD/avi_videos`. The file count should be equal to N_cameras * N_video_events. Check that all videos have reasonable data sizes (shouldn't be 0 or 1 kB).
+
+2.	Check that the acquisition.nwb file was created correctly by editing and running [TEMPLATE_validate_nwb_files.py](/subject_specific_scripts/TEMPLATES/python/TEMPLATE_validate_nwb_files.py) in a Spyder instance. This script also provides a basic introduction to extracting the information within an NWB file.
+
+    Alternatively, you can explore it with nwbwidget:
 
 		sinteractive --partition=caslake --mem=64G --time=5:00:00 --account=pi-nicho
 		module load python/anaconda-2022.05
@@ -79,12 +77,10 @@ be two files located here, which can be opened in any python IDE (iPython, spyde
         	metadata = dill.load(f)
 
 ### Clean up intermediate files
-Once you are confident that the videos and NWB file have been created correctly, 
-delete the `unfiltered_videos` and `bright_uncompressed_avi_videos` folders.
 
-You will also need to delete the jpg files and archived folders from your scratch space. 
+Once you are certain the videos were created correctly, delete the jpg files and archived folders from your scratch space. 
 
-*If you are not completely sure the videos are completely converted, make sure you have 
+>If you are not completely sure the videos are completely converted, make sure you have 
 a backup of the jpg file archives elsewhere!*
 
 ## Troubleshooting Tips
@@ -104,12 +100,7 @@ and .err files. These problems are often typos, so look closely!
 of analog signals. Apparatus and enclosure video folders and files should be named differently 
 (e.g. moths and moths_free) during acquisition. If this is not the case, you will have to write 
 a python or bash script to rename the files.
-3.	You may occasionally observe the correct number of files in `unfiltered_videos` but 
-have missing files in the other video folders. This can happen if some of the job array tasks
-were delayed multiple hours by resource availability on the computing partition, particularly
-for the apparatus jobs with 20 tasks in the array. If you can't identify any other 
-obvious error, you can reduce the total jobs (maybe 1 to 5 total jobs), comment
-out the call to jpg2avi.py in the sbatch script, and rerun it.
+
 
 > Note: sometimes the final error will occur when creating the NWB file. However, this almost
 always means some information was lost in the preceding steps (video creation or analog signal
@@ -129,8 +120,12 @@ you may find it easiest to delete events after the corruption began.
     deleted the corrupted events at the end using the following command:
     
 			find /path/to/jpgs/ -type f -not -name *event_001* -delete
-            
-3.	Future users should add to this record as new problems are solved!
+
+3. If the solid state hard drives become fragmented, you will likely encounter sessions containing a large number (potentially >1000) of video events that are very short and don't match with analog signals. Correcting these events is difficult but not impossible. Follow the example at for JL20231123, illustrated by [fix_episode_numbers_foraging_20231123_session1.py](/subject_specific_scripts/JL/analog_signal_processing_day_specific_files/fix_episode_numbers_foraging_20231123_session1.py) along with the manual annotation shown by [annotation_of_corrected_camera_events_JL_20231123.jpg](/subject_specific_scripts/JL/analog_signal_processing_day_specific_files/annotation_of_corrected_camera_events_JL_20231123.jpg). The manual annotation shows when large ranges of camera events need to be merged into the corrected event (e.g. correct_eIdx=10) and when a few events in a row can be corrected just by adjusting jpg filenames (e.g. correct_eIdx=11-16. This session was particularly fragmented, so you can also look at other records in this file for simpler corrections and there are further instructions as text within the python files. To get started, copy [check_timestamps_to_select_correct_event_for_event_corrections.py](/subject_specific_scripts/JL/analog_signal_processing_day_specific_files/check_timestamps_to_select_correct_event_for_event_corrections.py) into your subject_specific_files directory, edit the appropriate details, place an original set of jpgs in the correct directory in your scratch space and run the code in Spyder to produce a set of dataframes that will help with inspection. The best thing to look at is to match up camera events that have the exact same start time as the corrected event idx (see the times in the manual annotation record provided above). Once you have the corrections figured out, copy one `fix_episode_numbers_DETAILS.py` files into your new location, make the appropriate edits, and run it.  
+
+>When this happens, you also need to de-fragment the hard drives. Do a factory reset on the drives. This will take multiple hours, and will wipe all the data, so make sure you have backed up all the data on the drive.
+           
+>Future users should add to this record as new problems are solved!
 
 
 

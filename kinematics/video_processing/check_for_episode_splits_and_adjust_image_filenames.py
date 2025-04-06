@@ -27,7 +27,7 @@ framenum_pattern   = re.compile('frame_\d{7}')
 
 def collect_episode_start_times_and_frame_counts(jpg_path, ncams): 
     lastEvents = []
-    for cam in range(1, ncams+1):
+    for cam in range(1, ncams+1): # TODO: THIS IS GOING TO BE AN ISSUE IF CAM1 IS NOT INCLUDED - switch to 3
 
         print(os.path.join(jpg_path, 'jpg_cam%d' % cam, '*'))
         jpg_file = sorted(glob.glob(os.path.join(jpg_path, 'jpg_cam%d' % cam, '*')))[-1]
@@ -37,7 +37,7 @@ def collect_episode_start_times_and_frame_counts(jpg_path, ncams):
     lastEvent = max(lastEvents)
     event_frame_nums = np.zeros((lastEvent, ncams))
     event_start_times = np.full_like(event_frame_nums, np.nan, dtype=object)
-    for cIdx, cam in enumerate(range(1, ncams+1)):
+    for cIdx, cam in enumerate(range(1, ncams+1)): # TODO: THIS IS GOING TO BE AN ISSUE IF CAM1 IS NOT INCLUDED - switch to 3
         for eIdx, eNum in enumerate(range(1, lastEvent+1)):
             print(cam, eNum)
             event=str(eNum).zfill(3)
@@ -45,6 +45,13 @@ def collect_episode_start_times_and_frame_counts(jpg_path, ncams):
             print('\n\n')
             print(os.path.join(cam_img_path, '*cam%d_event_%s*' % (cam, event)))
             print('\n\n')
+            
+            # FIX ONLY FOR 2025_02_05, not for any other date
+            if '2025_02_05' in jpg_path:
+                if cam==2: 
+                    cam=1 
+                    cam_img_path = os.path.join(jpg_path, 'jpg_cam%d' % cam)
+            
             event_image_files = sorted(glob.glob(os.path.join(cam_img_path, '*cam%d_event_%s*' % (cam, event))))
             event_frame_nums[eIdx, cIdx] = len(event_image_files)
             start_times = [re.findall(start_time_pattern, tmp_image_file)[0].split('.jpg')[0] for tmp_image_file in event_image_files]
@@ -59,6 +66,7 @@ def collect_episode_start_times_and_frame_counts(jpg_path, ncams):
                     jpg_file_new = jpg_file.replace('sleep_1', 'sleep_session_1')
                     os.rename(jpg_file, jpg_file_new)
                     jpg_file = jpg_file_new 
+                
     
     return event_frame_nums, event_start_times, lastEvent
 
@@ -148,7 +156,7 @@ def adjust_episodes_to_align_matches(event_frame_nums, event_start_times, lastEv
 def collect_timestamps_and_filenames(jpg_path, ncams, event_start_times):
     cam_timestamps = [0]*ncams
     cam_event_image_files = [0]*ncams
-    for cIdx, cam in enumerate(range(1, ncams+1)):
+    for cIdx, cam in enumerate(range(1, ncams+1)): # TODO: THIS IS GOING TO BE AN ISSUE IF CAM1 IS NOT INCLUDED - switch to 3
         cam_img_path = os.path.join(jpg_path, 'jpg_cam%d' % cam)
         
         adjusted_event_idxs = [idx for idx, val in enumerate(event_start_times[:, cIdx]) if type(val) == str] 
@@ -404,7 +412,7 @@ def find_and_correct_splits_in_all_episodes(jpg_dir,
 
 if __name__ == '__main__':
     
-    troubleshoot = False
+    troubleshoot = True
     
     if not troubleshoot:
     
@@ -436,13 +444,13 @@ if __name__ == '__main__':
             task_id = 0
     else:
         session_nums = [1]
-        args = {'date':'2025_01_25',
+        args = {'date':'2025_02_05',
                 'vid_dir':'/project/nicho/data/marmosets/kinematics_videos',
-                'exp_name': 'baseline',
+                'exp_name': 'static',
                 'marms': 'TYTR',
                 'fps':150,
                 'ncams':5,
-                'jpg_dir':'/scratch/midway3/snjohnso/kinematics_jpgs'}
+                'jpg_dir': '/cds3/nicho/data/marmosets/kinematics_backups'}#'/scratch/midway3/snjohnso/kinematics_jpgs'}
         task_id = 0
         
     data_path = os.path.join(args['vid_dir'], args['exp_name'], args['marms'], args['date'])

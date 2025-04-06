@@ -358,8 +358,11 @@ def timestamps_to_nwb(nwbfile_path, kin_folders, saveData):
                     pass
 
                 # create a TimeSeries and add it to the processing module 'episode_timestamps_EXPNAME'
-                sessPattern = re.compile('[0-9]{3}_acquisition')
-                sessNum = int(re.findall(sessPattern, nwbfile_path)[-1][:3])
+                try: # autoincrement in central
+                    sessPattern = re.compile('[0-9]{3}_acquisition')
+                    sessNum = int(re.findall(sessPattern, nwbfile_path)[-1][:3])
+                except: # not autoincrement in central
+                    sessNum = 1
                 for frame_times, event_info, exp_name, kfold in zip(saveData['frameTimes_byEvent'], saveData['event_info'], saveData['experiments'], kin_folders):
 
                     timestamps_module_name = 'video_event_timestamps_%s' % exp_name
@@ -403,7 +406,7 @@ def timestamps_to_nwb(nwbfile_path, kin_folders, saveData):
                                                       'drop_records')
 
                     for eventIdx, timestamps in enumerate(frame_times):
-                        if event_info.ephys_session[eventIdx] == sessNum:
+                        if event_info.ephys_session[eventIdx] == sessNum: # works when true
                             series_name = '%s_s_%d_e_%s_timestamps' % (event_info.exp_name[eventIdx],
                                                                        int(event_info.video_session[eventIdx]),
                                                                        str(int(event_info.episode_num[eventIdx])).zfill(3))
@@ -424,6 +427,8 @@ def timestamps_to_nwb(nwbfile_path, kin_folders, saveData):
                                                          stop_time                 = event_info.end_time[eventIdx],
                                                          video_session             = event_info.video_session[eventIdx],
                                                          analog_signals_cut_at_end = event_info.analog_signals_cut_at_end_of_session[eventIdx])
+                                    # getting error "exception: could not resolve dtype for VectorData 'video_session' when trying to write to nwb
+                                    # dtype for video_session set here^^ was int64. try str. nope. try int
 
                                 store_drop_records(timestamps,
                                                    dropframes_proc_mod,
