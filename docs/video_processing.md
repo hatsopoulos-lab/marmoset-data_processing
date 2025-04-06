@@ -2,7 +2,7 @@
 
 How to process marmoset video data on midway3 computing cluster. See last section for troubleshooting tips.
 
-### Code used in this guide
+## Code used in this guide
 
 [TEMPLATE_apparatus_video_processing.sbatch](/subject_specific_scripts/TEMPLATES/sbatch/TEMPLATE_apparatus_video_processing.sbatch)<br>
 [TEMPLATE_enclosure_video_processing.sbatch](/subject_specific_scripts/TEMPLATES/sbatch/TEMPLATE_enclosure_video_processing.sbatch)<br>
@@ -13,7 +13,7 @@ How to process marmoset video data on midway3 computing cluster. See last sectio
 [neural_dropout_first_pass.py](/neural/neural_dropout_first_pass.py)<br>
 [TEMPLATE_validate_nwb_files.py](/subject_specific_scripts/TEMPLATES/python/TEMPLATE_validate_nwb_files.py)
 
-### Check the data 
+## Check the data 
 1.	Access midway3 via ThinLinc or ssh
 2.	Check that jpg files are extracted to the correct locations in your scratch space:
 
@@ -26,7 +26,7 @@ How to process marmoset video data on midway3 computing cluster. See last sectio
     
     	/DATA_DIR/electrophys_data_for_processing/
 
-### Prepare and run sbatch jobs
+## Prepare and run sbatch jobs
 1.	If this is the first time processing data for this marmoset, 
 [prepare metadata and prb files, and create subject-specific job scripts.](/docs/prepare_for_new_subject.md)
 
@@ -54,7 +54,7 @@ How to process marmoset video data on midway3 computing cluster. See last sectio
         vi /path/to/job_log_files/JOB_LABEL_jobNum.out
         vi /path/to/job_log_files/JOB_LABEL_jobNum.err
         
-### Check data after jobs end
+## Check data after jobs end
 1.	Look through the video files in `/DATA_DIR/kinematics_videos/EXP_NAME/MARM/YYYY_MM_DD/avi_videos`. The file count should be equal to N_cameras * N_video_events. Check that all videos have reasonable data sizes (shouldn't be 0 or 1 kB).
 
 2.	Check that the acquisition.nwb file was created correctly by editing and running [TEMPLATE_validate_nwb_files.py](/subject_specific_scripts/TEMPLATES/python/TEMPLATE_validate_nwb_files.py) in a Spyder instance. This script also provides a basic introduction to extracting the information within an NWB file.
@@ -77,21 +77,21 @@ be two files located here, which can be opened in any python IDE (iPython, spyde
 		with open('/DATA_DIR/kinematics_videos/EXP_NAME/MARM/YYYY_MM_DD/metadata_from_kinematics_processing/YYYYMMDD_experiment_event_and_frame_time_info.pkl', 'rb') as f:
         	metadata = dill.load(f)
 
-### Clean up intermediate files
+## Clean up intermediate files
 
 Once you are certain the videos were created correctly, delete the jpg files and archived folders from your scratch space. 
 
 >If you are not completely sure the videos are completely converted, make sure you have 
 a backup of the jpg file archives elsewhere!*
 
-## Troubleshooting Tips
+# Troubleshooting Tips
 
 > The first step of troubleshooting: identify the code and line number at which the error occurred
 and inspect the code at that point. If the problem is addressed below, you'll need to understand 
 the error source before you can identify the solution! If you have discovered a new error, you will 
 have to investigate further and this is the best place to start.
 
-### Common/Simple Problems
+## Common/Simple Problems
 
 1.	The most common problems involve misnamed files or incorrect parameter choices. If 
 the jobs fail immediately (within a few minutes of starting), that probably indicates 
@@ -107,7 +107,7 @@ a python or bash script to rename the files.
 always means some information was lost in the preceding steps (video creation or analog signal
 processing). Look further up in the .err file to identify any errors from previous steps.
 
-### Additional Errors
+## Additional Errors
 1.	If a CPU bottleneck occurred during data acquisition, you may find that there are mismatched
 event counts and start times for the individual video events. If this is persistent throughout
 the entire session, the data may not be salvageable. Intermittent bottlenecks are fixed prior to 

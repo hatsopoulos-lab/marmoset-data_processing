@@ -10,7 +10,7 @@ How to run pose estimation using DLC and Anipose on midway3 computing cluster.
 
 You will want to use the most up-to-date model, which is located at `/project/nicho/projects/marmosets/dlc_project_files/full_marmoset_model-Dalton-2024-10-27`.
 
-### Move file to the correct locations
+## Move files to the correct locations
 
 If this is the first time working with this set of marmosets or experiment:
 
@@ -22,17 +22,17 @@ Copy recording session videos from cds3 to project
         cp -r /cds3/nicho/data/marmosets/kinematics_videos/EXP/MARMS/YYYY_MM_DD /project/nicho/data/marmosets/kinematics_videos/EXP/MARMS/
 
 
-### Start by identifying the video events that contain the studied behavior
+## Start by identifying the video events that contain the studied behavior
 
-This can be done most simply by visual inspection of the videos. Keep a record of this, preferably in a google sheet. You may want to add more information and refer to this in later steps. Move all video events without the studied behavior to a separate folder within the directory, something like `no_behavior_avi_videos`.
+This can be done most simply by visual inspection of the videos. Keep a record of this, preferably in a google sheet. You may want to add more information and refer to this in later steps. Move all video events without the studied behavior to a separate folder within the directory, something like `no_behavior_avi_videos`. This will save a lot of processing time and storage since you can ignore the videos without any useful information in all subsequent steps.
 
-### Prepare DLC for new video data and extract frames
+## Prepare DLC for new video data and extract frames
 
 >If you think the data is similar to data that is already represented in the training set, you can skip this step.
 
 Copy [TEMPLATE_extract_frames_for_dlc_labeling_or_refinement.py](/subject_specific_scripts/TEMPLATES/python/TEMPLATE_extract_frames_for_dlc_labeling_or_refinement.py) into your `subject_specific_files/MARM/` directory and use the existing dict entries to create a new entry for your subject. Start with ~5-10 frames from each camera, choosing a different video event for each camera. The start and stop fractions should be the fraction of the way thru the video that interesting behavior starts and ends. The more accurate you are with this, the more useful your labels will be. The "mode" entry should be set to "original". Now run this in an sinteractive job, either in the terminal or in spyder, to add videos to the dlc project and extract frames for labeling.
 
-### Label frames
+## Label frames
 
 >If you didn't extract any new frames or refined labels, skip this.
 
@@ -46,7 +46,7 @@ Follow the deeplabcut guide for initial labeling. Most of the steps are simplest
 > - If the landmark is easy to see, label it.
 > - If the landmark is difficult to label (for example, fully or partially occluded), you should skip it if you are confident that at least two other cameras will be able to see it well or if you don't need the data of that frame. You should label it if it's one of the two best views you have and you need the data in that posture.  
 
-### Train the network
+## Train the network
 
 >If you didn't label or refine frames, skip this step.
 
@@ -54,15 +54,15 @@ Copy and edit the parameters in [TEMPLATE_train_full_marmoset_dlc_model.sbatch](
 
 You can also edit parameters in `/project/nicho/projects/marmosets/dlc_project_files/full_marmoset_model-Dalton-2024-10-27/pytorch_config_template.yaml` (which has a copy at [pytorch_config_template.yaml](/project/nicho/projects/marmosets/code_database/data_processing/subject_specific_scripts/TEMPLATES/pytorch_config_template.yaml)), although this is not suggested. The `resize` param is critical, as it determines the "receptive field" for nodes in the CNN. Basically, a smaller image allows CNN nodes to see more of the image, while a larger image confines the nodes more locally. A 640x480 image works well for accurate labeling that generalizes well (and can distinguish right side from left side markers).
 
-### Analyze videos with Anipose
+## Analyze videos with Anipose
 
 Copy and edit [TEMPLATE_anipose_marmosets_job_submission.sbatch](/subject_specific_scripts/TEMPLATES/sbatch/TEMPLATE_anipose_marmosets_job_submission.sbatch). Then run as an sbatch job.
 
-### Inspect the videos
+## Inspect the videos
 
 Do a first-pass assessment of labeling quality by looking thru the videos in videos-2d-proj. If the videos are poorly labeled, you can use other video files to understand if this happened during triangulation or just do to poor coverage in the training set of the network. If triangulation is the problem, take a look at the calibration error (should be <10). You may have to inspect calibration images using [TEMPLATE_check_for_bad_calibration_images.py](/subject_specific_scripts/TEMPLATES/python/TEMPLATE_check_for_bad_calibration_images.py). If more labels are need, go back and label more frames from scratch, and re-train. Once the videos are looking good and have only occasional errors, move on.
 
-### Refine pose and create diagnostic videos
+## Refine pose and create diagnostic videos
 
 1. Use [TEMPLATE_refine_pose.py](/subject_specific_scripts/TEMPLATES/python/TEMPLATE_refine_pose.py) to do post-processing of pose, generate diagnostic plots, and refined pose files. *NOTE: this script could use some attention put towards simplifying and cleaning it up.*
 2. Use [TEMPLATE_make_3D_videos.sbatch](/subject_specific_scripts/TEMPLATES/sbatch/TEMPLATE_make_3D_videos.sbatch) to create projected videos from the refined pose. These videos vizualize the final, pose-processed pose data so you can decide whther it is good enough to be saved in the to `_processed.nwb` file for this dataset.
@@ -76,17 +76,17 @@ Do a first-pass assessment of labeling quality by looking thru the videos in vid
 
         rm -r videos-*
 
-### Refine labels
+## Refine labels
 
 Go back to *Prepare DLC for new video data and extract frames* and repeat. Try out doing this with mode='original' for a small subset and mode='outlier' for a subset and choose whichever option you find easiest.
 
-### Add data to processed NWB file
+## Add data to processed NWB file
 
 1. Do a final inspection of the data with [TEMPLATE_inspect_pose_before_storage_in_nwb.py](/subject_specific_scripts/TEMPLATES/python/TEMPLATE_inspect_pose_before_storage_in_nwb.py)]
 
 Use [TEMPLATE_pose_and_reach_data_to_nwb.py](/subject_specific_scripts/TEMPLATES/python/TEMPLATE_pose_and_reach_data_to_nwb.py) to add processed pose data to a new or existing `DATASET_DETAILS_processed.nwb` file. There are instructions for editing the necessary info and filepaths at the top of the file.
 
-### Validate processed NWB file
+## Validate processed NWB file
 
 Use [TEMPLATE_validate_nwb_files.py](/subject_specific_scripts/TEMPLATES/python/TEMPLATE_validate_nwb_files.py)
 
