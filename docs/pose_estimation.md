@@ -22,7 +22,7 @@ Copy recording session videos from cds3 to project
         cp -r /cds3/nicho/data/marmosets/kinematics_videos/EXP/MARMS/YYYY_MM_DD /project/nicho/data/marmosets/kinematics_videos/EXP/MARMS/
 
 
-### Start by identifying the video events that can contain the studied behavior
+### Start by identifying the video events that contain the studied behavior
 
 This can be done most simply by visual inspection of the videos. Keep a record of this, preferably in a google sheet. You may want to add more information and refer to this in later steps. Move all video events without the studied behavior to a separate folder within the directory, something like `no_behavior_avi_videos`.
 
@@ -80,7 +80,14 @@ Do a first-pass assessment of labeling quality by looking thru the videos in vid
 
 Go back to *Prepare DLC for new video data and extract frames* and repeat. Try out doing this with mode='original' for a small subset and mode='outlier' for a subset and choose whichever option you find easiest.
 
+### Add data to processed NWB file
 
+1. Do a final inspection of the data with [TEMPLATE_inspect_pose_before_storage_in_nwb.py](/subject_specific_scripts/TEMPLATES/python/TEMPLATE_inspect_pose_before_storage_in_nwb.py)]
 
+Use [TEMPLATE_pose_and_reach_data_to_nwb.py](/subject_specific_scripts/TEMPLATES/python/TEMPLATE_pose_and_reach_data_to_nwb.py) to add processed pose data to a new or existing `DATASET_DETAILS_processed.nwb` file. There are instructions for editing the necessary info and filepaths at the top of the file.
+
+### Validate processed NWB file
+
+Use [TEMPLATE_validate_nwb_files.py](/subject_specific_scripts/TEMPLATES/python/TEMPLATE_validate_nwb_files.py)
 
 

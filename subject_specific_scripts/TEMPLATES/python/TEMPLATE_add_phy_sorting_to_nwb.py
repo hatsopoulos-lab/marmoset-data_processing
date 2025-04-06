@@ -56,7 +56,7 @@ if dataset_id in ['TY20210211_freeAndMoths']:
     removed_chans = [29, 33, 49, 51, 66, 80]
 elif dataset_id in ['TY20210211_inHammock_night']:
     removed_chans = [33, 49]
-elif 'MG2023' in dataset_id:
+else:
     removed_chans = []    
 
 write_options = dict(write_as='units', 

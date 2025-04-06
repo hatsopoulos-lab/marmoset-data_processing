@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH --job-name=TY0129_anipose
-#SBATCH --output=/project/nicho/projects/marmosets/job_log_files/TY_20210129_anipose_%a.out
-#SBATCH --error=/project/nicho/projects/marmosets/job_log_files/TY_20210129_anipose_%a.err
+#SBATCH --job-name=TY0127_anipose
+#SBATCH --output=/project/nicho/projects/marmosets/job_log_files/TY_20210127_anipose_%a.out
+#SBATCH --error=/project/nicho/projects/marmosets/job_log_files/TY_20210127_anipose_%a.err
 #SBATCH --time=10:00:00
 #SBATCH --partition=beagle3
 #SBATCH --gres=gpu:1
@@ -13,7 +13,7 @@
 #---------------------------------------------Params that may change often----------------#
 experiment=foraging
 marms=TYJL
-dates=(2021_01_29)
+dates=(2021_01_27)
 train_frac=None
 snap_idx=-1
 dlc_iter=None
