@@ -1,19 +1,19 @@
 #!/bin/bash
-#SBATCH --job-name=TY0130_anipose
-#SBATCH --output=/project/nicho/projects/marmosets/job_log_files/TY_20210130_anipose_%a.out
-#SBATCH --error=/project/nicho/projects/marmosets/job_log_files/TY_20210130_anipose_%a.err
+#SBATCH --job-name=TY0129_anipose
+#SBATCH --output=/project/nicho/projects/marmosets/job_log_files/TY_20210129_anipose_%a.out
+#SBATCH --error=/project/nicho/projects/marmosets/job_log_files/TY_20210129_anipose_%a.err
 #SBATCH --time=10:00:00
 #SBATCH --partition=beagle3
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=16
-#SBATCH --array=0-2 #0
+#SBATCH --array=0-1 #0
 #SBATCH --mem=96G
 #SBATCH --account=pi-nicho
  
 #---------------------------------------------Params that may change often----------------#
 experiment=foraging
 marms=TYJL
-dates=(2021_01_30)
+dates=(2021_01_29)
 train_frac=None
 snap_idx=-1
 dlc_iter=None

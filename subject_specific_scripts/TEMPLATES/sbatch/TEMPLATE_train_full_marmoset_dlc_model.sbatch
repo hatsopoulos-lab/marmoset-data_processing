@@ -29,13 +29,9 @@ if [[ "$experiment" == *"free"* ]] || [[ "$experiment" == *"enclosure"* ]]; then
 else
     dlc_path=/project/nicho/projects/marmosets/dlc_project_files/full_marmoset_model-Dalton-2024-10-27
     template_path=/project/nicho/projects/marmosets/dlc_project_files/full_marmoset_model-Dalton-2024-10-27/pytorch_config_template.yaml 
-    #simple_marmoset_model-Dalton-2023-04-28
 fi
 
 #---------------------------------------------Load the appropriate applications-----------#
-#module load cudnn/11.2
-#module load python/anaconda-2023.09 
-#source activate /project/nicho/environments/dlc
 module load pytorch/1.10 
 source activate /beagle3/nicho/environments/dlc-pytorch
 

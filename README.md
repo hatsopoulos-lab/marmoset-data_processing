@@ -16,7 +16,7 @@ but the documentation is a work in progress.**
 ### [Initial processing of raw data](/docs/video_processing.md)
 Videos are produced from jpgs for both the goal-directed and free behavior experiments (aka apparatus and enclosure), then video frames are aligned to neural data using the analog signals stored in the .ns6 neural data file. An NWB file is generated containing raw neural data from the .ns6 file, unsorted threshold crossing timestamps from the .nev file, aligned video frame timestamps, and potential periods of neural dropout. The NWB file is stored in the electrophysiology data folder with the extension '_acquisition.nwb'.
 
-### [Computing pose with DLC+Anipose](/docs/dlc_and_anipose.md)
+### [Computing pose with DLC+Anipose](/docs/pose_estimation.md)
 1.	The most recent version of the desired DLC project can be applied immediately as described below, or updated with new labeled frames corresponding to fresh data.
 2.	DLC+Anipose is applied to video data to track movements of the marmoset in 2D pixel space, then triangulated to 3D coordinates.
 3.	Videos should be examined and the DLC network refined as necessary.

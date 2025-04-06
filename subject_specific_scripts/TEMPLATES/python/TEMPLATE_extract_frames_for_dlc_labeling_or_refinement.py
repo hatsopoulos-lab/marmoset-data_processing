@@ -30,7 +30,7 @@ def revert_and_copy_pose_filenames(pose_dir, vid_dir, scorer):
         df.columns = df.columns.set_levels([scorer], level=0)
         df.to_hdf(new_file, key="df_with_missing", mode="w")
 
-def extract_outlier_frames(video_path, dlc_config_path, extraction_dict):
+def extract_frames(video_path, dlc_config_path, extraction_dict):
     cam_pattern = re.compile('_cam[0-9]{1}')
     
     dlc_cfg=deeplabcut.auxiliaryfunctions.read_config(dlc_config_path)
@@ -174,7 +174,7 @@ if __name__ == '__main__':
                         'numframes'      :[    5,     3,     3,     3,     3,    5,    5,    5,     2,     3,     3,     3,     3,],
                         'cameras'        :[[2,4], [2,4], [2,4], [2,4], [2,4],[2,4],[2,4],[2,4], [2,4], [2,4], [2,4], [2,4], [2,4],],
                         'bodyparts'      :['l-wrist'],
-                        'dlc_iter'       :5,
+                        'dlc_iter'       :None,
                         'extract_algo'   :['kmeans', 'uniform'][0],
                         'mode'           :['original', 'outliers'][0],}
 
@@ -192,4 +192,4 @@ if __name__ == '__main__':
                                        args['vid_dir'],
                                        scorer)
     
-    extract_outlier_frames(args['vid_dir'], args['dlc_config_path'], extraction_dict)
+    extract_frames(args['vid_dir'], args['dlc_config_path'], extraction_dict)

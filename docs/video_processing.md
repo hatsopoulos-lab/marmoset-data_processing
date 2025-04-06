@@ -10,7 +10,8 @@ How to process marmoset video data on midway3 computing cluster. See last sectio
 [check_for_episode_splits_and_adjust_image_filenames.py](/kinematics/video_processing/check_for_episode_splits_and_adjust_image_filenames.py)<br>
 [jpg2avi.py](/kinematics/video_processing/jpg2avi.py)<br>
 [process_analog_signals_for_episode_times.py](/kinematics/video_processing/process_analog_signals_for_episode_times.py)<br> 
-[neural_dropout_first_pass.py](/neural/neural_dropout_first_pass.py)
+[neural_dropout_first_pass.py](/neural/neural_dropout_first_pass.py)<br>
+[TEMPLATE_validate_nwb_files.py](/subject_specific_scripts/TEMPLATES/python/TEMPLATE_validate_nwb_files.py)
 
 ### Check the data 
 1.	Access midway3 via ThinLinc or ssh
@@ -61,7 +62,7 @@ How to process marmoset video data on midway3 computing cluster. See last sectio
     Alternatively, you can explore it with nwbwidget:
 
 		sinteractive --partition=caslake --mem=64G --time=5:00:00 --account=pi-nicho
-		module load python/anaconda-2022.05
+		module load python/anaconda-2023.09
 		source activate /project/nicho/environments/spyder
 		cd /DATA_PROCESSING_DIR/nwb_tools
         jupyter notebook
@@ -121,7 +122,7 @@ you may find it easiest to delete events after the corruption began.
     
 			find /path/to/jpgs/ -type f -not -name *event_001* -delete
 
-3. If the solid state hard drives become fragmented, you will likely encounter sessions containing a large number (potentially >1000) of video events that are very short and don't match with analog signals. Correcting these events is difficult but not impossible. Follow the example at for JL20231123, illustrated by [fix_episode_numbers_foraging_20231123_session1.py](/subject_specific_scripts/JL/analog_signal_processing_day_specific_files/fix_episode_numbers_foraging_20231123_session1.py) along with the manual annotation shown by [annotation_of_corrected_camera_events_JL_20231123.jpg](/subject_specific_scripts/JL/analog_signal_processing_day_specific_files/annotation_of_corrected_camera_events_JL_20231123.jpg). The manual annotation shows when large ranges of camera events need to be merged into the corrected event (e.g. correct_eIdx=10) and when a few events in a row can be corrected just by adjusting jpg filenames (e.g. correct_eIdx=11-16. This session was particularly fragmented, so you can also look at other records in this file for simpler corrections and there are further instructions as text within the python files. To get started, copy [check_timestamps_to_select_correct_event_for_event_corrections.py](/subject_specific_scripts/JL/analog_signal_processing_day_specific_files/check_timestamps_to_select_correct_event_for_event_corrections.py) into your subject_specific_files directory, edit the appropriate details, place an original set of jpgs in the correct directory in your scratch space and run the code in Spyder to produce a set of dataframes that will help with inspection. The best thing to look at is to match up camera events that have the exact same start time as the corrected event idx (see the times in the manual annotation record provided above). Once you have the corrections figured out, copy one `fix_episode_numbers_DETAILS.py` files into your new location, make the appropriate edits, and run it.  
+3. If the solid state hard drives become fragmented, you will likely encounter sessions containing a large number (potentially >1000) of video events that are very short and don't match with analog signals. Correcting these events is difficult but not impossible. Follow the example at for JL20231123, illustrated by [fix_episode_numbers_foraging_20231123_session1.py](/subject_specific_scripts/JL/analog_signal_processing_day_specific_files/fix_episode_numbers_foraging_20231123_session1.py) along with the manual annotation shown by [annotation_of_corrected_camera_events_JL_20231123.jpg](/subject_specific_scripts/JL/analog_signal_processing_day_specific_files/annotation_of_corrected_camera_events_JL_20231123.jpg). The manual annotation shows when large ranges of camera events need to be merged into the corrected event (e.g. correct_eIdx=10) and when a few events in a row can be corrected just by adjusting jpg filenames (e.g. correct_eIdx=11-16. This session was particularly fragmented, so you can also look at other records for simpler corrections (see [TEMPLATE_fix_episode_numbers_manually.py](/subject_specific_scripts/TEMPLATES/python/TEMPLATE_fix_episode_numbers_manually.py)) and there are further instructions as text within the python files. To get started, copy [check_timestamps_to_select_correct_event_for_event_corrections.py](/subject_specific_scripts/JL/analog_signal_processing_day_specific_files/check_timestamps_to_select_correct_event_for_event_corrections.py) into your subject_specific_files directory, edit the appropriate details, place an original set of jpgs in the correct directory in your scratch space and run the code in Spyder to produce a set of dataframes that will help with inspection. The best thing to look at is to match up camera events that have the exact same start time as the corrected event idx (see the times in the manual annotation record provided above). Once you have the corrections figured out, copy one `fix_episode_numbers_DETAILS.py` files into your new location, make the appropriate edits, and run it.  
 
 >When this happens, you also need to de-fragment the hard drives. Do a factory reset on the drives. This will take multiple hours, and will wipe all the data, so make sure you have backed up all the data on the drive.
            

@@ -33,9 +33,7 @@ else
 fi
 
 #---------------------------------------------Load the appropriate applications-----------#
-#module load cudnn/11.2
-#module load python/anaconda-2023.09 
-#source activate /project/nicho/environments/dlc
+
 module load pytorch/1.10 
 source activate /beagle3/nicho/environments/dlc-pytorch
 

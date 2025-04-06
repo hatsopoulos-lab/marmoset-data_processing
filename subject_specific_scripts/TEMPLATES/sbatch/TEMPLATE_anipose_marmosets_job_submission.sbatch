@@ -20,7 +20,7 @@ dlc_iter=None
 extra_vars=(False True) # (only_3D label_videos)
 copy_up_to=None #pose-2d-viterbi_and_autoencoder #pose-2d-unfiltered #None
 
-ncams=5 # maybe change to 2 for unilateral marking
+ncams=5
 vid_transpose=(-1 -1 -1 -1 -1)  # number of arguments MUST match ncams 
 
 #---------------------------------------------Params unlikely to change-------------------#
@@ -35,9 +35,6 @@ fi
 anipose_path=/project/nicho/data/marmosets/kinematics_videos/$experiment/$marms #/$dates/$videotype
 
 #---------------------------------------------Load the appropriate applications-----------#
-#module load cudnn/11.2
-#module load python/anaconda-2023.09 
-#source activate /project/nicho/environments/dlc
 module load pytorch/1.10
 source activate /beagle3/nicho/environments/anipose-dlc-pytorch
 
