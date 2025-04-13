@@ -38,6 +38,11 @@ from hatlab_nwb_functions import create_nwb_copy_without_acquisition, load_dict_
         base_nwb_file_pattern = '/project/nicho/data/marmosets/electrophys_data_for_processing/TY20210211_freeAndMoths/TY20210211_freeAndMoths-003'
 ''' 
 
+# FIXME
+class pose_estimation_details:
+    source_software='DeepLabCut+Anipose',
+    source_software_version='3.0.0rc2'
+
 anipose_base = '/project/nicho/data/marmosets/kinematics_videos/moths/HMMG/'
 
 class dpath:
@@ -124,8 +129,8 @@ def filtered_kinematics_to_processing_module(event_data, meta, video_event_times
         labeled_videos=labeled_videos,
         dimensions=np.array([[1440, 1080], [1440, 1080]], dtype='uint16'),
         scorer=scorer,
-        source_software='DeepLabCut+Anipose',
-        source_software_version='2.2b8',
+        source_software=pose_estimation_details.source_software,
+        source_software_version=pose_estimation_details.source_software_version,
         nodes=event_data['marker_names'],
         #edges=np.array([[0, 1]], dtype='uint8'),
         # devices=[camera1, camera2],  # this is not yet supported

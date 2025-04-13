@@ -412,7 +412,7 @@ def find_and_correct_splits_in_all_episodes(jpg_dir,
 
 if __name__ == '__main__':
     
-    troubleshoot = True
+    troubleshoot = False
     
     if not troubleshoot:
     

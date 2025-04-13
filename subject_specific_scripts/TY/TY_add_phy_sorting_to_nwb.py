@@ -41,7 +41,7 @@ from hatlab_nwb_functions import create_nwb_copy_without_acquisition, create_nwb
 
 ####### TODO: arguments to change each time
 make_new_processed_file = True
-nwb_acquisition_file = Path('/project/nicho/data/marmosets/electrophys_data_for_processing/TYTR20250210_0830_staticAndStaticFree/TYTR20250210_0830_staticAndStaticFree001_acquisition.nwb')
+nwb_acquisition_file = Path('/project/nicho/data/marmosets/electrophys_data_for_processing/TYTR20250209_0830_staticAndStaticFree/TYTR20250209_0830_staticAndStaticFree_acquisition.nwb')
 ns6_file = nwb_acquisition_file.parent / nwb_acquisition_file.name.replace('_acquisition.nwb', '.ns6')
 phy_path = nwb_acquisition_file.parent / 'phy_IC' 
 ######

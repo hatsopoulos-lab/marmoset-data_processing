@@ -227,7 +227,7 @@ def compute_pose_with_anipose(anipose_args):
         
         subprocess.call(['anipose', 'filter'])
         
-        # TODO test moving this to different points in process, adjust pipeline labels as needed
+        # TODO test moving this to different points in process, adjust pipeline labels as needed. NOTE FROM DALTON: This didn't seem to make much of a difference, can likely be removed entirely.
         ################
         insert_labels(date_dir, task_path, 'pose-2d-viterbi_and_autoencoder', 'pose-2d-labels-inserted', anipose_args)
         edit_anipose_params(task_ani_cfg_data, task_ani_config, 

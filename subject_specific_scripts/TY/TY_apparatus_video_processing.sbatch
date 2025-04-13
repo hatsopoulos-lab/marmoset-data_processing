@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH --job-name=TY0205_app_video_proc_b3
-#SBATCH --output=/project/nicho/projects/marmosets/job_log_files/Sami0205_TY_app_b3_video_proc_%a.out
-#SBATCH --error=/project/nicho/projects/marmosets/job_log_files/Sami0205_TY_app_b3_video_proc_%a.err
+#SBATCH --job-name=TY0219_app_video_proc_b3
+#SBATCH --output=/project/nicho/projects/marmosets/job_log_files/Sami0219_TY_app_b3_video_proc_%a.out
+#SBATCH --error=/project/nicho/projects/marmosets/job_log_files/Sami0219_TY_app_b3_video_proc_%a.err
 #SBATCH --time=12:00:00
 #SBATCH --partition=beagle3
 #SBATCH --gres=gpu:1
@@ -13,12 +13,12 @@
 #SBATCH --mail-user=snjohnso@uchicago.edu
 
 #------------params that may change for each dataset/experiment---------------#
-date=2025_02_05
-exp1=static
-exp2=staticFree
+date=2025_02_19
+exp1=dynamic
+exp2=dynamicFree
 sess=(1)
 calib_name=calib
-applyCLAHE=False # usually True
+applyCLAHE=True # usually True
 touchscreen=False
 scratch_space_username=snjohnso
 
@@ -35,8 +35,8 @@ cams=(1 2 3 4 5) # SWITCH BACK usually (1 2 3 4 5)
 vid_transpose=(-1 -1 -1 -1 -1) #(-1 -1) #(-1 -1 -1 -1 -1)  # number of arguments MUST match ncams # SWITCH BACK
 
 #-----------paths to input and output data, and to processing scripts----------------#
-#jpg_dir=/scratch/midway3/$scratch_space_username/kinematics_jpgs # for 2025_02_05 only - CLAHE OFF
-jpg_dir=/cds3/nicho/data/marmosets/kinematics_backups
+jpg_dir=/scratch/midway3/$scratch_space_username/kinematics_jpgs 
+#jpg_dir=/cds3/nicho/data/marmosets/kinematics_backups
 vid_dir=/project/nicho/data/marmosets/kinematics_videos
 ephys_dir=/project/nicho/data/marmosets/electrophys_data_for_processing
 video_processing=/project/nicho/projects/marmosets/code_database/data_processing/kinematics/video_processing

@@ -7,27 +7,36 @@ Created on Thu Dec 14 12:08:57 2023
 """
 
 from pynwb import NWBHDF5IO
-from nwbwidgets import nwb2widget
 import ndx_pose
 import numpy as np
 import pandas as pd
 import cv2
 import re
 import matplotlib.pyplot as plt
+import seaborn as sns
 from importlib import sys, reload
 from pathlib import Path
 sys.path.insert(0, '/project/nicho/projects/marmosets/code_database/data_processing/nwb_tools/hatlab_nwb_tools/')
 from hatlab_nwb_functions import read_prb_hatlab, plot_prb
 
+custom_params = {"axes.spines.right": False, "axes.spines.top": False}
+sns.set_theme(context='notebook', style="ticks", palette='Dark2', rc=custom_params)
+dark2 = sns.color_palette("Dark2")
+
 validate_acquisition=True
-validate_processed=False
+validate_processed=True
 marmscode = 'TYJL'
-nwb_acquisition_file = '/project/nicho/data/marmosets/electrophys_data_for_processing/TY20210211_inHammock_night/TY20210211_inHammock_night-002_acquisition.nwb'
-nwb_processed_file = '/project/nicho/data/marmosets/electrophys_data_for_processing/TY20210211_inHammock_night/TY20210211_inHammock_night-002_processed.nwb'
+nwb_acquisition_file = '/project/nicho/data/marmosets/electrophys_data_for_processing/EXAMPLE_TY20210211_freeAndMoths/TY20210211_freeAndMoths-003_acquisition.nwb'
+nwb_processed_file = '/project/nicho/data/marmosets/electrophys_data_for_processing/EXAMPLE_TY20210211_freeAndMoths/TY20210211_freeAndMoths-003_processed_resorted_20230612.nwb'
 
 kinematics_video_path = Path('/project/nicho/data/marmosets/kinematics_videos/')
+videos_dir = 'EXAMPLE_all_avi_videos' # FIXME should be 'avi_videos' when running this the first time to check acquisition
 
 date_pattern = re.compile('[0-9]{8}_')
+
+class params:
+    markers = ['hand', 'shoulder'] #FIXME should ['l-wrist', 'l-d2-mcp', 'l-d5-mcp', 'l-d2-dip', 'l-d5-dip', 'l-elbow', 'l-shoulder'] for full_marmoset_model (or change l to r for right side)
+    error_marker = 'hand' # FIXME should be 'l-wrist'
 
 def validate_acquisition_nwb(nwb):
     print(nwb)
@@ -73,7 +82,7 @@ def validate_acquisition_nwb(nwb):
     date = f'{date[:4]}_{date[4:6]}_{date[6:]}'
     timestamps_keys = [key for key in nwb.processing.keys() if 'timestamps' in key]
     for tKey in timestamps_keys:
-        experiment_video_path = list(kinematics_video_path.glob(f'*{tKey.split("timestamps_")[-1]}'))[0] / marmscode / date / 'avi_videos'
+        experiment_video_path = list(kinematics_video_path.glob(f'*{tKey.split("timestamps_")[-1]}'))[0] / marmscode / date / videos_dir
         print(f'\nThere are {len(nwb.processing[tKey].data_interfaces)} events stored in processing-->{tKey}')
         iKey = [key for key in nwb.intervals.keys() if key.split('video_events_')[-1] == tKey.split('video_event_timestamps_')[-1]][0] 
         for idx, (key, values) in enumerate(nwb.processing[tKey].data_interfaces.items()):
@@ -176,10 +185,69 @@ def plot_spiketimes_to_check_timing_and_unit_to_signal_alignment(nwb, nwb_acq, n
             unit_num+=1
             continue
 
-def validate_processed_file(nwb, nwb_acq):
 
-    plot_spiketimes_to_check_timing_and_unit_to_signal_alignment(nwb, nwb_acq)    
+def plot_marker_kinematics_xyz(
+        reaches_df, 
+        event_data, 
+        markers = ['l-wrist', 'l-d2-mcp', 'l-d5-mcp', 'l-d2-dip', 'l-d5-dip', 'l-elbow', 'l-shoulder'], 
+        error_marker = 'l-wrist',
+        mode='event',
+    ):
+        
+    fig, axs = plt.subplots(4, 1, figsize=(11,9), sharex=True)
     
+    if mode=='event':
+        time_slice = slice(0,event_data.pose_estimation_series[markers[0]].timestamps.size)
+        title = f'Event {event_data.name}'
+    elif mode=='reach':
+        time_slice = slice(reaches_df.start_idx, reaches_df.stop_idx)
+        title = f'Reach {reaches_df.name} (Event {event_data.name})'    
+        
+    timestamps = event_data.pose_estimation_series[markers[0]].timestamps[time_slice]  
+    reproj_error    = event_data.pose_estimation_series[error_marker].confidence[time_slice]
+    for dim, dimLabel in enumerate(['x', 'y', 'z']):
+        if mode == 'event':
+            for ridx, reach in reaches_df.iterrows():
+                axs[dim].axvspan(reach.start_time, reach.stop_time, color='k', alpha=0.25)
+        
+        for mlabel in markers:
+            marker_kinematics = event_data.pose_estimation_series[mlabel].data[time_slice]
+            axs[dim].plot(timestamps, marker_kinematics[:, dim], label=mlabel)
+        axs[dim].set_ylabel(f'{dimLabel} (cm)')
+    
+    axs[3].plot(timestamps, reproj_error, '.')
+    axs[3].set_ylabel(f'{error_marker} Reprojection Error')
+    axs[3].set_xlabel('Time (sec)')
+    
+    axs[0].legend(loc='center left', bbox_to_anchor=(1, 0.5))
+    fig.suptitle(title)
+
+
+def plot_kinematics_for_inspection(
+        nwb_prc, 
+        markers = ['l-wrist', 'l-d2-mcp', 'l-d5-mcp', 'l-d2-dip', 'l-d5-dip', 'l-elbow', 'l-shoulder'],
+        error_marker = 'l-wrist',
+    ):
+    
+    reaches_key = [key for key in nwb_prc.intervals.keys() if 'reaching_segments' in key][0]
+    reaches = nwb_prc.intervals[reaches_key].to_dataframe()
+    
+    for video_event in reaches['video_event'].unique():
+        event_reaches_df = reaches.loc[reaches["video_event"] == video_event, :]
+        event_data = nwb_prc.processing[event_reaches_df.kinematics_module.values[0]].data_interfaces[video_event]
+        
+        plot_marker_kinematics_xyz(event_reaches_df, event_data, markers, error_marker, mode='event')
+        
+        for ridx, reach in event_reaches_df.iterrows():
+            plot_marker_kinematics_xyz(reach, event_data, markers, error_marker, mode='reach')
+
+
+def validate_processed_file(nwb_prc, nwb_acq, plot_spikes=True, plot_kinematics=True):
+
+    if plot_spikes:    
+        plot_spiketimes_to_check_timing_and_unit_to_signal_alignment(nwb_prc, nwb_acq)    
+    if plot_kinematics:
+        plot_kinematics_for_inspection(nwb_prc, params.markers, params.error_marker)
     
 with NWBHDF5IO(nwb_acquisition_file, mode='r') as io_acq:
     nwb_acq = io_acq.read()
@@ -191,4 +259,4 @@ with NWBHDF5IO(nwb_acquisition_file, mode='r') as io_acq:
         with NWBHDF5IO(nwb_processed_file, mode='r') as io_prc:
             nwb_prc = io_prc.read()
             
-            validate_processed_file(nwb_prc, nwb_acq)
+            validate_processed_file(nwb_prc, nwb_acq, plot_spikes=True, plot_kinematics=True)
