@@ -29,5 +29,12 @@ Videos are produced from jpgs for both the goal-directed and free behavior exper
 
 ### Now you are ready to access and analyze the data!
 
+### To edit the docs while working on the Midway3 cluster
+```
+source activate /beagle3/nicho/environments/retext_markdown/
+retext
+
+```
+
 # Important! See [Package Management and TO-DOs](/docs/package_management_and_to_dos.md)
 This provides information to consider when upgrading key packages, as well as information on some remaining to do items. 
